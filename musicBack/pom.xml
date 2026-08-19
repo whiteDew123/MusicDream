@@ -27,6 +27,7 @@
         <module>Mod_upload</module>
         <module>Mod_songList</module>
         <module>Mod_like</module>
+        <module>Mod_recommend</module>
     </modules>
 
     <properties>
@@ -79,7 +80,7 @@
             <!--mybatis plus starter-->
             <dependency>
                 <groupId>com.baomidou</groupId>
-                <artifactId>mybatis-plus-boot-starter</artifactId>
+                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
             </dependency>
             <!--jwt-->
