@@ -1,3 +1,8 @@
+# 项目说明文档
+悦享-王霖组-详细设计报告.md
+Music Dreamer悦享音乐系统概要设计文档.md
+agent.md
+
 ### Java / Maven ###
 target/
 !.mvn/wrapper/maven-wrapper.jar
