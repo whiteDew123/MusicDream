@@ -1,0 +1,344 @@
+package com.itheima.recommend.service.impl;
+
+import com.alibaba.fastjson2.JSON;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.itheima.domain.entity.Music;
+import com.itheima.domain.entity.Mylike;
+import com.itheima.domain.entity.User;
+import com.itheima.recommend.mapper.MusicMapper;
+import com.itheima.recommend.mapper.MylikeMapper;
+import com.itheima.recommend.mapper.UserMapper;
+import com.itheima.recommend.service.RecommendService;
+import com.itheima.recommend.vo.ArtistDetailVO;
+import com.itheima.recommend.vo.ArtistVO;
+import com.itheima.recommend.vo.MusicVO;
+import com.itheima.recommend.vo.SongDetailVO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import java.time.Duration;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ * 歌曲推荐搜索模块业务实现
+ *
+ * <p>使用 MyBatis Plus 条件构造器进行查询，使用 Redis 缓存热点数据。</p>
+ */
+@Service
+@RequiredArgsConstructor
+public class RecommendServiceImpl implements RecommendService {
+
+    private static final Duration CACHE_TTL = Duration.ofMinutes(30);
+
+    private final MusicMapper musicMapper;
+    private final UserMapper userMapper;
+    private final MylikeMapper mylikeMapper;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    @Override
+    public List<MusicVO> recommendSongs(Integer userId, Integer limit) {
+        int size = normalizeLimit(limit);
+        String cacheKey = "recommend:songs:" + safe(userId) + ":" + size;
+
+        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return JSON.parseArray(cached, MusicVO.class);
+        }
+
+        List<Music> result;
+        if (userId != null) {
+            result = recommendByUserLikes(userId, size);
+        } else {
+            result = topSongs(size);
+        }
+
+        List<MusicVO> voList = result.stream()
+                .map(this::toMusicVO)
+                .collect(Collectors.toList());
+
+        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(voList), CACHE_TTL);
+        return voList;
+    }
+
+    @Override
+    public List<MusicVO> rankSongs(Integer limit) {
+        int size = normalizeLimit(limit);
+        String cacheKey = "music:rank:" + size;
+
+        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return JSON.parseArray(cached, MusicVO.class);
+        }
+
+        List<Music> songs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getActivation, 0)
+                .orderByDesc(Music::getListenNumb)
+                .last("LIMIT " + size));
+
+        List<MusicVO> voList = songs.stream()
+                .map(this::toMusicVO)
+                .collect(Collectors.toList());
+
+        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(voList), CACHE_TTL);
+        return voList;
+    }
+
+    @Override
+    public List<MusicVO> searchSongs(String keyword, Integer page, Integer size) {
+        int current = page == null || page < 1 ? 1 : page;
+        int pageSize = normalizeLimit(size);
+        String safeKeyword = keyword == null ? "" : keyword.trim();
+
+        String cacheKey = "music:search:" + safeKeyword + ":" + current + ":" + pageSize;
+        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return JSON.parseArray(cached, MusicVO.class);
+        }
+
+        LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
+                .eq(Music::getActivation, 0)
+                .orderByDesc(Music::getListenNumb);
+
+        if (StringUtils.hasText(safeKeyword)) {
+            wrapper.and(w -> w
+                    .like(Music::getMusicName, safeKeyword)
+                    .or()
+                    .like(Music::getTags, safeKeyword));
+        }
+
+        wrapper.last("LIMIT " + (current - 1) * pageSize + ", " + pageSize);
+
+        List<MusicVO> voList = musicMapper.selectList(wrapper).stream()
+                .map(this::toMusicVO)
+                .collect(Collectors.toList());
+
+        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(voList), CACHE_TTL);
+        return voList;
+    }
+
+    @Override
+    public SongDetailVO songDetail(Integer musicId) {
+        if (musicId == null) {
+            return null;
+        }
+        String cacheKey = "music:detail:" + musicId;
+        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return JSON.parseObject(cached, SongDetailVO.class);
+        }
+
+        Music music = musicMapper.selectById(musicId);
+        if (music == null) {
+            return null;
+        }
+
+        SongDetailVO vo = new SongDetailVO();
+        vo.setMusicId(music.getMusicId());
+        vo.setFromSinger(music.getFromSinger());
+        vo.setMusicName(music.getMusicName());
+        vo.setMusicUrl(music.getMusicUrl());
+        vo.setActivation(music.getActivation());
+        vo.setListenNumb(music.getListenNumb());
+        vo.setImageUrl(music.getImageUrl());
+        vo.setTimelength(music.getTimelength());
+        vo.setCreateTime(music.getCreateTime());
+        vo.setTags(music.getTags());
+        vo.setLyric(music.getLyric());
+
+        User singer = music.getFromSinger() == null ? null : userMapper.selectById(music.getFromSinger());
+        if (singer != null) {
+            vo.setSingerName(singer.getUsername());
+            vo.setSingerImageUrl(singer.getImageUrl());
+            vo.setSingerAbout(singer.getAbout());
+        }
+
+        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(vo), CACHE_TTL);
+        return vo;
+    }
+
+    @Override
+    public List<ArtistVO> recommendArtists(Integer limit) {
+        int size = normalizeLimit(limit);
+        String cacheKey = "recommend:artists:" + size;
+
+        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return JSON.parseArray(cached, ArtistVO.class);
+        }
+
+        List<User> singers = userMapper.selectList(new LambdaQueryWrapper<User>()
+                .eq(User::getRole, 1)
+                .eq(User::getActivation, 0));
+
+        List<ArtistVO> result = singers.stream()
+                .map(singer -> {
+                    ArtistVO vo = new ArtistVO();
+                    vo.setId(singer.getId());
+                    vo.setUsername(singer.getUsername());
+                    vo.setImageUrl(singer.getImageUrl());
+                    vo.setAbout(singer.getAbout());
+
+                    List<Music> songs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                            .eq(Music::getFromSinger, singer.getId())
+                            .eq(Music::getActivation, 0));
+                    vo.setSongCount(songs.size());
+                    vo.setTotalListen(songs.stream()
+                            .map(Music::getListenNumb)
+                            .filter(Objects::nonNull)
+                            .mapToInt(Integer::intValue)
+                            .sum());
+                    return vo;
+                })
+                .sorted((a, b) -> Integer.compare(
+                        b.getTotalListen() == null ? 0 : b.getTotalListen(),
+                        a.getTotalListen() == null ? 0 : a.getTotalListen()))
+                .limit(size)
+                .collect(Collectors.toList());
+
+        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(result), CACHE_TTL);
+        return result;
+    }
+
+    @Override
+    public ArtistDetailVO artistDetail(Integer artistId) {
+        if (artistId == null) {
+            return null;
+        }
+        String cacheKey = "artist:detail:" + artistId;
+        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return JSON.parseObject(cached, ArtistDetailVO.class);
+        }
+
+        User singer = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getId, artistId)
+                .eq(User::getRole, 1));
+        if (singer == null) {
+            return null;
+        }
+
+        List<Music> songs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, artistId)
+                .eq(Music::getActivation, 0)
+                .orderByDesc(Music::getListenNumb));
+
+        ArtistDetailVO vo = new ArtistDetailVO();
+        vo.setId(singer.getId());
+        vo.setUsername(singer.getUsername());
+        vo.setImageUrl(singer.getImageUrl());
+        vo.setAbout(singer.getAbout());
+        vo.setSongCount(songs.size());
+        vo.setTotalListen(songs.stream()
+                .map(Music::getListenNumb)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum());
+        vo.setSongs(songs.stream().map(this::toMusicVO).collect(Collectors.toList()));
+
+        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(vo), CACHE_TTL);
+        return vo;
+    }
+
+    /**
+     * 基于用户收藏歌曲的标签进行简单推荐；无收藏时返回热门歌曲。
+     */
+    private List<Music> recommendByUserLikes(Integer userId, int size) {
+        List<Mylike> likes = mylikeMapper.selectList(new LambdaQueryWrapper<Mylike>()
+                .eq(Mylike::getUser, userId));
+        if (likes.isEmpty()) {
+            return topSongs(size);
+        }
+
+        List<Integer> likedMusicIds = likes.stream()
+                .map(Mylike::getMusic)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        if (likedMusicIds.isEmpty()) {
+            return topSongs(size);
+        }
+
+        List<Music> likedSongs = musicMapper.selectBatchIds(likedMusicIds);
+        Set<String> tags = new LinkedHashSet<>();
+        for (Music song : likedSongs) {
+            if (StringUtils.hasText(song.getTags())) {
+                for (String tag : song.getTags().split(",")) {
+                    String t = tag.trim();
+                    if (StringUtils.hasText(t)) {
+                        tags.add(t);
+                    }
+                }
+            }
+        }
+
+        if (tags.isEmpty()) {
+            return musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                    .eq(Music::getActivation, 0)
+                    .notIn(!likedMusicIds.isEmpty(), Music::getMusicId, likedMusicIds)
+                    .orderByDesc(Music::getListenNumb)
+                    .last("LIMIT " + size));
+        }
+
+        // 使用 MyBatis Plus 条件构造器拼接标签 OR 条件
+        LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
+                .eq(Music::getActivation, 0)
+                .notIn(!likedMusicIds.isEmpty(), Music::getMusicId, likedMusicIds);
+        wrapper.and(w -> {
+            boolean first = true;
+            for (String tag : tags) {
+                if (first) {
+                    w.like(Music::getTags, tag);
+                    first = false;
+                } else {
+                    w.or().like(Music::getTags, tag);
+                }
+            }
+        });
+        wrapper.orderByDesc(Music::getListenNumb).last("LIMIT " + size);
+        return musicMapper.selectList(wrapper);
+    }
+
+    private List<Music> topSongs(int size) {
+        return musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getActivation, 0)
+                .orderByDesc(Music::getListenNumb)
+                .last("LIMIT " + size));
+    }
+
+    private MusicVO toMusicVO(Music music) {
+        MusicVO vo = new MusicVO();
+        vo.setMusicId(music.getMusicId());
+        vo.setFromSinger(music.getFromSinger());
+        vo.setMusicName(music.getMusicName());
+        vo.setMusicUrl(music.getMusicUrl());
+        vo.setActivation(music.getActivation());
+        vo.setListenNumb(music.getListenNumb());
+        vo.setImageUrl(music.getImageUrl());
+        vo.setTimelength(music.getTimelength());
+        vo.setCreateTime(music.getCreateTime());
+        vo.setTags(music.getTags());
+        vo.setLyric(music.getLyric());
+
+        User singer = music.getFromSinger() == null ? null : userMapper.selectById(music.getFromSinger());
+        if (singer != null) {
+            vo.setSingerName(singer.getUsername());
+        }
+        return vo;
+    }
+
+    private int normalizeLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return 10;
+        }
+        return Math.min(limit, 100);
+    }
+
+    private String safe(Integer value) {
+        return value == null ? "default" : String.valueOf(value);
+    }
+}
