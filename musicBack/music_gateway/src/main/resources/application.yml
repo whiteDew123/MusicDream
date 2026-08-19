@@ -10,7 +10,7 @@ spring:
         server-addr: localhost:8848
         namespace: public
         username: nacos
-        password: LKEHsqt79qel
+        password: nacos
     gateway:
       # 路由规则：路径前缀 → 对应微服务
       routes:
