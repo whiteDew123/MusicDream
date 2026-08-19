@@ -1,0 +1,65 @@
+server:
+  port: 8001
+
+spring:
+  application:
+    # 服务名必须与网关路由 lb://mod-login 一致
+    name: mod-login
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: public
+        username: nacos
+        password: LKEHsqt79qel
+  # MySQL 数据源（Druid）
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/musicdreamer?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    type: com.alibaba.druid.pool.DruidDataSource
+  # Redis（缓存邮箱验证码、登录态）
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 5s
+  # 时区统一，避免 LocalDate 反序列化问题
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+
+# MyBatis Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+# JWT 配置（必须与网关 music_gateway 中的 jwt.secret 保持一致）
+jwt:
+  # 至少 32 字节
+  secret: MusicDreamerSecretKey2024ForJwtTokenSigning!!
+  # token 有效期（小时）
+  expiration: 24
+
+# 邮件发送配置（注册验证码使用）
+mail:
+  # 发件邮箱地址（请改成你自己的邮箱账号）
+  host: smtp.qq.com
+  port: 465
+  username: 2797366870@qq.com
+  # 邮箱授权码（非登录密码，需在邮箱客户端开启 SMTP 服务后获取）
+  password: mfxdrxewkhwldgfe
+  # 发件人显示名
+  from-name: MusicDreamer
+  # 验证码在 Redis 中的有效期（分钟）
+  code-expire-minutes: 5
+
+logging:
+  level:
+    com.itheima.login: debug
