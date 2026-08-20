@@ -58,3 +58,6 @@ mvnw.cmd
 
 ### Trae IDE ###
 .trae/
+
+### Spring Boot 配置文件（含数据库密码等敏感信息） ###
+musicBack/**/src/main/resources/application.yml
