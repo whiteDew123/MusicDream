@@ -13,6 +13,7 @@ import java.time.LocalDate;
  * 用户实体类
  * <p>
  * 对应数据库 user 表，密码字段已使用 MD5 加密存储。
+ * 歌手也是 user，通过 role=1 区分。
  */
 @Data
 @TableName("user")
