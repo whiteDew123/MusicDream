@@ -147,6 +147,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void sendEmailCode(String email) {
+        System.out.println("[EMAIL] sendEmailCode 收到: '" + email + "'");
+        System.out.println("[EMAIL] 正则校验: " + (email != null && email.matches("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,}$") ? "通过" : "失败"));
         if (!StringUtils.hasText(email) || !email.matches("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,}$")) {
             throw new IllegalArgumentException("邮箱格式不正确");
         }

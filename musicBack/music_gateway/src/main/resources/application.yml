@@ -1,0 +1,112 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: music-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: public
+        username: nacos
+        password: nacos
+    gateway:
+      # 路由规则：路径前缀 → 对应微服务
+      routes:
+        # ========== 用户域 ==========
+        - id: mod-login
+          uri: lb://mod-login
+          predicates:
+            - Path=/api/login/**,/api/register/**,/api/email/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-admin
+          uri: lb://mod-admin
+          predicates:
+            - Path=/api/admin/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-setting
+          uri: lb://mod-setting
+          predicates:
+            - Path=/api/setting/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-msg
+          uri: lb://mod-msg
+          predicates:
+            - Path=/api/msg/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-like
+          uri: lb://mod-like
+          predicates:
+            - Path=/api/like/**
+          filters:
+            - StripPrefix=1
+
+        # ========== 内容域 ==========
+        - id: mod-music
+          uri: lb://mod-music
+          predicates:
+            - Path=/api/music/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-singer
+          uri: lb://mod-singer
+          predicates:
+            - Path=/api/singer/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-songList
+          uri: lb://mod-songList
+          predicates:
+            - Path=/api/songList/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-upload
+          uri: lb://mod-upload
+          predicates:
+            - Path=/api/upload/**
+          filters:
+            - StripPrefix=1
+
+      # 全局跨域配置
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      # 服务发现配置：路由找不到时返回 404 而非 500
+      discovery:
+        locator:
+          enabled: false
+
+# JWT 密钥（与 Mod_login 签发时保持一致，至少 32 字节）
+jwt:
+  secret: MusicDreamerSecretKey2024ForJwtTokenSigning!!
+  # token 有效期（小时）
+  expiration: 24
+
+logging:
+  level:
+    com.itheima.gateway: debug
+    org.springframework.cloud.gateway: debug
