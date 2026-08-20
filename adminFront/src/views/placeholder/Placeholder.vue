@@ -17,9 +17,11 @@ const title = computed(() => route.meta.title || '该')
 </script>
 
 <style scoped>
+/* Webflow 亮色：白色卡片 + hairline 边框 + 轻阴影 */
 .placeholder {
-  background: #fff;
-  border-radius: 4px;
+  background: var(--wf-canvas);
+  border: 1px solid var(--wf-hairline);
+  border-radius: var(--rounded-md);
   min-height: calc(100vh - 120px);
   display: flex;
   align-items: center;

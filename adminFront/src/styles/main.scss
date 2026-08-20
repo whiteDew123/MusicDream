@@ -1,3 +1,79 @@
+/* ===== 设计系统 CSS 变量（亮色版）=====
+ * 依据 frontend-design-standards：
+ *   - 管理端：design-webflow.md（亮色 + Webflow 蓝 #4353ff + 近黑 #080808）
+ *   - 登录/注册：design-stripe.md + 登录页微调规则（Stripe 紫 #5e5ce6）
+ * 统一桥接 token 见 Design-standards.md「颜色系统桥接」
+ */
+:root {
+  /* === 统一品牌色（两端共享，Design-standards.md §54-72）=== */
+  --brand-primary: #5e5ce6;        /* Stripe 紫，登录页主色 */
+  --brand-primary-hover: #4a3fcf; /* Stripe 紫悬停加深 */
+  --brand-accent: #4353ff;         /* Webflow 蓝，管理端强调 */
+
+  /* === 亮色系统共用基底 === */
+  --color-bg-page: #f6f9fc;      /* 页面底色 */
+  --color-bg-card: #ffffff;      /* 卡片底色 */
+  --color-text-primary: #1a1a1a; /* 主文字 */
+  --color-text-secondary: #6b7280; /* 辅助文字 */
+
+  /* === Webflow 管理端 token（design-webflow.md）=== */
+  --wf-primary: #080808;           /* 近黑：标题、主 CTA */
+  --wf-on-primary: #ffffff;
+  --wf-ink: #080808;                /* 默认文字 */
+  --wf-ink-strong: #222222;        /* 强调文字 */
+  --wf-body: #363636;               /* 正文段落 */
+  --wf-body-mid: #5a5a5a;           /* 次要文字 */
+  --wf-mute: #898989;               /* 低优先级文字 */
+  --wf-mute-soft: #ababab;          /* 最弱文字 / 占位 */
+  --wf-hairline: #d8d8d8;           /* 1px 边框 */
+  --wf-canvas: #ffffff;             /* 卡片画布 */
+  --wf-canvas-soft: #f6f9fc;        /* 页面底色 */
+  --wf-row-hover: #f5f6f8;          /* 表格/列表行 hover（animation.md 第四章）*/
+  --wf-accent-blue: #3b89ff;
+  --wf-accent-blue-info: #146ef5;
+  --wf-accent-green: #00d722;
+  --wf-accent-yellow: #ffae13;
+  --wf-accent-red: #ee1d36;
+  --wf-accent-purple: #7a3dff;
+
+  /* === Stripe 登录页 token（design-stripe.md + 登录页微调）=== */
+  --st-primary: #5e5ce6;
+  --st-primary-hover: #4a3fcf;
+  --st-ink: #1a1a1a;
+  --st-ink-secondary: #273951;
+  --st-ink-mute: #64748d;
+  --st-canvas: #ffffff;
+  --st-canvas-soft: #f6f9fc;
+  --st-input-bg: #f1f4f9;           /* 输入框浅灰背景（登录页微调 §46）*/
+  --st-bg-from: #f0f4f8;            /* 登录页极浅蓝灰渐变起点 */
+  --st-bg-to: #e2e8f0;              /* 登录页极浅蓝灰渐变终点 */
+
+  /* === 圆角（Webflow shapes）=== */
+  --rounded-none: 0px;
+  --rounded-xs: 2px;
+  --rounded-sm: 4px;   /* 按钮、徽章 */
+  --rounded-md: 8px;   /* 卡片 */
+  --rounded-lg: 12px;
+  --rounded-xl: 16px;
+  --rounded-pill: 9999px;
+
+  /* === 间距（Webflow spacing）=== */
+  --spacing-xxs: 2px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
+
+  /* === 阴影（performance-optimization.md §3 亮色阴影策略）=== */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);   /* 默认卡片 */
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);  /* 卡片悬浮态 */
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.10);  /* 弹窗 / 下拉菜单 */
+}
+
+/* ===== 全局重置 ===== */
 * {
   margin: 0;
   padding: 0;
@@ -9,13 +85,77 @@ body,
 #app {
   width: 100%;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  color: #303133;
-  background-color: #f0f2f5;
+  /* 性能规范 §2：Inter + 系统字体栈兜底，font-display: swap 避免白屏 */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--wf-ink);
+  background-color: var(--wf-canvas-soft);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
   text-decoration: none;
   color: inherit;
+}
+
+/* ===== 全局自定义滚动条（animation.md 第五章：管理端 Webflow 蓝 #4353ff）===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--brand-accent);
+  border-radius: 3px;
+  opacity: 0.6;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--wf-accent-blue);
+}
+
+/* ===== 焦点指示：2px Webflow 蓝聚焦环（animation.md 第五章）===== */
+*:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+  border-radius: var(--rounded-md);
+}
+
+/* ===== 减少动画偏好（performance-optimization.md §5）===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== 覆盖 Element Plus 主题（适配 Webflow 亮色）===== */
+.el-card {
+  --el-card-bg-color: var(--wf-canvas);
+  --el-card-border-color: var(--wf-hairline);
+  --el-text-color-primary: var(--wf-ink);
+  --el-text-color-regular: var(--wf-body-mid);
+}
+
+.el-button--primary {
+  /* Webflow 主 CTA 用近黑 #080808（design-webflow.md §472）*/
+  --el-button-bg-color: var(--wf-primary);
+  --el-button-border-color: var(--wf-primary);
+  --el-button-hover-bg-color: var(--wf-ink-strong);
+  --el-button-hover-border-color: var(--wf-ink-strong);
+  --el-button-active-bg-color: #000000;
+  --el-button-active-border-color: #000000;
+  --el-button-text-color: var(--wf-on-primary);
+}
+
+.el-menu {
+  --el-menu-bg-color: var(--wf-canvas);
+  --el-menu-text-color: var(--wf-body-mid);
+  --el-menu-active-color: var(--wf-ink);
+  --el-menu-hover-bg-color: var(--wf-row-hover);
+  border-right: none !important;
 }

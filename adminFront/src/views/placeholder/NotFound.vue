@@ -16,12 +16,13 @@
 </script>
 
 <style scoped>
+/* Webflow 亮色：浅灰页面底色（Design-standards.md §66）*/
 .not-found {
   width: 100%;
   height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f2f5;
+  background: var(--wf-canvas-soft);
 }
 </style>

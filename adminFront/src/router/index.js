@@ -30,34 +30,56 @@ const routes = [
         meta: { title: '首页', icon: 'Odometer' }
       },
       {
-        path: 'user',
-        name: 'UserManage',
-        component: () => import('@/views/placeholder/Placeholder.vue'),
-        meta: { title: '用户管理', icon: 'User' }
+        // 管理中心（分组，无 component）
+        path: 'manage',
+        name: 'Manage',
+        meta: { title: '管理中心', icon: 'Operation' },
+        children: [
+          {
+            path: 'user',
+            name: 'UserManage',
+            component: () => import('@/views/placeholder/Placeholder.vue'),
+            meta: { title: '用户管理', icon: 'User' }
+          },
+          {
+            path: 'music',
+            name: 'MusicManage',
+            component: () => import('@/views/placeholder/Placeholder.vue'),
+            meta: { title: '歌曲管理', icon: 'Headset' }
+          },
+          {
+            path: 'upload',
+            name: 'MusicUpload',
+            component: () => import('@/views/placeholder/Placeholder.vue'),
+            meta: { title: '发布歌曲', icon: 'Upload' }
+          }
+        ]
       },
       {
-        path: 'music',
-        name: 'MusicManage',
-        component: () => import('@/views/placeholder/Placeholder.vue'),
-        meta: { title: '音乐管理', icon: 'Headset' }
-      },
-      {
-        path: 'singer',
-        name: 'SingerManage',
-        component: () => import('@/views/placeholder/Placeholder.vue'),
-        meta: { title: '歌手管理', icon: 'Microphone' }
-      },
-      {
-        path: 'songList',
-        name: 'SongListManage',
-        component: () => import('@/views/placeholder/Placeholder.vue'),
-        meta: { title: '歌单管理', icon: 'Files' }
-      },
-      {
+        // 消息中心（分组，无 component）
         path: 'msg',
-        name: 'MsgManage',
+        name: 'Message',
+        meta: { title: '消息中心', icon: 'ChatDotRound' },
+        children: [
+          {
+            path: 'publish',
+            name: 'MsgPublish',
+            component: () => import('@/views/placeholder/Placeholder.vue'),
+            meta: { title: '发布消息', icon: 'Promotion' }
+          },
+          {
+            path: 'notify',
+            name: 'MsgNotify',
+            component: () => import('@/views/placeholder/Placeholder.vue'),
+            meta: { title: '消息通知', icon: 'Bell' }
+          }
+        ]
+      },
+      {
+        path: 'setting',
+        name: 'Setting',
         component: () => import('@/views/placeholder/Placeholder.vue'),
-        meta: { title: '消息管理', icon: 'ChatDotRound' }
+        meta: { title: '设置', icon: 'Setting' }
       }
     ]
   },

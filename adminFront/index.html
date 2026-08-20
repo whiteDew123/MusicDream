@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MusicDreamer 后台管理</title>
+    <!-- 性能规范 §2：Inter 字体预加载 + font-display: swap 避免白屏 -->
+    <!-- 权重仅 400/500/600（Webflow 规范 §394：weight ceiling 600）-->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <!-- 注：如需离线/国内加速，可下载 Inter.woff2 至 /public/fonts/ 并改用：
+         <link rel="preload" href="/fonts/Inter.woff2" as="font" crossorigin />
+         CSS 已在 main.scss 中设置系统字体栈兜底 -->
   </head>
   <body>
     <div id="app"></div>
