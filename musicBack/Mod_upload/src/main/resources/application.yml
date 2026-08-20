@@ -1,0 +1,35 @@
+server:
+  port: 8007
+
+spring:
+  application:
+    name: mod-upload
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: public
+        username: nacos
+        password: nacos
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+upload:
+  image:
+    path: D:/foodsystem/musicDreamer/MusicDream/uploads/images/
+    allowed-types: image/jpeg,image/png,image/gif,image/webp
+    max-size: 5242880
+  lrc:
+    path: D:/foodsystem/musicDreamer/MusicDream/uploads/lrc/
+    allowed-types: text/plain,application/octet-stream
+    max-size: 1048576
+  music:
+    path: D:/foodsystem/musicDreamer/MusicDream/uploads/music/
+    allowed-types: audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/x-m4a
+    max-size: 52428800
+
+logging:
+  level:
+    com.itheima.upload: debug

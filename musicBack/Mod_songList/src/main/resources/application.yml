@@ -1,0 +1,32 @@
+server:
+  port: 8008
+
+spring:
+  application:
+    # 与网关路由 lb://mod-songList 保持一致
+    name: mod-songList
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: public
+        username: nacos
+        password: nacos
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/musicdreamer?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: '123456'
+    type: com.alibaba.druid.pool.DruidDataSource
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  global-config:
+    db-config:
+      id-type: auto
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.itheima.songlist: debug

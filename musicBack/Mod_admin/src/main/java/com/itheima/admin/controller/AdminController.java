@@ -1,5 +1,6 @@
 package com.itheima.admin.controller;
 
+import com.itheima.admin.service.MonitorService;
 import com.itheima.admin.service.MusicService;
 import com.itheima.admin.service.LogService;
 import com.itheima.admin.service.UserService;
@@ -19,6 +20,9 @@ public class AdminController {
 
     @Autowired
     private LogService logService;
+
+    @Autowired
+    private MonitorService monitorService;
 
     @GetMapping("/pageUser/{pn}/{size}")
     public Result pageUser(@PathVariable(value = "pn") Integer pn,
@@ -59,5 +63,15 @@ public class AdminController {
                           @PathVariable(value = "size") Integer size,
                           @RequestParam(value = "keyword", required = false) String keyword) {
         return logService.searchLog(pn, size, keyword);
+    }
+
+    @GetMapping("/getMonitorData")
+    public Result getMonitorData() {
+        return monitorService.getMonitorData();
+    }
+
+    @GetMapping("/getTopMusic")
+    public Result getTopMusic(@RequestParam(value = "limit", defaultValue = "5") Integer limit) {
+        return monitorService.getTopMusic(limit);
     }
 }

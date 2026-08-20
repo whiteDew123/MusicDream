@@ -30,6 +30,7 @@ public class MusicServiceImpl implements MusicService {
                     .like("tags", keyword)
             );
         }
+        wrapper.orderByDesc("create_time");
         Page<Music> page = musicMapper.selectPage(musicPage, wrapper);
         return Result.success("查询成功", page);
     }
