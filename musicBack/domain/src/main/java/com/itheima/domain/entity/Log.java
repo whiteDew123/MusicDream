@@ -11,7 +11,7 @@ import java.io.Serializable;
 import java.time.LocalDate;
 
 @Data
-@TableName("`log`")
+@TableName("operation_log")
 public class Log implements Serializable {
 
     @Serial
@@ -23,10 +23,12 @@ public class Log implements Serializable {
     @TableField("userName")
     private String userName;
 
+    @TableField("do_some")
     private String doSome;
 
     @TableField("MusicName")
     private String musicName;
 
+    @TableField("create_date")
     private LocalDate createDate;
 }

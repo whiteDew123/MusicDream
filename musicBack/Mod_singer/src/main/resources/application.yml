@@ -1,10 +1,9 @@
 server:
-  port: 8005
+  port: 8004
 
 spring:
   application:
-    # 与网关路由 lb://mod-setting 保持一致
-    name: mod-setting
+    name: music-singer-service
   cloud:
     nacos:
       discovery:
@@ -14,13 +13,12 @@ spring:
         password: nacos
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/musicdreamer?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/musicdreamer?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: '123456'
-    type: com.alibaba.druid.pool.DruidDataSource
+    password: 123456
   jackson:
-    time-zone: Asia/Shanghai
     date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
 
 mybatis-plus:
   configuration:
@@ -30,6 +28,8 @@ mybatis-plus:
     db-config:
       id-type: auto
 
-logging:
-  level:
-    com.itheima.setting: debug
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html

@@ -1,10 +1,9 @@
 server:
-  port: 8005
+  port: 8006
 
 spring:
   application:
-    # 与网关路由 lb://mod-setting 保持一致
-    name: mod-setting
+    name: mod-msg
   cloud:
     nacos:
       discovery:
@@ -18,11 +17,18 @@ spring:
     username: root
     password: '123456'
     type: com.alibaba.druid.pool.DruidDataSource
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 5000ms
   jackson:
     time-zone: Asia/Shanghai
     date-format: yyyy-MM-dd HH:mm:ss
 
 mybatis-plus:
+  mapper-locations: classpath*:com/itheima/msg/mapper/xml/*.xml
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
@@ -32,4 +38,4 @@ mybatis-plus:
 
 logging:
   level:
-    com.itheima.setting: debug
+    com.itheima.msg: debug

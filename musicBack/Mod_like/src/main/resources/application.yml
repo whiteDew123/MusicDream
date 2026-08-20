@@ -1,10 +1,10 @@
 server:
-  port: 8005
+  port: 8009
 
 spring:
   application:
-    # 与网关路由 lb://mod-setting 保持一致
-    name: mod-setting
+    # 与网关路由 lb://mod-like 保持一致
+    name: mod-like
   cloud:
     nacos:
       discovery:
@@ -18,18 +18,15 @@ spring:
     username: root
     password: '123456'
     type: com.alibaba.druid.pool.DruidDataSource
-  jackson:
-    time-zone: Asia/Shanghai
-    date-format: yyyy-MM-dd HH:mm:ss
 
+# MyBatis-Plus 配置
 mybatis-plus:
-  configuration:
-    map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       id-type: auto
+  configuration:
+    map-underscore-to-camel-case: true
 
 logging:
   level:
-    com.itheima.setting: debug
+    com.itheima.like: debug

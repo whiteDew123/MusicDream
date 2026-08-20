@@ -26,9 +26,10 @@ public class LogServiceImpl implements LogService {
                     .or()
                     .like("do_some", keyword)
                     .or()
-                    .like("`MusicName`", keyword)
+                    .like("MusicName", keyword)
             );
         }
+        wrapper.orderByDesc("create_date");
         Page<Log> page = logMapper.selectPage(logPage, wrapper);
         return Result.success("查询成功", page);
     }
