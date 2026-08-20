@@ -77,12 +77,4 @@ public class SingerController {
         SingerVO singer = singerService.getSingerInfo(singerId);
         return singer == null ? Result.error(404, "歌手不存在") : Result.success(singer);
     }
-
-    /**
-     * 获取歌手数据（别名：/api/singer/{singerId}）
-     */
-    @GetMapping("/{singerId}")
-    public Result<SingerVO> singerInfoAlias(@PathVariable Integer singerId) {
-        return singerInfo(singerId);
-    }
 }

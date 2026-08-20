@@ -1,6 +1,6 @@
-# 前端性能优化补充（v1.0）
+# 前端性能优化补充（v2.0）
 
-> 本文档是 `design-spotify.md`、`design-linear.md`、`animation.md` 的**性能补充**，不修改原有设计规范，仅追加优化策略。
+> 本文档是 `design-stripe.md`、`design-webflow.md`、`animation.md` 的**性能补充**，不修改原有设计规范，仅追加优化策略。
 
 ---
 
@@ -24,72 +24,90 @@
 />
 ```
 
+
+
 ### 效果
 
 首页 20 张封面从 10-40MB 降到 2MB 以内，首屏加载时间减半。
 
----
-
 ## 2. 字体加载
 
-> Spotify 和 Linear 设计系统都依赖自定义字体，必须消除白屏等待。
+> Stripe 和 Webflow 设计系统都依赖现代无衬线字体（Inter / SF Pro），必须消除白屏等待。
 
 ### 必须做的
 
 - CSS 中所有 `@font-face` 加 `font-display: swap`（先用系统字体，到了再替换）
 - 在 HTML `<head>` 中预加载字体文件
+- 优先使用系统字体栈作为 fallback，减少字体下载阻塞
 
 ```css
+/* 亮色系统推荐字体栈 */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
 @font-face {
-  font-family: 'SpotifyMixUI';
-  src: url('/fonts/SpotifyMixUI.woff2') format('woff2');
+  font-family: 'Inter';
+  src: url('/fonts/Inter.woff2') format('woff2');
   font-display: swap;
 }
 ```
 
 ```html
-<link rel="preload" href="/fonts/SpotifyMixUI.woff2" as="font" crossorigin />
+<link rel="preload" href="/fonts/Inter.woff2" as="font" crossorigin />
 ```
+
+
 
 ### 效果
 
 页面打开立刻看到文字，不会出现 2-3 秒的空白期。
 
----
-
 ## 3. 阴影性能
 
-> Spotify 设计规范中大量使用 `box-shadow`，在暗色背景下需注意。
+> 亮色设计规范（Stripe + Webflow）中大量使用 `box-shadow`，在浅色背景下需注意性能。
 
 ### 原则
 
-- 暗色背景（`#121212`）上，`box-shadow` 的模糊半径 > 16px 时肉眼几乎不可见，但 GPU 计算量很大
+- 亮色背景（`#f6f9fc`）上，阴影比暗色背景更明显，**不需要大模糊半径**即可产生层次感
+- `blur: 8px–12px` 足以表现层次，`blur > 16px` 在亮色背景上会造成过度柔化，且增加 GPU 负担
 - 大量元素（如歌单列表 50+ 个卡片）不要每个都加阴影
 
 ### 怎么做
 
 - 列表项用 `border` 或 `outline` 替代阴影
 - 阴影只用于少数浮层（弹窗、下拉菜单、悬浮卡片）
-- 弹窗级阴影：`blur: 16px` 足够，不需要 24px
+- 亮色系统推荐阴影参数：
+
+| 层级   | 阴影值                        | 使用场景      |
+| :----- | :---------------------------- | :------------ |
+| 轻阴影 | `0 2px 8px rgba(0,0,0,0.06)`  | 默认卡片      |
+| 中阴影 | `0 4px 20px rgba(0,0,0,0.08)` | 卡片悬浮态    |
+| 重阴影 | `0 4px 24px rgba(0,0,0,0.10)` | 弹窗/下拉菜单 |
 
 ```css
 /* 用 border 替代阴影（列表项） */
 .list-item {
-  border: 1px solid #333;
-  /* 而非 box-shadow: rgba(0,0,0,0.5) 0px 8px 24px; */
+  border: 1px solid #e5e7eb;
+  /* 而非 box-shadow: 0 4px 12px rgba(0,0,0,0.08); */
 }
 
-/* 阴影仅用于浮层 */
+/* 阴影仅用于浮层和卡片悬浮态 */
 .modal {
-  box-shadow: rgba(0,0,0,0.5) 0px 4px 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+}
+
+.card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  transition: box-shadow 0.25s ease;
 }
 ```
 
+
+
 ### 效果
 
-滚动长列表时帧率稳定在 60fps，不会出现掉帧。
-
----
+滚动长列表时帧率稳定在 60fps，不会出现掉帧；阴影在亮色背景上清晰可见但不刺眼。
 
 ## 4. 虚拟滚动
 
@@ -97,10 +115,10 @@
 
 ### 什么时候用
 
-| 列表长度 | 方案 |
-|----------|------|
-| < 50 条 | 正常渲染 |
-| ≥ 50 条 | 虚拟滚动 |
+| 列表长度 | 方案     |
+| :------- | :------- |
+| < 50 条  | 正常渲染 |
+| ≥ 50 条  | 虚拟滚动 |
 
 ### 技术选型
 
@@ -109,23 +127,21 @@
 
 ### 效果
 
-| 指标 | 不用虚拟滚动 | 用虚拟滚动 |
-|------|:---:|:---:|
-| DOM 节点数 | 200+ | ~20 |
-| 内存占用 | ~50MB | ~5MB |
-| 首屏渲染 | 卡顿 | 秒开 |
-
----
+| 指标       | 不用虚拟滚动 | 用虚拟滚动 |
+| :--------- | :----------- | :--------- |
+| DOM 节点数 | 200+         | ~20        |
+| 内存占用   | ~50MB        | ~5MB       |
+| 首屏渲染   | 卡顿         | 秒开       |
 
 ## 5. 动画性能
 
-> 作为 `animation.md` 的补充，不加新规则，只强调现有规范中的关键约束。
+> 作为 `交互协议.md` 的补充，不加新规则，只强调现有规范中的关键约束。
 
 ### 必须遵守
 
 - 动画**仅使用 `transform` 和 `opacity`**，禁止 `left`/`top`/`width`/`height`
-- 列表交错入场（`animation.md` 第二章）中，若列表 > 30 条，取消交错效果，统一淡入
-- 骨架屏（`animation.md` 第三章）的脉冲动画使用 `animation` 而非 JS `setInterval`
+- 列表交错入场（交互协议 第二章）中，若列表 > 30 条，取消交错效果，统一淡入
+- 骨架屏（交互协议 第三章）的脉冲动画使用 CSS `animation` 而非 JS `setInterval`
 
 ### 什么时候跳过动画
 
@@ -141,7 +157,7 @@
 }
 ```
 
----
+
 
 ## 6. 构建优化（补充）
 
@@ -152,10 +168,13 @@
 - 生产构建开启 gzip/brotli 压缩
 - 静态资源使用 CDN 或强缓存
 
----
-
 ## 版本历史
 
-| 版本 | 日期 | 变更 |
-|------|------|------|
+| 版本 | 日期       | 变更                                                         |
+| :--- | :--------- | :----------------------------------------------------------- |
+| v2.0 | 2026-08-20 | 设计源从 Spotify/Linear 切换为 Stripe/Webflow；同步更新字体、阴影策略及文档引用 |
 | v1.0 | 2025-08-19 | 初始版本，覆盖图片、字体、阴影、虚拟滚动、动画性能、构建优化 |
+
+|      |      |      |
+|------|------|------|
+|      |      |      |
