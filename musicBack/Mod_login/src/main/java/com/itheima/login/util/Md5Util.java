@@ -1,13 +1,12 @@
 package com.itheima.login.util;
 
-import org.springframework.util.DigestUtils;
-
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 /**
  * MD5 加密工具类
  * <p>
- * 采用 Spring 提供的 DigestUtils 实现，输出 32 位小写十六进制摘要。
+ * 使用标准 MessageDigest 实现，输出 32 位小写十六进制摘要。
  * 与数据库 user.password 列存储格式保持一致。
  */
 public final class Md5Util {
@@ -25,7 +24,17 @@ public final class Md5Util {
         if (plainText == null) {
             return null;
         }
-        return DigestUtils.md5DigestAsHex(plainText.getBytes(StandardCharsets.UTF_8));
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(plainText.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b & 0xFF));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("MD5 加密失败", e);
+        }
     }
 
     /**

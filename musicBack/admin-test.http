@@ -1,0 +1,133 @@
+### ==================== IDEA HTTP Client 测试 ====================
+### 使用方法：点击每个请求上方的 ▶ 按钮发送请求
+### 首次使用请先运行 "登录" 请求获取 Token
+### Token 会自动保存，后续请求自动携带
+
+@baseUrl = http://localhost:9000
+@adminUrl = http://localhost:8003
+@loginUrl = http://localhost:8001
+@token =
+
+### ====================================================
+### 🔓 一、无需鉴权接口
+### ====================================================
+
+### 1. 用户登录（通过网关，自动获取 Token）
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{
+  "account": "admin",
+  "password": "123456"
+}
+
+> {%
+client.test("登录成功", function () {
+  client.assert(response.status === 200, "响应状态码不是 200");
+  client.assert(response.body.code === 200, "登录失败");
+  client.global.set("token", response.body.data.token);
+  console.log("Token 已保存: " + client.global.get("token"));
+});
+%}
+
+### 2. 用户登录（直连 mod-login，绕过网关）
+POST {{loginUrl}}/login
+Content-Type: application/json
+
+{
+  "account": "admin",
+  "password": "123456"
+}
+
+> {%
+client.test("直连登录成功", function () {
+  client.assert(response.status === 200, "响应状态码不是 200");
+  client.global.set("token", response.body.data.token);
+  console.log("Token: " + client.global.get("token"));
+});
+%}
+
+### 3. 用户注册
+POST {{baseUrl}}/api/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "123456",
+  "email": "test@test.com",
+  "emailCode": "123456"
+}
+
+### ====================================================
+### 👤 二、用户管理接口（直连 mod-admin，无需 Token）
+### ====================================================
+
+### 4. 用户分页查询 - 默认
+GET {{adminUrl}}/admin/pageUser/1/10?keyword=
+
+### 5. 用户分页查询 - 按关键字搜索
+GET {{adminUrl}}/admin/pageUser/1/10?keyword=张
+
+### 6. 冻结用户
+POST {{adminUrl}}/admin/freezeUser?id=2
+
+### 7. 解冻用户
+POST {{adminUrl}}/admin/unfreezeUser?id=2
+
+### ====================================================
+### 🎵 三、音乐管理接口（直连 mod-admin，无需 Token）
+### ====================================================
+
+### 8. 歌曲分页查询 - 默认
+GET {{adminUrl}}/admin/pageMusic/1/10?keyword=
+
+### 9. 歌曲分页查询 - 按关键字搜索
+GET {{adminUrl}}/admin/pageMusic/1/10?keyword=夜曲
+
+### 10. 冻结歌曲
+POST {{adminUrl}}/admin/freezeMusic?id=1
+
+### 11. 解冻歌曲
+POST {{adminUrl}}/admin/unfreezeMusic?id=1
+
+### ====================================================
+### 📋 四、日志管理接口（直连 mod-admin，无需 Token）
+### ====================================================
+
+### 12. 日志分页查询 - 默认
+GET {{adminUrl}}/admin/pageLog/1/10?keyword=
+
+### 13. 日志分页查询 - 按关键字搜索
+GET {{adminUrl}}/admin/pageLog/1/10?keyword=登录
+
+### ====================================================
+### 🔐 五、通过网关访问（需 Token，先执行第1步登录）
+### ====================================================
+
+### 14. 用户分页查询（网关）
+GET {{baseUrl}}/api/admin/pageUser/1/10?keyword=
+Authorization: Bearer {{token}}
+
+### 15. 冻结用户（网关）
+POST {{baseUrl}}/api/admin/freezeUser?id=2
+Authorization: Bearer {{token}}
+
+### 16. 解冻用户（网关）
+POST {{baseUrl}}/api/admin/unfreezeUser?id=2
+Authorization: Bearer {{token}}
+
+### 17. 歌曲分页查询（网关）
+GET {{baseUrl}}/api/admin/pageMusic/1/10?keyword=
+Authorization: Bearer {{token}}
+
+### 18. 冻结歌曲（网关）
+POST {{baseUrl}}/api/admin/freezeMusic?id=1
+Authorization: Bearer {{token}}
+
+### 19. 解冻歌曲（网关）
+POST {{baseUrl}}/api/admin/unfreezeMusic?id=1
+Authorization: Bearer {{token}}
+
+### 20. 日志分页查询（网关）
+GET {{baseUrl}}/api/admin/pageLog/1/10?keyword=
+Authorization: Bearer {{token}}
