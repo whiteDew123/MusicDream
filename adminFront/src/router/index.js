@@ -64,13 +64,13 @@ const routes = [
           {
             path: 'publish',
             name: 'MsgPublish',
-            component: () => import('@/views/placeholder/Placeholder.vue'),
+            component: () => import('@/views/msg/MsgPublish.vue'),
             meta: { title: '发布消息', icon: 'Promotion' }
           },
           {
             path: 'notify',
             name: 'MsgNotify',
-            component: () => import('@/views/placeholder/Placeholder.vue'),
+            component: () => import('@/views/msg/MsgList.vue'),
             meta: { title: '消息通知', icon: 'Bell' }
           }
         ]

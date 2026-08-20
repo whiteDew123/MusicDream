@@ -55,3 +55,6 @@ logs/
 .mvn/
 mvnw
 mvnw.cmd
+
+### Trae IDE ###
+.trae/
