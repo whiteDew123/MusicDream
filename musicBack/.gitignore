@@ -36,3 +36,9 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### 微服务敏感配置文件 ###
+# Mod_login 配置（含数据库密码 / JWT 密钥 / 邮箱授权码）
+Mod_login/src/main/resources/application.yml
+# music_gateway 配置（含 Nacos 密码 / JWT 密钥）
+music_gateway/src/main/resources/application.yml
