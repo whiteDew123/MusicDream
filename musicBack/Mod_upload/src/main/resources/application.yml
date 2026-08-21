@@ -18,15 +18,15 @@ spring:
 
 upload:
   image:
-    path: D:/foodsystem/musicDreamer/MusicDream/uploads/images/
+    path: D:/Project/Music/uploads/images/
     allowed-types: image/jpeg,image/png,image/gif,image/webp
     max-size: 5242880
   lrc:
-    path: D:/foodsystem/musicDreamer/MusicDream/uploads/lrc/
+    path: D:/Project/Music/uploads/lrc/
     allowed-types: text/plain,application/octet-stream
     max-size: 1048576
   music:
-    path: D:/foodsystem/musicDreamer/MusicDream/uploads/music/
+    path: D:/Project/Music/uploads/music/
     allowed-types: audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/x-m4a
     max-size: 52428800
 

@@ -2,6 +2,8 @@ package com.itheima.singer.dto;
 
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 歌曲新增/修改请求参数
  */
@@ -23,9 +25,18 @@ public class MusicDTO {
     /** 时长（秒） */
     private Integer timelength;
 
-    /** 标签（逗号分隔） */
+    /** 标签（逗号分隔，兼容旧接口） */
     private String tags;
 
-    /** 歌词文件URL */
+    /** 歌词文件URL（旧字段兼容） */
     private String lyric;
+
+    /** 状态: 0-正常, 1-锁定 */
+    private Integer activation;
+
+    /** 歌词文件URL（新字段） */
+    private String lyricUrl;
+
+    /** 标签列表（新字段，addMusic 使用） */
+    private List<String> tagList;
 }

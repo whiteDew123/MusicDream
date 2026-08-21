@@ -9,8 +9,11 @@ import {
   Bell,
   Setting,
   FolderOpened,
-  DataAnalysis,
-  Document
+  Document,
+  Edit,
+  UserFilled,
+  WarningFilled,
+  DocumentAdd
 } from '@element-plus/icons-vue'
 
 // 菜单配置
@@ -21,6 +24,7 @@ import {
 //   - 'all': 所有角色可见
 //   - 'admin': 仅管理员可见（role=0）
 //   - 'singer': 仅歌手可见（role=1）
+//   - 'user': 仅普通用户可见（role=2）
 // - children: 子菜单数组
 const navData = [
   {
@@ -30,22 +34,36 @@ const navData = [
     show: 'all'
   },
   {
-    path: 'user',
-    title: '用户管理',
-    icon: User,
-    show: 'admin'
+    path: 'publishSong',
+    title: '发布歌曲',
+    icon: DocumentAdd,
+    show: 'singer'
   },
   {
-    path: 'music',
-    title: '歌曲管理',
-    icon: Headset,
-    show: 'admin'
-  },
-  {
-    path: 'log',
-    title: '日志管理',
-    icon: Document,
-    show: 'admin'
+    path: 'admin',
+    title: '管理中心',
+    icon: Operation,
+    show: 'admin',
+    children: [
+      {
+        path: 'user',
+        title: '用户管理',
+        icon: User,
+        show: 'admin'
+      },
+      {
+        path: 'music',
+        title: '歌曲审核',
+        icon: Headset,
+        show: 'admin'
+      },
+      {
+        path: 'log',
+        title: '日志管理',
+        icon: Document,
+        show: 'admin'
+      }
+    ]
   },
   {
     path: 'msg',
@@ -68,16 +86,24 @@ const navData = [
     ]
   },
   {
-    path: 'data',
-    title: '数据统计',
-    icon: DataAnalysis,
-    show: 'admin'
-  },
-  {
     path: 'setting',
-    title: '系统设置',
+    title: '设置中心',
     icon: Setting,
-    show: 'admin'
+    show: 'all',
+    children: [
+      {
+        path: 'profile',
+        title: '个人设置',
+        icon: UserFilled,
+        show: 'all'
+      },
+      {
+        path: 'safeSetting',
+        title: '安全设置',
+        icon: WarningFilled,
+        show: 'all'
+      }
+    ]
   }
 ]
 

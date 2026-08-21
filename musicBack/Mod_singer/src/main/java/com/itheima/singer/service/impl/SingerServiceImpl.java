@@ -22,8 +22,6 @@ import java.util.stream.Collectors;
 
 /**
  * 歌手模块业务实现
- *
- * <p>使用 MyBatis Plus 条件构造器 + 分页插件完成歌曲管理。</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -34,18 +32,28 @@ public class SingerServiceImpl implements SingerService {
 
     @Override
     public PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size) {
+        return pageSongs(singerId, page, size, null, null);
+    }
+
+    @Override
+    public PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size, String keyword, Integer activation) {
         long current = page == null || page < 1 ? 1 : page;
         long pageSize = size == null || size < 1 ? 10 : Math.min(size, 100);
 
         Page<Music> p = new Page<>(current, pageSize);
 
-        LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
-                .eq(Music::getActivation, 0)
-                .orderByDesc(Music::getCreateTime)
-                .orderByDesc(Music::getListenNumb);
+        LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<>();
         if (singerId != null) {
             wrapper.eq(Music::getFromSinger, singerId);
         }
+        if (activation != null) {
+            wrapper.eq(Music::getActivation, activation);
+        }
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(Music::getMusicName, keyword);
+        }
+        wrapper.orderByDesc(Music::getCreateTime)
+                .orderByDesc(Music::getListenNumb);
 
         musicMapper.selectPage(p, wrapper);
 
@@ -69,6 +77,41 @@ public class SingerServiceImpl implements SingerService {
         music.setActivation(0);
         music.setListenNumb(0);
         music.setCreateTime(LocalDate.now());
+
+        musicMapper.insert(music);
+        return toMusicVO(music);
+    }
+
+    @Override
+    public MusicVO addMusic(MusicDTO dto) {
+        if (dto == null || !StringUtils.hasText(dto.getMusicName())) {
+            throw new IllegalArgumentException("歌曲名不能为空");
+        }
+        if (!StringUtils.hasText(dto.getMusicUrl())) {
+            throw new IllegalArgumentException("请上传音频文件");
+        }
+        if (dto.getFromSinger() == null) {
+            throw new IllegalArgumentException("歌手ID不能为空");
+        }
+
+        Music music = new Music();
+        music.setFromSinger(dto.getFromSinger());
+        music.setMusicName(dto.getMusicName());
+        music.setMusicUrl(dto.getMusicUrl());
+        music.setImageUrl(dto.getImageUrl());
+        music.setTimelength(dto.getTimelength());
+        music.setActivation(dto.getActivation() != null ? dto.getActivation() : 0);
+        music.setListenNumb(0);
+        music.setCreateTime(LocalDate.now());
+
+        String lyricUrl = dto.getLyricUrl() != null ? dto.getLyricUrl() : dto.getLyric();
+        music.setLyric(lyricUrl);
+
+        if (dto.getTagList() != null && !dto.getTagList().isEmpty()) {
+            music.setTags(String.join(",", dto.getTagList()));
+        } else if (StringUtils.hasText(dto.getTags())) {
+            music.setTags(dto.getTags());
+        }
 
         musicMapper.insert(music);
         return toMusicVO(music);
@@ -111,17 +154,36 @@ public class SingerServiceImpl implements SingerService {
     }
 
     @Override
+    public MusicVO updateMusicStatus(Integer musicId, Integer activation) {
+        Music exist = musicMapper.selectById(musicId);
+        if (exist == null) {
+            return null;
+        }
+
+        LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
+                .eq(Music::getMusicId, musicId)
+                .set(Music::getActivation, activation);
+        musicMapper.update(null, wrapper);
+
+        return toMusicVO(musicMapper.selectById(musicId));
+    }
+
+    @Override
     public boolean deleteSong(Integer musicId) {
         Music exist = musicMapper.selectById(musicId);
         if (exist == null) {
             return false;
         }
 
-        // 软删除：歌手下架自己的歌曲，置为 1（用户锁定），避免外键引用导致物理删除失败
-        LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
-                .eq(Music::getMusicId, musicId)
-                .set(Music::getActivation, 1);
-        return musicMapper.update(null, wrapper) > 0;
+        try {
+            musicMapper.deleteById(musicId);
+            return true;
+        } catch (Exception e) {
+            LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
+                    .eq(Music::getMusicId, musicId)
+                    .set(Music::getActivation, 1);
+            return musicMapper.update(null, wrapper) > 0;
+        }
     }
 
     @Override
