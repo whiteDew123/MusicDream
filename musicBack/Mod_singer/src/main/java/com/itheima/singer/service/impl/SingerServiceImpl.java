@@ -19,7 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -33,6 +35,64 @@ public class SingerServiceImpl implements SingerService {
 
     private final MusicMapper musicMapper;
     private final UserMapper userMapper;
+
+    @Override
+    public Map<String, Object> getDashboard(Integer singerId) {
+        Map<String, Object> data = new LinkedHashMap<>();
+
+        if (singerId == null) {
+            data.put("myMusicTotal", 0);
+            data.put("totalListenNumb", 0);
+            data.put("pendingAuditTotal", 0);
+            data.put("approvedTotal", 0);
+            data.put("myTopMusic", List.of());
+            data.put("recentUploads", List.of());
+            return data;
+        }
+
+        // 我的歌曲总数
+        Long myMusicTotal = musicMapper.selectCount(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId));
+        // 总播放量（仅已通过审核且未冻结的歌曲）
+        List<Music> activeMusic = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId)
+                .eq(Music::getAuditStatus, 1)
+                .eq(Music::getActivation, 0));
+        long totalListenNumb = activeMusic.stream().mapToLong(m -> m.getListenNumb() == null ? 0 : m.getListenNumb()).sum();
+        // 待审核数
+        Long pendingAuditTotal = musicMapper.selectCount(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId)
+                .eq(Music::getAuditStatus, 0));
+        // 已通过数
+        Long approvedTotal = musicMapper.selectCount(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId)
+                .eq(Music::getAuditStatus, 1));
+
+        // 我的歌曲播放排行 TOP5
+        List<Music> topList = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId)
+                .eq(Music::getAuditStatus, 1)
+                .eq(Music::getActivation, 0)
+                .orderByDesc(Music::getListenNumb)
+                .last("LIMIT 5"));
+        List<MusicVO> myTopMusic = topList.stream().map(this::toMusicVO).collect(Collectors.toList());
+
+        // 最近上传的 5 首
+        List<Music> recentList = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId)
+                .orderByDesc(Music::getCreateTime)
+                .last("LIMIT 5"));
+        List<MusicVO> recentUploads = recentList.stream().map(this::toMusicVO).collect(Collectors.toList());
+
+        data.put("myMusicTotal", myMusicTotal == null ? 0 : myMusicTotal.intValue());
+        data.put("totalListenNumb", totalListenNumb);
+        data.put("pendingAuditTotal", pendingAuditTotal == null ? 0 : pendingAuditTotal.intValue());
+        data.put("approvedTotal", approvedTotal == null ? 0 : approvedTotal.intValue());
+        data.put("myTopMusic", myTopMusic);
+        data.put("recentUploads", recentUploads);
+
+        return data;
+    }
 
     @Override
     public PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size) {

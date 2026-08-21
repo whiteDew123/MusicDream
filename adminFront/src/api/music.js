@@ -41,15 +41,14 @@ export function unfreezeMusicApi(id) {
 }
 
 /**
- * 歌手/管理员分页查询歌曲
- * GET /api/singer/songs?page=&size=
- * 歌手登录时后端会强制只返回自己的歌曲
+ * 歌手分页查询自己的歌曲
+ * GET /api/singer/songs?page=&size=&singerId=
  */
-export function getSingerMusicPageApi(page, size) {
+export function getSingerMusicPageApi(page, size, singerId) {
   return request({
     url: '/singer/songs',
     method: 'get',
-    params: { page, size }
+    params: { page, size, singerId }
   })
 }
 

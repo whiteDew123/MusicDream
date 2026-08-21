@@ -44,7 +44,7 @@ export const useAdminMusicStore = defineStore('adminMusic', () => {
         const res = await getAdminMusicPageApi(page, pageSize, keyword)
         data = res.data || {}
       } else {
-        const res = await getSingerMusicPageApi(page, pageSize)
+        const res = await getSingerMusicPageApi(page, pageSize, userStore.userInfo?.userId)
         data = res.data || {}
       }
       songs.value = data.records || []

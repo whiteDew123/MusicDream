@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 用户信息设置接口
  */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/setting")
 @RequiredArgsConstructor
 public class SettingController {
 

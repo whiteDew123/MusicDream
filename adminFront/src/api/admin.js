@@ -22,12 +22,23 @@ export function getTopMusic(limit) {
   })
 }
 
+// 获取最近 N 天新增趋势
+// GET /api/admin/trend?days=7
+export function getTrend(days) {
+  return request({
+    url: '/admin/trend',
+    method: 'get',
+    params: { days }
+  })
+}
+
 // 分页获取操作日志
-// GET /api/admin/pageLog/{pn}/{size}
-export function pageLog(pn, size) {
+// GET /api/admin/pageLog/{pn}/{size}?keyword=xxx
+export function pageLog(pn, size, keyword) {
   return request({
     url: `/admin/pageLog/${pn}/${size}`,
-    method: 'get'
+    method: 'get',
+    params: { keyword }
   })
 }
 

@@ -5,10 +5,20 @@ import com.itheima.singer.dto.MusicDTO;
 import com.itheima.singer.vo.MusicVO;
 import com.itheima.singer.vo.SingerVO;
 
+import java.util.Map;
+
 /**
  * 歌手模块业务接口
  */
 public interface SingerService {
+
+    /**
+     * 获取歌手仪表盘数据
+     *
+     * @param singerId 歌手ID
+     * @return 仪表盘数据
+     */
+    Map<String, Object> getDashboard(Integer singerId);
 
     /**
      * 分页查询歌曲

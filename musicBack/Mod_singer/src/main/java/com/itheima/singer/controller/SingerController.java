@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 /**
  * 歌手模块接口
  */
@@ -26,6 +28,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class SingerController {
 
     private final SingerService singerService;
+
+    /**
+     * 歌手仪表盘数据
+     */
+    @GetMapping("/dashboard")
+    public Result<Map<String, Object>> dashboard(@RequestParam Integer singerId) {
+        return Result.success(singerService.getDashboard(singerId));
+    }
 
     /**
      * 分页查询歌曲

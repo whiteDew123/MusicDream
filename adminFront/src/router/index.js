@@ -26,7 +26,7 @@ const routes = [
       {
         path: 'dashboard',
         name: 'Dashboard',
-        component: () => import('@/views/dashboard/Dashboard.vue'),
+        component: () => import('@/views/dashboard/DashboardV2.vue'),
         meta: { title: '首页', icon: 'Odometer' }
       },
       {
@@ -63,6 +63,12 @@ const routes = [
             name: 'MySongs',
             component: () => import('@/views/manage/MusicManage.vue'),
             meta: { title: '我的歌曲', icon: 'Headset', roles: [1] }
+          },
+          {
+            path: 'log',
+            name: 'LogManage',
+            component: () => import('@/views/manage/LogManage.vue'),
+            meta: { title: '操作日志', icon: 'Document', roles: [0] }
           }
         ]
       },
@@ -88,7 +94,7 @@ const routes = [
       {
         path: 'setting',
         name: 'Setting',
-        component: () => import('@/views/placeholder/Placeholder.vue'),
+        component: () => import('@/views/setting/Setting.vue'),
         meta: { title: '设置', icon: 'Setting' }
       }
     ]
