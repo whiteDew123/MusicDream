@@ -32,6 +32,11 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:9000',
         changeOrigin: true
+      },
+      // 上传的静态资源 /uploads/** 也需要转发到网关
+      '/uploads': {
+        target: 'http://localhost:9000',
+        changeOrigin: true
       }
     }
   }

@@ -1,8 +1,8 @@
 <template>
-  <div class="audit-page">
+  <div class="song-manage-page">
     <div class="page-header">
-      <h2>歌曲审核</h2>
-      <p class="subtitle">管理员审核歌手发布的歌曲，审核通过后方可在歌曲列表中展示</p>
+      <h2>歌曲管理</h2>
+      <p class="subtitle">管理所有审核通过的歌曲，支持锁定/解锁/删除操作</p>
     </div>
 
     <div class="search-bar">
@@ -14,12 +14,6 @@
         clearable
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="filterAuditStatus" placeholder="审核状态" style="width: 140px; margin-left: 12px" clearable>
-        <el-option label="全部" value="" />
-        <el-option label="待审核" :value="0" />
-        <el-option label="已通过" :value="1" />
-        <el-option label="已驳回" :value="2" />
-      </el-select>
       <el-select v-model="filterActivation" placeholder="歌曲状态" style="width: 140px; margin-left: 12px" clearable>
         <el-option label="全部" value="" />
         <el-option label="正常" :value="0" />
@@ -51,58 +45,28 @@
       </el-table-column>
       <el-table-column prop="musicName" label="歌曲名" min-width="120" show-overflow-tooltip />
       <el-table-column prop="singerName" label="歌手" width="100" show-overflow-tooltip />
-      <el-table-column label="时长" width="90" align="center">
+      <el-table-column label="时长" width="100" align="center">
         <template #default="{ row }">
-          {{ formatDuration(row.timelength) }}
+          <span v-if="row.timelength && row.timelength > 0">{{ formatDuration(row.timelength) }}</span>
+          <span v-else style="color: #e6a23c">未知</span>
         </template>
       </el-table-column>
-      <el-table-column label="审核状态" width="110" align="center">
-        <template #default="{ row }">
-          <el-tag :type="auditStatusTag(row.auditStatus)">
-            {{ auditStatusText(row.auditStatus) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="歌曲状态" width="90" align="center">
+      <el-table-column prop="listenNumb" label="播放量" width="90" align="center" />
+      <el-table-column label="歌曲状态" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="row.activation === 0 ? 'success' : 'danger'">
             {{ row.activation === 0 ? '正常' : '锁定' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="驳回原因" min-width="120" show-overflow-tooltip>
-        <template #default="{ row }">
-          <span v-if="row.auditStatus === 2 && row.auditRemark" class="reject-reason">
-            {{ row.auditRemark }}
-          </span>
-          <span v-else style="color: #c0c4cc">-</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="提交时间" width="120" align="center">
+      <el-table-column prop="createTime" label="发布时间" width="120" align="center">
         <template #default="{ row }">
           {{ formatDate(row.createTime) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="280" align="center" fixed="right">
+      <el-table-column label="操作" width="340" align="center" fixed="right">
         <template #default="{ row }">
           <el-button
-            v-if="row.auditStatus === 0"
-            type="success"
-            size="small"
-            @click="handleApprove(row)"
-          >
-            通过
-          </el-button>
-          <el-button
-            v-if="row.auditStatus === 0"
-            type="danger"
-            size="small"
-            @click="handleReject(row)"
-          >
-            驳回
-          </el-button>
-          <el-button
-            v-if="row.auditStatus === 1"
             :type="row.activation === 0 ? 'warning' : 'success'"
             size="small"
             @click="toggleStatus(row)"
@@ -110,12 +74,19 @@
             {{ row.activation === 0 ? '锁定' : '解锁' }}
           </el-button>
           <el-button
-            v-if="row.auditStatus === 2"
-            type="info"
+            type="primary"
             size="small"
-            @click="handleApprove(row)"
+            @click="playSong(row)"
           >
-            重新通过
+            试听
+          </el-button>
+          <el-button
+            v-if="!row.timelength || row.timelength <= 0"
+            type="success"
+            size="small"
+            @click="fetchAndUpdateDuration(row)"
+          >
+            修复时长
           </el-button>
           <el-button type="danger" size="small" @click="handleDelete(row)">
             删除
@@ -135,29 +106,6 @@
         @current-change="loadData"
       />
     </div>
-
-    <!-- 驳回对话框 -->
-    <el-dialog v-model="rejectDialogVisible" title="驳回歌曲" width="480px">
-      <el-form label-width="80px">
-        <el-form-item label="歌曲名">
-          <span>{{ currentRow?.musicName }}</span>
-        </el-form-item>
-        <el-form-item label="驳回原因" required>
-          <el-input
-            v-model="rejectReason"
-            type="textarea"
-            :rows="4"
-            placeholder="请输入驳回原因，歌手将看到此信息"
-            maxlength="200"
-            show-word-limit
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="rejectDialogVisible = false">取消</el-button>
-        <el-button type="danger" @click="confirmReject">确认驳回</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -165,7 +113,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
-import { getMusicList, deleteMusic, updateMusicStatus, auditMusic } from '@/api/manage'
+import { getMusicList, deleteMusic, updateMusicStatus, updateMusic } from '@/api/manage'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -173,25 +121,18 @@ const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const searchKeyword = ref('')
-const filterAuditStatus = ref('')
 const filterActivation = ref('')
-
-const rejectDialogVisible = ref(false)
-const rejectReason = ref('')
-const currentRow = ref(null)
 
 async function loadData() {
   loading.value = true
   try {
     const params = {
       page: currentPage.value,
-      size: pageSize.value
+      size: pageSize.value,
+      auditStatus: 1
     }
     if (searchKeyword.value) {
       params.keyword = searchKeyword.value
-    }
-    if (filterAuditStatus.value !== '') {
-      params.auditStatus = filterAuditStatus.value
     }
     if (filterActivation.value !== '') {
       params.activation = filterActivation.value
@@ -216,67 +157,8 @@ function handleSearch() {
 
 function handleReset() {
   searchKeyword.value = ''
-  filterAuditStatus.value = ''
   filterActivation.value = ''
   handleSearch()
-}
-
-function auditStatusTag(status) {
-  if (status === 0) return 'warning'
-  if (status === 1) return 'success'
-  if (status === 2) return 'danger'
-  return 'info'
-}
-
-function auditStatusText(status) {
-  if (status === 0) return '待审核'
-  if (status === 1) return '已通过'
-  if (status === 2) return '已驳回'
-  return '未知'
-}
-
-async function handleApprove(row) {
-  try {
-    await ElMessageBox.confirm(`确定要通过歌曲「${row.musicName}」的审核吗？`, '审核通过', {
-      confirmButtonText: '确认通过',
-      cancelButtonText: '取消',
-      type: 'success'
-    })
-    const res = await auditMusic(row.musicId, 1, null)
-    if (res.code === 200) {
-      ElMessage.success('审核通过成功')
-      loadData()
-    } else {
-      ElMessage.error(res.message || '审核失败')
-    }
-  } catch (e) {
-    // 用户取消
-  }
-}
-
-function handleReject(row) {
-  currentRow.value = row
-  rejectReason.value = ''
-  rejectDialogVisible.value = true
-}
-
-async function confirmReject() {
-  if (!rejectReason.value.trim()) {
-    ElMessage.warning('请填写驳回原因')
-    return
-  }
-  try {
-    const res = await auditMusic(currentRow.value.musicId, 2, rejectReason.value.trim())
-    if (res.code === 200) {
-      ElMessage.success('已驳回')
-      rejectDialogVisible.value = false
-      loadData()
-    } else {
-      ElMessage.error(res.message || '驳回失败')
-    }
-  } catch (e) {
-    console.error(e)
-  }
 }
 
 async function toggleStatus(row) {
@@ -300,6 +182,55 @@ async function toggleStatus(row) {
   }
 }
 
+function playSong(row) {
+  if (row.musicUrl) {
+    window.open(row.musicUrl, '_blank')
+  } else {
+    ElMessage.warning('暂无音频链接')
+  }
+}
+
+async function fetchAndUpdateDuration(row) {
+  if (!row.musicUrl) {
+    ElMessage.warning('暂无音频链接，无法获取时长')
+    return
+  }
+  try {
+    ElMessage.info('正在获取音频时长...')
+    const duration = await getAudioDurationFromUrl(row.musicUrl)
+    if (duration && duration > 0) {
+      const res = await updateMusic(row.musicId, { timelength: duration })
+      if (res.code === 200) {
+        ElMessage.success(`时长已修复：${formatDuration(duration)}`)
+        loadData()
+      } else {
+        ElMessage.error(res.message || '更新时长失败')
+      }
+    } else {
+      ElMessage.error('无法获取音频时长')
+    }
+  } catch (e) {
+    console.error('获取时长失败', e)
+    ElMessage.error('获取音频时长失败')
+  }
+}
+
+function getAudioDurationFromUrl(url) {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio()
+    audio.preload = 'metadata'
+    audio.onloadedmetadata = () => {
+      if (audio.duration && !isNaN(audio.duration)) {
+        resolve(Math.round(audio.duration))
+      } else {
+        reject(new Error('无法获取时长'))
+      }
+    }
+    audio.onerror = () => reject(new Error('音频加载失败'))
+    audio.src = url
+  })
+}
+
 async function handleDelete(row) {
   try {
     await ElMessageBox.confirm(`确定要删除歌曲「${row.musicName}」吗？此操作不可恢复。`, '危险提示', {
@@ -320,7 +251,7 @@ async function handleDelete(row) {
 }
 
 function formatDuration(seconds) {
-  if (!seconds) return '00:00'
+  if (!seconds || seconds <= 0) return '--:--'
   const s = Number(seconds)
   const m = Math.floor(s / 60)
   const sec = s % 60
@@ -338,7 +269,7 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.audit-page {
+.song-manage-page {
   padding: 16px;
 }
 
@@ -377,11 +308,6 @@ onMounted(() => {
   border-radius: 4px;
   font-size: 12px;
   color: #909399;
-}
-
-.reject-reason {
-  color: #f56c6c;
-  font-size: 12px;
 }
 
 .pagination-wrap {

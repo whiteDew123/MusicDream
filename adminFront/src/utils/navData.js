@@ -13,7 +13,9 @@ import {
   Edit,
   UserFilled,
   WarningFilled,
-  DocumentAdd
+  DocumentAdd,
+  Collection,
+  Tickets
 } from '@element-plus/icons-vue'
 
 // 菜单配置
@@ -34,17 +36,23 @@ const navData = [
     show: 'all'
   },
   {
-    path: 'publishSong',
-    title: '发布歌曲',
-    icon: DocumentAdd,
-    show: 'singer'
-  },
-  {
     path: 'admin',
     title: '管理中心',
     icon: Operation,
-    show: 'admin',
+    show: 'all',
     children: [
+      {
+        path: 'publishSong',
+        title: '发布歌曲',
+        icon: DocumentAdd,
+        show: 'singer'
+      },
+      {
+        path: 'mySongs',
+        title: '我的歌曲',
+        icon: Collection,
+        show: 'singer'
+      },
       {
         path: 'user',
         title: '用户管理',
@@ -55,6 +63,12 @@ const navData = [
         path: 'music',
         title: '歌曲审核',
         icon: Headset,
+        show: 'admin'
+      },
+      {
+        path: 'songManage',
+        title: '歌曲管理',
+        icon: Tickets,
         show: 'admin'
       },
       {

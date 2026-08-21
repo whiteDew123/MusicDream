@@ -2,8 +2,8 @@
   <div class="publish-page">
     <el-breadcrumb separator="/" class="header">
       <el-breadcrumb-item>
-        <el-icon class="breadcrumb-icon" style="margin-right: 8px"><user /></el-icon>
-        歌手中心
+        <el-icon class="breadcrumb-icon" style="margin-right: 8px"><Operation /></el-icon>
+        管理中心
       </el-breadcrumb-item>
       <el-breadcrumb-item>发布歌曲</el-breadcrumb-item>
     </el-breadcrumb>
@@ -26,16 +26,14 @@
           />
         </el-form-item>
 
-        <el-form-item label="歌曲状态：" prop="activation">
-          <el-select v-model="formData.activation" placeholder="请选择">
-            <el-option
-              v-for="item in activationOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="提示"
+          description="发布的歌曲将提交给管理员审核，审核通过后才能在歌曲列表中显示"
+          style="margin-bottom: 18px"
+        />
 
         <el-form-item label="封面：">
           <el-upload
@@ -122,7 +120,7 @@
 <script setup>
 import { ref, reactive, computed, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Upload, Plus, User } from '@element-plus/icons-vue'
+import { Upload, Plus, Operation } from '@element-plus/icons-vue'
 import { getToken } from '@/utils/auth'
 import { useUserStore } from '@/store/user'
 import { useManageStore } from '@/store/manage'
@@ -138,19 +136,12 @@ const formDataRef = ref(null)
 // 表单数据
 const formData = reactive({
   musicName: '',
-  activation: 0,
   imgUrl: '',
   musicFile: '',
   lyricFile: '',
-  timeLength: '',
+  timelength: null,
   dynamicTags: []
 })
-
-// 状态选项：0=正常（发布后待审核/已通过），1=锁定
-const activationOptions = [
-  { value: 0, label: '正常' },
-  { value: 1, label: '锁定' }
-]
 
 // 标签相关
 const dynamicTags = ref([])
@@ -178,7 +169,6 @@ const rules = {
     { required: true, message: '歌曲名不能为空', trigger: 'blur' },
     { min: 1, max: 15, message: '歌曲名长度在 1 到 15 个字符', trigger: 'blur' }
   ],
-  activation: [{ required: true, message: '请选择状态', trigger: 'blur' }],
   musicFile: [{ required: true, message: '请上传音频文件', trigger: 'blur' }],
   lyricFile: [{ required: true, message: '请上传歌词文件', trigger: 'blur' }]
 }
@@ -211,7 +201,10 @@ function beforeImgUpload(file) {
 // 音频上传成功
 function handleMusicFileSuccess(res) {
   formData.musicFile = res?.data?.fileUrl || res?.data?.url || res?.url || ''
-  formData.timeLength = res?.data?.timeLength || ''
+  // 如果后端返回了时长，优先使用
+  if (res?.data?.timelength) {
+    formData.timelength = res.data.timelength
+  }
 }
 
 // 音频上传失败
@@ -219,7 +212,7 @@ function handleMusicFileError() {
   ElMessage.error('音频上传失败，请重试')
 }
 
-// 音频上传前校验
+// 音频上传前校验 + 自动获取时长
 function beforeMusicUpload(file) {
   const allowed = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp4', 'audio/x-m4a']
   const isAudio = allowed.includes(file.type)
@@ -232,7 +225,26 @@ function beforeMusicUpload(file) {
     ElMessage.warning('音频大小必须小于 50MB')
     return false
   }
+  // 使用 HTML5 Audio API 获取时长
+  getAudioDuration(file)
   return isAudio && isLt50M
+}
+
+// 获取音频时长（秒）
+function getAudioDuration(file) {
+  const url = URL.createObjectURL(file)
+  const audio = new Audio()
+  audio.preload = 'metadata'
+  audio.onloadedmetadata = () => {
+    if (audio.duration && !isNaN(audio.duration)) {
+      formData.timelength = Math.round(audio.duration)
+    }
+    URL.revokeObjectURL(url)
+  }
+  audio.onerror = () => {
+    URL.revokeObjectURL(url)
+  }
+  audio.src = url
 }
 
 // 音频上传改变（单文件模式）
@@ -308,18 +320,19 @@ async function onSubmit() {
   }
   formDataRef.value.validate(async (valid) => {
     if (valid) {
-      await manageStore.handleAddMusic({
-        // fromSinger 从当前登录用户获取，防止伪造
+      const res = await manageStore.handleAddMusic({
         fromSinger: userStore.userInfo?.userId,
         musicName: formData.musicName,
         musicUrl: formData.musicFile,
-        activation: formData.activation,
         imageUrl: formData.imgUrl,
         lyricUrl: formData.lyricFile,
-        timeLength: formData.timeLength,
+        timelength: formData.timelength,
         tagList: dynamicTags.value
       })
-      resetForm()
+      if (res && res.code === 200) {
+        ElMessage.success('歌曲已提交，等待管理员审核')
+        resetForm()
+      }
     } else {
       ElMessage.error('请完善表单信息')
       return false
@@ -331,11 +344,10 @@ async function onSubmit() {
 function resetForm() {
   formDataRef.value?.resetFields()
   formData.musicName = ''
-  formData.activation = 0
   formData.imgUrl = ''
   formData.musicFile = ''
   formData.lyricFile = ''
-  formData.timeLength = ''
+  formData.timelength = null
   dynamicTags.value = []
   musicFileList.value = []
   lyricFileList.value = []

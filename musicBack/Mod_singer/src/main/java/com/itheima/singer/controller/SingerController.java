@@ -38,8 +38,9 @@ public class SingerController {
                                                  @RequestParam(defaultValue = "1") Integer page,
                                                  @RequestParam(defaultValue = "10") Integer size,
                                                  @RequestParam(required = false) String keyword,
-                                                 @RequestParam(required = false) Integer activation) {
-        return Result.success(singerService.pageSongs(singerId, page, size, keyword, activation));
+                                                 @RequestParam(required = false) Integer activation,
+                                                 @RequestParam(required = false) Integer auditStatus) {
+        return Result.success(singerService.pageSongs(singerId, page, size, keyword, activation, auditStatus));
     }
 
     /**
@@ -85,7 +86,12 @@ public class SingerController {
      * 修改歌曲信息
      */
     @PutMapping("/songs/{musicId}")
-    public Result<MusicVO> updateSong(@PathVariable Integer musicId, @RequestBody MusicDTO dto) {
+    public Result<MusicVO> updateSong(@PathVariable Integer musicId,
+                                       @RequestBody MusicDTO dto,
+                                       @RequestHeader("X-Role") String roleHeader) {
+        if (!"0".equals(roleHeader)) {
+            return Result.error(403, "仅管理员可以修改歌曲信息");
+        }
         MusicVO updated = singerService.updateSong(musicId, dto);
         return updated == null ? Result.error(404, "歌曲不存在") : Result.success("修改成功", updated);
     }
@@ -125,5 +131,59 @@ public class SingerController {
     public Result<SingerVO> singerInfo(@PathVariable Integer singerId) {
         SingerVO singer = singerService.getSingerInfo(singerId);
         return singer == null ? Result.error(404, "歌手不存在") : Result.success(singer);
+    }
+
+    /**
+     * 审核歌曲（管理员权限）
+     */
+    @PutMapping("/songs/{musicId}/audit")
+    public Result<MusicVO> auditSong(@PathVariable Integer musicId,
+                                     @RequestBody Map<String, Object> body,
+                                     @RequestHeader("X-Role") String roleHeader) {
+        if (!"0".equals(roleHeader)) {
+            return Result.error(403, "仅管理员可以审核歌曲");
+        }
+
+        Integer auditStatus = body.get("auditStatus") != null
+                ? ((Number) body.get("auditStatus")).intValue()
+                : null;
+        String auditRemark = body.get("auditRemark") != null
+                ? body.get("auditRemark").toString()
+                : null;
+
+        if (auditStatus == null || (auditStatus != 1 && auditStatus != 2)) {
+            return Result.error(400, "审核状态参数错误（1-通过, 2-驳回）");
+        }
+
+        if (auditStatus == 2 && (auditRemark == null || auditRemark.trim().isEmpty())) {
+            return Result.error(400, "驳回必须填写原因");
+        }
+
+        MusicVO updated = singerService.auditSong(musicId, auditStatus, auditRemark);
+        return updated == null ? Result.error(404, "歌曲不存在") : Result.success("审核成功", updated);
+    }
+
+    /**
+     * 查询当前歌手的歌曲列表（我的歌曲）
+     */
+    @GetMapping("/mySongs")
+    public Result<PageResult<MusicVO>> mySongs(@RequestHeader("X-User-Id") String userIdHeader,
+                                                @RequestHeader("X-Role") String roleHeader,
+                                                @RequestParam(defaultValue = "1") Integer page,
+                                                @RequestParam(defaultValue = "10") Integer size,
+                                                @RequestParam(required = false) String keyword,
+                                                @RequestParam(required = false) Integer auditStatus) {
+        if (!"1".equals(roleHeader)) {
+            return Result.error(403, "仅歌手可以查看自己的歌曲");
+        }
+
+        Integer userId;
+        try {
+            userId = Integer.parseInt(userIdHeader);
+        } catch (NumberFormatException e) {
+            return Result.error(401, "用户身份无效");
+        }
+
+        return Result.success(singerService.pageSongs(userId, page, size, keyword, null, auditStatus));
     }
 }

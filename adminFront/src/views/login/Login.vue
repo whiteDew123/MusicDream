@@ -97,7 +97,7 @@ async function handleLogin() {
     loading.value = true
     try {
       const data = await userStore.login(loginForm)
-      if (data.role !== 0) {
+      if (data.role !== 0 && data.role !== 1) {
         ElMessage.error('该账号无后台访问权限，请联系管理员')
         userStore.logout()
         return

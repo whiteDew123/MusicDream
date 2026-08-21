@@ -33,6 +33,19 @@ public interface SingerService {
     PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size, String keyword, Integer activation);
 
     /**
+     * 分页查询歌曲（支持关键词、状态和审核状态筛选）
+     *
+     * @param singerId 歌手ID，可为空
+     * @param page 页码
+     * @param size 每页条数
+     * @param keyword 搜索关键词，可为空
+     * @param activation 状态筛选，可为空
+     * @param auditStatus 审核状态筛选，可为空
+     * @return 分页结果
+     */
+    PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size, String keyword, Integer activation, Integer auditStatus);
+
+    /**
      * 发布歌曲
      *
      * @param dto 歌曲信息
@@ -81,4 +94,14 @@ public interface SingerService {
      * @return 歌手信息
      */
     SingerVO getSingerInfo(Integer singerId);
+
+    /**
+     * 审核歌曲（通过/驳回）
+     *
+     * @param musicId 歌曲ID
+     * @param auditStatus 审核状态: 1-通过, 2-驳回
+     * @param auditRemark 审核备注（驳回原因）
+     * @return 审核后的歌曲
+     */
+    MusicVO auditSong(Integer musicId, Integer auditStatus, String auditRemark);
 }

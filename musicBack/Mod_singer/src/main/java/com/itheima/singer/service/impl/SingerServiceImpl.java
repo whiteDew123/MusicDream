@@ -37,6 +37,11 @@ public class SingerServiceImpl implements SingerService {
 
     @Override
     public PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size, String keyword, Integer activation) {
+        return pageSongs(singerId, page, size, keyword, activation, null);
+    }
+
+    @Override
+    public PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size, String keyword, Integer activation, Integer auditStatus) {
         long current = page == null || page < 1 ? 1 : page;
         long pageSize = size == null || size < 1 ? 10 : Math.min(size, 100);
 
@@ -48,6 +53,9 @@ public class SingerServiceImpl implements SingerService {
         }
         if (activation != null) {
             wrapper.eq(Music::getActivation, activation);
+        }
+        if (auditStatus != null) {
+            wrapper.eq(Music::getAuditStatus, auditStatus);
         }
         if (StringUtils.hasText(keyword)) {
             wrapper.like(Music::getMusicName, keyword);
@@ -75,6 +83,7 @@ public class SingerServiceImpl implements SingerService {
         music.setTags(dto.getTags());
         music.setLyric(dto.getLyric());
         music.setActivation(0);
+        music.setAuditStatus(1);
         music.setListenNumb(0);
         music.setCreateTime(LocalDate.now());
 
@@ -100,7 +109,8 @@ public class SingerServiceImpl implements SingerService {
         music.setMusicUrl(dto.getMusicUrl());
         music.setImageUrl(dto.getImageUrl());
         music.setTimelength(dto.getTimelength());
-        music.setActivation(dto.getActivation() != null ? dto.getActivation() : 0);
+        music.setActivation(0);
+        music.setAuditStatus(0);
         music.setListenNumb(0);
         music.setCreateTime(LocalDate.now());
 
@@ -228,11 +238,33 @@ public class SingerServiceImpl implements SingerService {
         vo.setCreateTime(music.getCreateTime());
         vo.setTags(music.getTags());
         vo.setLyric(music.getLyric());
+        vo.setAuditStatus(music.getAuditStatus());
+        vo.setAuditRemark(music.getAuditRemark());
 
         User singer = music.getFromSinger() == null ? null : userMapper.selectById(music.getFromSinger());
         if (singer != null) {
             vo.setSingerName(singer.getUsername());
         }
         return vo;
+    }
+
+    @Override
+    public MusicVO auditSong(Integer musicId, Integer auditStatus, String auditRemark) {
+        Music exist = musicMapper.selectById(musicId);
+        if (exist == null) {
+            return null;
+        }
+
+        LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
+                .eq(Music::getMusicId, musicId)
+                .set(Music::getAuditStatus, auditStatus)
+                .set(Music::getAuditRemark, auditRemark);
+
+        if (auditStatus == 1) {
+            wrapper.set(Music::getActivation, 0);
+        }
+
+        musicMapper.update(null, wrapper);
+        return toMusicVO(musicMapper.selectById(musicId));
     }
 }

@@ -20,9 +20,9 @@
     >
       <!-- 一级菜单 -->
       <template v-for="item in menuList" :key="item.path">
-        <!-- 有子菜单：渲染 sub-menu -->
+        <!-- 有子菜单且过滤后仍有可见项：渲染 sub-menu -->
         <el-sub-menu
-          v-if="item.children && item.children.length"
+          v-if="item.children && filterChildren(item.children).length"
           :index="'/' + item.path"
         >
           <template #title>
@@ -44,7 +44,7 @@
           </el-menu-item>
         </el-sub-menu>
 
-        <!-- 无子菜单：渲染 menu-item -->
+        <!-- 无子菜单（或过滤后为空）：渲染 menu-item -->
         <el-menu-item v-else :index="'/' + item.path" class="wf-menu-item">
           <el-icon class="menu-icon"><component :is="item.icon" /></el-icon>
           <template #title>
