@@ -12,9 +12,9 @@ import org.springframework.context.annotation.Import;
 @EnableDiscoveryClient
 @MapperScan("com.itheima.admin.mapper")
 @Import(value = {WebMvcConfig.class, MybatisPlusPageConfig.class})
-public class Port8003_admin {
+public class AdminApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(Port8003_admin.class, args);
+        SpringApplication.run(AdminApplication.class, args);
     }
 }

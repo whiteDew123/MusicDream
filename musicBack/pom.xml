@@ -42,6 +42,7 @@
         <jjwt.version>0.12.5</jjwt.version>
         <fastjson2.version>2.0.51</fastjson2.version>
         <jaudiotagger.version>2.0.3</jaudiotagger.version>
+        <mp3agic.version>0.9.1</mp3agic.version>
         <commons-email.version>1.5</commons-email.version>
         <velocity.version>2.3</velocity.version>
         <springdoc.version>2.5.0</springdoc.version>
@@ -128,6 +129,12 @@
                 <groupId>org</groupId>
                 <artifactId>jaudiotagger</artifactId>
                 <version>${jaudiotagger.version}</version>
+            </dependency>
+            <!--MP3 文件解析（mp3agic）-->
+            <dependency>
+                <groupId>com.mpatric</groupId>
+                <artifactId>mp3agic</artifactId>
+                <version>${mp3agic.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

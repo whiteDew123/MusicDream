@@ -13,6 +13,9 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+### Uploads ###
+uploads/
+
 ### IntelliJ IDEA ###
 .idea/
 *.iws

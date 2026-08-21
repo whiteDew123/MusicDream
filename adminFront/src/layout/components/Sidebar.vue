@@ -59,6 +59,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { routes } from '@/router'
+import { useUserStore } from '@/store/user'
 
 defineProps({
   isCollapse: {
@@ -68,10 +69,42 @@ defineProps({
 })
 
 const route = useRoute()
+const userStore = useUserStore()
 
 const menuRoutes = computed(() => {
   const layout = routes.find((r) => r.path === '/')
-  return layout ? layout.children : []
+  if (!layout || !layout.children) return []
+
+  return layout.children
+    .filter((item) => {
+      if (item.meta?.skipMenu) return false
+
+      if (item.children && item.children.length) {
+        const filtered = item.children.filter((child) => {
+          const childRoles = child.meta?.roles
+          if (!childRoles) return true
+          return userStore.hasRole(...childRoles)
+        })
+        return filtered.length > 0
+      }
+
+      const itemRoles = item.meta?.roles
+      if (!itemRoles) return true
+      return userStore.hasRole(...itemRoles)
+    })
+    .map((item) => {
+      if (item.children && item.children.length) {
+        return {
+          ...item,
+          children: item.children.filter((child) => {
+            const childRoles = child.meta?.roles
+            if (!childRoles) return true
+            return userStore.hasRole(...childRoles)
+          })
+        }
+      }
+      return item
+    })
 })
 
 const activeMenu = computed(() => route.path)

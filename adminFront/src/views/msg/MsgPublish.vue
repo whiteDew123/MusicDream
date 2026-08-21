@@ -1,17 +1,19 @@
 <template>
-  <div class="msg-publish-container">
+  <div class="msg-publish">
     <div class="page-header">
-      <h1 class="page-title">发布消息</h1>
-      <p class="page-desc">向用户发送系统通知或公告消息</p>
+      <div>
+        <p class="eyebrow">MESSAGE · PUBLISH</p>
+        <h2 class="page-title">发布消息</h2>
+        <p class="page-desc">向用户发送系统通知或公告消息。</p>
+      </div>
     </div>
 
-    <el-card class="publish-card" shadow="never">
+    <div class="panel form-panel">
       <el-form
         ref="formRef"
         :model="formData"
         :rules="formRules"
-        label-width="80px"
-        label-position="left"
+        label-width="90px"
         class="publish-form"
       >
         <el-form-item label="消息标题" prop="title">
@@ -36,19 +38,13 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button
-            type="primary"
-            :loading="submitting"
-            :disabled="submitting"
-            @click="handleSubmit"
-            class="submit-btn"
-          >
-            {{ submitting ? '发布中...' : '发布消息' }}
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">
+            {{ submitting ? '发布中…' : '发布消息' }}
           </el-button>
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
+    </div>
   </div>
 </template>
 
@@ -78,12 +74,10 @@ const formRules = {
   ]
 }
 
-const handleSubmit = async () => {
+async function handleSubmit() {
   if (!formRef.value) return
-
   await formRef.value.validate(async (valid) => {
     if (!valid) return
-
     submitting.value = true
     try {
       await publishMsg({
@@ -91,10 +85,9 @@ const handleSubmit = async () => {
         userId: userStore.userInfo.userId,
         msg: formData.msg
       })
-
       ElMessage.success('消息发布成功')
       handleReset()
-    } catch (error) {
+    } catch {
       ElMessage.error('消息发布失败，请重试')
     } finally {
       submitting.value = false
@@ -102,7 +95,7 @@ const handleSubmit = async () => {
   })
 }
 
-const handleReset = () => {
+function handleReset() {
   formData.title = ''
   formData.msg = ''
   formRef.value?.resetFields()
@@ -110,102 +103,43 @@ const handleReset = () => {
 </script>
 
 <style scoped lang="scss">
-.msg-publish-container {
-  padding: 32px;
-  background-color: #f5f6f8;
-  min-height: calc(100vh - 60px);
+.msg-publish {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
 }
 
 .page-header {
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #080808;
-  margin: 0 0 8px 0;
-  letter-spacing: -0.24px;
-}
-
-.page-desc {
-  font-size: 14px;
-  color: #5a5a5a;
-  margin: 0;
-}
-
-.publish-card {
-  background-color: #ffffff;
-  border: 1px solid #d8d8d8;
-  border-radius: 8px;
-
-  :deep(.el-card__body) {
-    padding: 32px;
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--brand-accent);
+    margin-bottom: 8px;
   }
+  .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    color: var(--wf-ink);
+    margin-bottom: 6px;
+  }
+  .page-desc {
+    font-size: 14px;
+    color: var(--wf-body-mid);
+  }
+}
+
+.panel {
+  background: var(--wf-canvas);
+  border: 1px solid var(--wf-hairline);
+  border-radius: var(--rounded-md);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-sm);
 }
 
 .publish-form {
-  max-width: 600px;
-
-  :deep(.el-form-item__label) {
-    font-weight: 500;
-    color: #080808;
-  }
-
-  :deep(.el-input__wrapper) {
-    border-radius: 4px;
-    border: 1px solid #d8d8d8;
-    box-shadow: none;
-    padding: 8px 12px;
-
-    &:hover {
-      border-color: #4353ff;
-    }
-
-    &.is-focus {
-      border-color: #4353ff;
-      box-shadow: 0 0 0 2px rgba(67, 83, 255, 0.1);
-    }
-  }
-
-  :deep(.el-textarea__inner) {
-    border-radius: 4px;
-    border: 1px solid #d8d8d8;
-    box-shadow: none;
-    padding: 8px 12px;
-
-    &:hover {
-      border-color: #4353ff;
-    }
-
-    &:focus {
-      border-color: #4353ff;
-      box-shadow: 0 0 0 2px rgba(67, 83, 255, 0.1);
-    }
-  }
-}
-
-.submit-btn {
-  background-color: #080808;
-  border-color: #080808;
-  border-radius: 4px;
-  padding: 12px 24px;
-  font-weight: 500;
-
-  &:hover {
-    background-color: #222222;
-    border-color: #222222;
-  }
-
-  &:active {
-    background-color: #363636;
-    border-color: #363636;
-  }
-}
-
-:deep(.el-button:not(.submit-btn)) {
-  border-radius: 4px;
-  padding: 12px 24px;
-  font-weight: 500;
+  max-width: 640px;
 }
 </style>

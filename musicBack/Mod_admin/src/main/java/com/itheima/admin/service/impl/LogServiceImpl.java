@@ -6,15 +6,17 @@ import com.itheima.admin.mapper.LogMapper;
 import com.itheima.admin.service.LogService;
 import com.itheima.domain.common.Result;
 import com.itheima.domain.entity.Log;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+
 @Service
+@RequiredArgsConstructor
 public class LogServiceImpl implements LogService {
 
-    @Autowired
-    private LogMapper logMapper;
+    private final LogMapper logMapper;
 
     @Override
     public Result searchLog(Integer pn, Integer size, String keyword) {
@@ -31,5 +33,15 @@ public class LogServiceImpl implements LogService {
         }
         Page<Log> page = logMapper.selectPage(logPage, wrapper);
         return Result.success("查询成功", page);
+    }
+
+    @Override
+    public void saveLog(String userName, String doSome, String musicName) {
+        Log log = new Log();
+        log.setUserName(userName);
+        log.setDoSome(doSome);
+        log.setMusicName(musicName);
+        log.setCreateDate(LocalDate.now());
+        logMapper.insert(log);
     }
 }
