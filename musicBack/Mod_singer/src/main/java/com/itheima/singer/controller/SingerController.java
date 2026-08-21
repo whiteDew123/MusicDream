@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 歌手模块接口
  */
 @RestController
-@RequestMapping("/api/singer")
+@RequestMapping("/singer")
 @RequiredArgsConstructor
 public class SingerController {
 
@@ -40,7 +40,7 @@ public class SingerController {
     /**
      * 发布歌曲
      */
-    @PostMapping("/songs")
+    @PostMapping({"/songs", "/addMusic"})
     public Result<MusicVO> publishSong(@RequestBody MusicDTO dto) {
         if (dto.getFromSinger() == null) {
             return Result.error(400, "歌手ID不能为空");
@@ -61,12 +61,30 @@ public class SingerController {
     }
 
     /**
-     * 删除歌曲
+     * 删除歌曲（硬删除）
      */
-    @DeleteMapping("/songs/{musicId}")
+    @DeleteMapping({"/songs/{musicId}", "/songs/{musicId}/hard"})
     public Result<Void> deleteSong(@PathVariable Integer musicId) {
         boolean deleted = singerService.deleteSong(musicId);
         return deleted ? Result.<Void>success("删除成功", null) : Result.<Void>error(404, "歌曲不存在");
+    }
+
+    /**
+     * 冻结歌曲
+     */
+    @PostMapping("/songs/{musicId}/freeze")
+    public Result<Void> freezeSong(@PathVariable Integer musicId) {
+        boolean ok = singerService.freezeSong(musicId);
+        return ok ? Result.<Void>success("冻结成功", null) : Result.<Void>error(404, "歌曲不存在");
+    }
+
+    /**
+     * 解冻歌曲
+     */
+    @PostMapping("/songs/{musicId}/unfreeze")
+    public Result<Void> unfreezeSong(@PathVariable Integer musicId) {
+        boolean ok = singerService.unfreezeSong(musicId);
+        return ok ? Result.<Void>success("解冻成功", null) : Result.<Void>error(404, "歌曲不存在");
     }
 
     /**

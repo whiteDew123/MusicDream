@@ -10,6 +10,8 @@ import com.itheima.singer.dto.MusicDTO;
 import com.itheima.singer.mapper.MusicMapper;
 import com.itheima.singer.mapper.UserMapper;
 import com.itheima.singer.service.SingerService;
+import com.itheima.singer.util.ReviewResult;
+import com.itheima.singer.util.SensitiveWordUtil;
 import com.itheima.singer.vo.MusicVO;
 import com.itheima.singer.vo.SingerVO;
 import lombok.RequiredArgsConstructor;
@@ -40,11 +42,13 @@ public class SingerServiceImpl implements SingerService {
         Page<Music> p = new Page<>(current, pageSize);
 
         LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
-                .eq(Music::getActivation, 0)
                 .orderByDesc(Music::getCreateTime)
                 .orderByDesc(Music::getListenNumb);
         if (singerId != null) {
             wrapper.eq(Music::getFromSinger, singerId);
+        } else {
+            wrapper.eq(Music::getAuditStatus, 1)
+                   .eq(Music::getActivation, 0);
         }
 
         musicMapper.selectPage(p, wrapper);
@@ -58,6 +62,9 @@ public class SingerServiceImpl implements SingerService {
 
     @Override
     public MusicVO publishSong(MusicDTO dto) {
+        // 自动审核
+        ReviewResult review = SensitiveWordUtil.autoReview(dto);
+
         Music music = new Music();
         music.setFromSinger(dto.getFromSinger());
         music.setMusicName(dto.getMusicName());
@@ -67,6 +74,15 @@ public class SingerServiceImpl implements SingerService {
         music.setTags(dto.getTags());
         music.setLyric(dto.getLyric());
         music.setActivation(0);
+        // 根据自动审核结果设置审核状态
+        if (review.isPass()) {
+            music.setAuditStatus(1);          // 直接公开
+        } else if (review.isReject()) {
+            music.setAuditStatus(2);          // 自动驳回
+            music.setAuditRemark(review.getMessage());
+        } else {
+            music.setAuditStatus(0);          // 进入管理员审核列表
+        }
         music.setListenNumb(0);
         music.setCreateTime(LocalDate.now());
 
@@ -112,15 +128,22 @@ public class SingerServiceImpl implements SingerService {
 
     @Override
     public boolean deleteSong(Integer musicId) {
-        Music exist = musicMapper.selectById(musicId);
-        if (exist == null) {
-            return false;
-        }
+        return musicMapper.deleteById(musicId) > 0;
+    }
 
-        // 软删除：歌手下架自己的歌曲，置为 1（用户锁定），避免外键引用导致物理删除失败
+    @Override
+    public boolean freezeSong(Integer musicId) {
         LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
                 .eq(Music::getMusicId, musicId)
-                .set(Music::getActivation, 1);
+                .set(Music::getActivation, 2);
+        return musicMapper.update(null, wrapper) > 0;
+    }
+
+    @Override
+    public boolean unfreezeSong(Integer musicId) {
+        LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
+                .eq(Music::getMusicId, musicId)
+                .set(Music::getActivation, 0);
         return musicMapper.update(null, wrapper) > 0;
     }
 
@@ -139,6 +162,7 @@ public class SingerServiceImpl implements SingerService {
 
         Long songCount = musicMapper.selectCount(new LambdaQueryWrapper<Music>()
                 .eq(Music::getFromSinger, singerId)
+                .eq(Music::getAuditStatus, 1)
                 .eq(Music::getActivation, 0));
 
         SingerVO vo = new SingerVO();
@@ -160,6 +184,8 @@ public class SingerServiceImpl implements SingerService {
         vo.setMusicName(music.getMusicName());
         vo.setMusicUrl(music.getMusicUrl());
         vo.setActivation(music.getActivation());
+        vo.setAuditStatus(music.getAuditStatus());
+        vo.setAuditRemark(music.getAuditRemark());
         vo.setListenNumb(music.getListenNumb());
         vo.setImageUrl(music.getImageUrl());
         vo.setTimelength(music.getTimelength());

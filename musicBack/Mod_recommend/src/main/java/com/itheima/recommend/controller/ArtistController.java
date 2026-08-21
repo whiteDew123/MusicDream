@@ -17,7 +17,7 @@ import java.util.List;
  * 歌手推荐、详情接口
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/singer")
 @RequiredArgsConstructor
 public class ArtistController {
 
@@ -26,7 +26,7 @@ public class ArtistController {
     /**
      * 推荐歌手
      */
-    @GetMapping("/music/recommend/artists")
+    @GetMapping("/recommend/artists")
     public Result<List<ArtistVO>> recommendArtists(@RequestParam(defaultValue = "10") Integer limit) {
         return Result.success(recommendService.recommendArtists(limit));
     }
@@ -34,7 +34,7 @@ public class ArtistController {
     /**
      * 歌手详情
      */
-    @GetMapping("/artists/{artistId}")
+    @GetMapping("/detail/{artistId}")
     public Result<ArtistDetailVO> artistDetail(@PathVariable Integer artistId) {
         ArtistDetailVO detail = recommendService.artistDetail(artistId);
         return detail == null ? Result.error(404, "歌手不存在") : Result.success(detail);

@@ -16,6 +16,8 @@ public class MusicVO {
     private String musicName;
     private String musicUrl;
     private Integer activation;
+    private Integer auditStatus;
+    private String auditRemark;
     private Integer listenNumb;
     private String imageUrl;
     private Integer timelength;

@@ -2,6 +2,7 @@ package com.itheima.upload.service.impl;
 
 import com.itheima.upload.dto.UploadResult;
 import com.itheima.upload.service.UploadService;
+import com.itheima.upload.util.AudioDurationUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -105,6 +107,12 @@ public class UploadServiceImpl implements UploadService {
             throw new IllegalArgumentException("上传文件不能为空");
         }
 
+        try {
+            basePath = new File(basePath).getCanonicalPath() + "/";
+        } catch (IOException e) {
+            throw new RuntimeException("无法解析上传路径: " + basePath, e);
+        }
+
         if (file.getSize() > maxSize) {
             throw new IllegalArgumentException("文件大小超过限制，最大允许" + (maxSize / 1024 / 1024) + "MB");
         }
@@ -145,6 +153,14 @@ public class UploadServiceImpl implements UploadService {
         result.setFileUrl(fileUrl);
         result.setFileSize(file.getSize());
         result.setFileType(contentType);
+
+        if ("music".equals(fileType)) {
+            Integer duration = AudioDurationUtil.getDuration(Paths.get(filePath));
+            result.setDuration(duration);
+            if (duration != null) {
+                log.info("音频时长解析成功: {} 秒", duration);
+            }
+        }
         return result;
     }
 }

@@ -4,13 +4,12 @@ import { loginApi } from '@/api/auth'
 import { getToken, setToken, getUserInfo, setUserInfo, clearAuth } from '@/utils/auth'
 
 // 用户状态管理
-// - 登录后存储 token 与用户信息（token/userId/username/role/imageUrl）
-// - role: 0-管理员, 1-歌手, 2-普通用户；后台仅允许 role=0 进入
+// - role: 0-管理员, 1-歌手, 2-普通用户
+// - 后台管理端允许 role=0 和 role=1 进入
 export const useUserStore = defineStore('user', () => {
   const token = ref(getToken() || '')
   const userInfo = ref(getUserInfo())
 
-  // 登录：调用后端接口，成功后写入本地存储
   async function login(loginForm) {
     const res = await loginApi(loginForm)
     const data = res.data
@@ -26,21 +25,26 @@ export const useUserStore = defineStore('user', () => {
     return data
   }
 
-  // 退出：清空本地登录态
   function logout() {
     token.value = ''
     userInfo.value = null
     clearAuth()
   }
 
-  // 是否已登录
   function isLogin() {
     return !!token.value
   }
 
-  // 是否为管理员
   function isAdmin() {
     return userInfo.value?.role === 0
+  }
+
+  function isSinger() {
+    return userInfo.value?.role === 1
+  }
+
+  function hasRole(...roles) {
+    return roles.includes(userInfo.value?.role)
   }
 
   return {
@@ -49,6 +53,8 @@ export const useUserStore = defineStore('user', () => {
     login,
     logout,
     isLogin,
-    isAdmin
+    isAdmin,
+    isSinger,
+    hasRole
   }
 })

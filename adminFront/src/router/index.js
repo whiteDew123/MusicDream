@@ -4,7 +4,7 @@ import { getToken } from '@/utils/auth'
 
 // 路由表
 // - /login、/register：公开页面
-// - 其余路由需登录且 role=0（管理员），统一使用 Layout 主布局
+// - 其余路由需登录且 role=0（管理员）或 role=1（歌手），统一使用 Layout 主布局
 const routes = [
   {
     path: '/login',
@@ -30,7 +30,6 @@ const routes = [
         meta: { title: '首页', icon: 'Odometer' }
       },
       {
-        // 管理中心（分组，无 component）
         path: 'manage',
         name: 'Manage',
         meta: { title: '管理中心', icon: 'Operation' },
@@ -38,25 +37,36 @@ const routes = [
           {
             path: 'user',
             name: 'UserManage',
-            component: () => import('@/views/placeholder/Placeholder.vue'),
-            meta: { title: '用户管理', icon: 'User' }
+            component: () => import('@/views/manage/UserManage.vue'),
+            meta: { title: '用户管理', icon: 'User', roles: [0] }
           },
           {
             path: 'music',
             name: 'MusicManage',
-            component: () => import('@/views/placeholder/Placeholder.vue'),
-            meta: { title: '歌曲管理', icon: 'Headset' }
+            component: () => import('@/views/manage/MusicManage.vue'),
+            meta: { title: '歌曲管理', icon: 'Headset', roles: [0] }
+          },
+          {
+            path: 'review',
+            name: 'MusicReview',
+            component: () => import('@/views/manage/MusicReview.vue'),
+            meta: { title: '歌曲审核', icon: 'Checked', roles: [0] }
           },
           {
             path: 'upload',
             name: 'MusicUpload',
-            component: () => import('@/views/placeholder/Placeholder.vue'),
-            meta: { title: '发布歌曲', icon: 'Upload' }
+            component: () => import('@/views/manage/MusicUpload.vue'),
+            meta: { title: '发布歌曲', icon: 'Upload', roles: [1] }
+          },
+          {
+            path: 'my-songs',
+            name: 'MySongs',
+            component: () => import('@/views/manage/MusicManage.vue'),
+            meta: { title: '我的歌曲', icon: 'Headset', roles: [1] }
           }
         ]
       },
       {
-        // 消息中心（分组，无 component）
         path: 'msg',
         name: 'Message',
         meta: { title: '消息中心', icon: 'ChatDotRound' },
@@ -100,7 +110,7 @@ const router = createRouter({
 
 // 全局前置守卫
 // - public 路由直接放行
-// - 非 public：未登录跳 /login；已登录但非管理员拒绝进入
+// - 非 public：未登录跳 /login；已登录但非管理员/歌手拒绝进入
 router.beforeEach((to, from, next) => {
   document.title = to.meta.title ? `${to.meta.title} - MusicDreamer 后台` : 'MusicDreamer 后台'
   if (to.meta.public) {
@@ -111,7 +121,7 @@ router.beforeEach((to, from, next) => {
     return next({ path: '/login', query: { redirect: to.fullPath } })
   }
   const userStore = useUserStore()
-  if (!userStore.isAdmin()) {
+  if (!userStore.hasRole(0, 1)) {
     return next({ path: '/login' })
   }
   next()

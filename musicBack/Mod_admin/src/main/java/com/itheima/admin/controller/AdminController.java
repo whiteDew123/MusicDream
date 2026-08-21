@@ -54,6 +54,28 @@ public class AdminController {
         return musicService.unFreezeMusic(id);
     }
 
+    @GetMapping("/pagePendingMusic/{pn}/{size}")
+    public Result pagePendingMusic(@PathVariable(value = "pn") Integer pn,
+                                   @PathVariable(value = "size") Integer size) {
+        return musicService.pagePendingMusic(pn, size);
+    }
+
+    @PostMapping("/approveMusic")
+    public Result approveMusic(@RequestParam(value = "id") Integer id) {
+        return musicService.approveMusic(id);
+    }
+
+    @PostMapping("/rejectMusic")
+    public Result rejectMusic(@RequestParam(value = "id") Integer id,
+                              @RequestParam(value = "remark", required = false) String remark) {
+        return musicService.rejectMusic(id, remark);
+    }
+
+    @PostMapping("/deleteMusic")
+    public Result deleteMusic(@RequestParam(value = "id") Integer id) {
+        return musicService.deleteMusic(id);
+    }
+
     @GetMapping("/pageLog/{pn}/{size}")
     public Result pageLog(@PathVariable(value = "pn") Integer pn,
                           @PathVariable(value = "size") Integer size,

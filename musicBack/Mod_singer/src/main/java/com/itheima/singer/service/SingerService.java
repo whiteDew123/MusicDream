@@ -38,12 +38,28 @@ public interface SingerService {
     MusicVO updateSong(Integer musicId, MusicDTO dto);
 
     /**
-     * 删除歌曲（软删除：将 activation 置为 1，用户锁定/下架）
+     * 删除歌曲（硬删除，物理删除记录）
      *
      * @param musicId 歌曲ID
      * @return 是否删除成功
      */
     boolean deleteSong(Integer musicId);
+
+    /**
+     * 冻结歌曲（activation = 2）
+     *
+     * @param musicId 歌曲ID
+     * @return 是否冻结成功
+     */
+    boolean freezeSong(Integer musicId);
+
+    /**
+     * 解冻歌曲（activation = 0）
+     *
+     * @param musicId 歌曲ID
+     * @return 是否解冻成功
+     */
+    boolean unfreezeSong(Integer musicId);
 
     /**
      * 获取歌手数据

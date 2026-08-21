@@ -1,10 +1,9 @@
 server:
-  port: 8004
+  port: 8003
 
 spring:
   application:
-    # 与网关路由 lb://mod-setting 保持一致
-    name: mod-setting
+    name: mod-admin
   cloud:
     nacos:
       discovery:
@@ -23,6 +22,7 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
 
 mybatis-plus:
+  mapper-locations: classpath*:com/itheima/admin/mapper/xml/*.xml
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
@@ -32,4 +32,4 @@ mybatis-plus:
 
 logging:
   level:
-    com.itheima.setting: debug
+    com.itheima.admin: debug

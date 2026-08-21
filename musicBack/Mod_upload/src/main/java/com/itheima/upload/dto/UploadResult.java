@@ -9,4 +9,5 @@ public class UploadResult {
     private String fileUrl;
     private Long fileSize;
     private String fileType;
+    private Integer duration;
 }

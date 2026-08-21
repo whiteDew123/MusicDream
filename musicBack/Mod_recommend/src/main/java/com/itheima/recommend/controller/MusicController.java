@@ -17,7 +17,7 @@ import java.util.List;
  * 歌曲推荐、排行、搜索、详情接口
  */
 @RestController
-@RequestMapping("/api/music")
+@RequestMapping("/music")
 @RequiredArgsConstructor
 public class MusicController {
 
