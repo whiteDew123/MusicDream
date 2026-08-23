@@ -3,6 +3,7 @@ package com.itheima.upload.service.impl;
 import com.itheima.upload.dto.UploadResult;
 import com.itheima.upload.service.UploadService;
 import com.itheima.upload.util.AudioDurationUtil;
+import com.itheima.upload.util.ResourcePathResolver;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,26 +28,17 @@ public class UploadServiceImpl implements UploadService {
 
     private static final Logger log = LoggerFactory.getLogger(UploadServiceImpl.class);
 
-    @Value("${upload.image.path}")
-    private String imagePath;
-
     @Value("${upload.image.allowed-types}")
     private String[] imageAllowedTypes;
 
     @Value("${upload.image.max-size}")
     private long imageMaxSize;
 
-    @Value("${upload.lrc.path}")
-    private String lrcPath;
-
     @Value("${upload.lrc.allowed-types}")
     private String[] lrcAllowedTypes;
 
     @Value("${upload.lrc.max-size}")
     private long lrcMaxSize;
-
-    @Value("${upload.music.path}")
-    private String musicPath;
 
     @Value("${upload.music.allowed-types}")
     private String[] musicAllowedTypes;
@@ -56,17 +48,17 @@ public class UploadServiceImpl implements UploadService {
 
     @Override
     public UploadResult uploadImage(MultipartFile file) {
-        return uploadFile(file, imagePath, imageAllowedTypes, imageMaxSize, "image");
+        return uploadFile(file, ResourcePathResolver.resolveDir(ResourcePathResolver.IMAGE), imageAllowedTypes, imageMaxSize, "image");
     }
 
     @Override
     public UploadResult uploadLrc(MultipartFile file) {
-        return uploadFile(file, lrcPath, lrcAllowedTypes, lrcMaxSize, "lrc");
+        return uploadFile(file, ResourcePathResolver.resolveDir(ResourcePathResolver.LRC), lrcAllowedTypes, lrcMaxSize, "lrc");
     }
 
     @Override
     public UploadResult uploadMusic(MultipartFile file) {
-        return uploadFile(file, musicPath, musicAllowedTypes, musicMaxSize, "music");
+        return uploadFile(file, ResourcePathResolver.resolveDir(ResourcePathResolver.MUSIC), musicAllowedTypes, musicMaxSize, "music");
     }
 
     @Override
@@ -75,7 +67,7 @@ public class UploadServiceImpl implements UploadService {
             throw new IllegalArgumentException("文件URL不能为空");
         }
 
-        String filePath = musicPath + fileUrl.replace("/uploads/music/", "");
+        String filePath = ResourcePathResolver.resolveDir(ResourcePathResolver.MUSIC) + fileUrl.replace("/uploads/music/", "");
         File file = new File(filePath);
 
         if (!file.exists()) {

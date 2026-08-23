@@ -36,6 +36,13 @@ const routes = [
         meta: { title: '歌手', icon: 'Microphone' }
       },
       {
+        // 歌手详情页
+        path: 'singer/:id',
+        name: 'SingerDetail',
+        component: () => import('@/views/singer/SingerDetail.vue'),
+        meta: { title: '歌手详情' }
+      },
+      {
         path: 'rank',
         name: 'Rank',
         component: () => import('@/views/rank/Rank.vue'),
@@ -46,6 +53,13 @@ const routes = [
         name: 'SongList',
         component: () => import('@/views/songlist/SongListPage.vue'),
         meta: { title: '歌单', icon: 'Files' }
+      },
+      {
+        // 歌单详情页
+        path: 'songlist/:id',
+        name: 'SongListDetail',
+        component: () => import('@/views/songlist/SongListDetail.vue'),
+        meta: { title: '歌单详情' }
       },
       {
         // 我的（分组，redirect 到第一个子项，无 component）

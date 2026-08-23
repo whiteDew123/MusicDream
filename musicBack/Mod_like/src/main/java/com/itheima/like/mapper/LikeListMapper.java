@@ -21,7 +21,7 @@ public interface LikeListMapper extends BaseMapper<LikeList> {
      *
      * @param userId 用户ID
      */
-    @Select("SELECT ll.*, sl.name AS list_name, sl.pic AS list_pic, u.username " +
+    @Select("SELECT ll.*, sl.name AS list_name, sl.pic AS list_pic, sl.style AS list_style, u.username " +
             "FROM likelist ll " +
             "LEFT JOIN song_list sl ON ll.list_id = sl.id " +
             "LEFT JOIN user u ON sl.user_id = u.id " +

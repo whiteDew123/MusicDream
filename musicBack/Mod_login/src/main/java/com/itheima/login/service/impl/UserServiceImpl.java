@@ -8,6 +8,7 @@ import com.itheima.login.mapper.UserMapper;
 import com.itheima.login.service.UserService;
 import com.itheima.login.util.JwtUtil;
 import com.itheima.login.util.Md5Util;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.mail.SimpleEmail;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 用户业务实现
  */
+@Slf4j
 @Service
 public class UserServiceImpl implements UserService {
 
@@ -63,7 +65,6 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("账号或密码不能为空");
         }
 
-        // 支持用户名 / 邮箱 / 手机号登录
         User user = userMapper.selectByUsername(account);
         if (user == null && account.contains("@")) {
             user = userMapper.selectByEmail(account);
@@ -75,17 +76,14 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("账号不存在");
         }
 
-        // MD5 密码校验
         if (!Md5Util.matches(password, user.getPassword())) {
             throw new IllegalArgumentException("账号或密码错误");
         }
 
-        // 账号锁定状态：1 表示锁定
         if (user.getActivation() != null && user.getActivation() == 1) {
             throw new IllegalStateException("账号已被锁定，请联系管理员");
         }
 
-        // 签发 JWT
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
 
         return new LoginResponse(
@@ -104,7 +102,6 @@ public class UserServiceImpl implements UserService {
         String email = request.getEmail();
         String emailCode = request.getEmailCode();
 
-        // 基础参数校验
         if (!StringUtils.hasText(username) || username.length() < 3 || username.length() > 20) {
             throw new IllegalArgumentException("用户名长度需在 3-20 之间");
         }
@@ -115,7 +112,6 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("邮箱格式不正确");
         }
 
-        // 用户名 / 邮箱唯一性校验
         if (userMapper.selectByUsername(username) != null) {
             throw new IllegalArgumentException("用户名已被占用");
         }
@@ -123,21 +119,29 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("邮箱已被注册");
         }
 
-        // 邮箱验证码校验
-        String storedCode = redisTemplate.opsForValue().get(EMAIL_CODE_KEY_PREFIX + email);
+        String storedCode = null;
+        try {
+            storedCode = redisTemplate.opsForValue().get(EMAIL_CODE_KEY_PREFIX + email);
+        } catch (Exception e) {
+            log.warn("Redis 连接失败，无法验证邮箱验证码: {}", e.getMessage());
+        }
+
         if (!StringUtils.hasText(emailCode) || !emailCode.equals(storedCode)) {
             throw new IllegalArgumentException("邮箱验证码无效或已过期");
         }
-        // 验证通过后立即删除，防止重复使用
-        redisTemplate.delete(EMAIL_CODE_KEY_PREFIX + email);
 
-        // 构建用户实体并入库，密码 MD5 加密
+        try {
+            redisTemplate.delete(EMAIL_CODE_KEY_PREFIX + email);
+        } catch (Exception e) {
+            log.warn("Redis 连接失败，无法删除验证码: {}", e.getMessage());
+        }
+
         User user = new User();
         user.setUsername(username);
         user.setPassword(Md5Util.md5(password));
         user.setEmail(email);
-        user.setRole(2);           // 普通用户
-        user.setActivation(0);     // 正常状态
+        user.setRole(2);
+        user.setActivation(0);
         user.setCreateTime(LocalDate.now());
         user.setImageUrl(DEFAULT_AVATAR);
 
@@ -147,22 +151,22 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void sendEmailCode(String email) {
-        System.out.println("[EMAIL] sendEmailCode 收到: '" + email + "'");
-        System.out.println("[EMAIL] 正则校验: " + (email != null && email.matches("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,}$") ? "通过" : "失败"));
+        log.info("sendEmailCode 收到: '{}'", email);
         if (!StringUtils.hasText(email) || !email.matches("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,}$")) {
             throw new IllegalArgumentException("邮箱格式不正确");
         }
-        // 已注册邮箱不再发验证码（注册场景）
         if (userMapper.selectByEmail(email) != null) {
             throw new IllegalArgumentException("该邮箱已被注册");
         }
 
-        // 生成 6 位数字验证码
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(1_000_000));
-        // 存入 Redis，设置过期时间
-        redisTemplate.opsForValue().set(EMAIL_CODE_KEY_PREFIX + email, code, codeExpireMinutes, TimeUnit.MINUTES);
 
-        // 发送邮件
+        try {
+            redisTemplate.opsForValue().set(EMAIL_CODE_KEY_PREFIX + email, code, codeExpireMinutes, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.warn("Redis 连接失败，验证码将不会被缓存: {}", e.getMessage());
+        }
+
         sendMail(email, code);
     }
 
@@ -175,9 +179,6 @@ public class UserServiceImpl implements UserService {
         return user;
     }
 
-    /**
-     * 通过 commons-email 发送验证码邮件
-     */
     private void sendMail(String to, String code) {
         try {
             SimpleEmail email = new SimpleEmail();
@@ -192,9 +193,7 @@ public class UserServiceImpl implements UserService {
             email.addTo(to);
             email.send();
         } catch (Exception e) {
-            // 邮件发送失败不抛出，验证码已存入 Redis 便于开发期联调
-            // 生产环境建议改用异步队列 + 重试机制
-            System.err.println("[Mod_login] 邮件发送失败 -> " + to + "，验证码：" + code + "，原因：" + e.getMessage());
+            log.warn("邮件发送失败 -> {}，验证码：{}，原因：{}", to, code, e.getMessage());
         }
     }
 }

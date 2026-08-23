@@ -112,19 +112,19 @@
           <router-link
             v-for="list in songLists"
             :key="list.id"
-            :to="`/songlist`"
+            :to="`/songlist/${list.id}`"
             class="playlist-card"
           >
             <div class="playlist-cover">
               <img
-                v-if="list.imageUrl"
-                :src="list.imageUrl"
-                :alt="list.title"
+                v-if="list.pic"
+                :src="list.pic"
+                :alt="list.name"
                 @error="handleImgError"
               />
               <el-icon v-else><Files /></el-icon>
             </div>
-            <div class="playlist-name" :title="list.title">{{ list.title }}</div>
+            <div class="playlist-name" :title="list.name">{{ list.name }}</div>
           </router-link>
         </div>
       </section>
@@ -140,6 +140,7 @@
             v-for="artist in recommendArtists"
             :key="artist.id"
             class="artist-card"
+            @click="goSinger(artist.id)"
           >
             <div class="artist-avatar">
               <img
@@ -162,12 +163,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { VideoPlay, Headset, Files, Microphone } from '@element-plus/icons-vue'
 import { recommendSongsApi, rankSongsApi, recommendArtistsApi } from '@/api/music'
-import { publicSongListApi } from '@/api/music'
+import { publicSongListApi } from '@/api/songList'
 import { usePlayerStore } from '@/store/player'
 import { useUserStore } from '@/store/user'
 
+const router = useRouter()
 const playerStore = usePlayerStore()
 const userStore = useUserStore()
 
@@ -180,6 +183,11 @@ const recommendArtists = ref([])
 // 播放歌曲
 function playSong(song) {
   playerStore.playSong(song)
+}
+
+// 跳转歌手详情
+function goSinger(artistId) {
+  router.push(`/singer/${artistId}`)
 }
 
 // 播放推荐列表

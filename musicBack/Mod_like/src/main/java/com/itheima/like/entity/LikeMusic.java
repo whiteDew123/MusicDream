@@ -34,15 +34,35 @@ public class LikeMusic implements Serializable {
     /** 收藏时间 */
     private Date createDate;
 
-    /** 歌曲名称（联表 music.name，不入库） */
+    /** 歌曲名称（联表 music.music_name，不入库） */
     @TableField(exist = false)
     private String musicName;
 
-    /** 歌曲封面（联表 music.pic，不入库） */
+    /** 歌曲封面（联表 music.image_url，不入库） */
     @TableField(exist = false)
     private String musicPic;
 
-    /** 歌手名称（联表 singer.name，不入库） */
+    /** 歌手名称（联表 user.username，不入库） */
     @TableField(exist = false)
     private String singerName;
+
+    /** 音频URL（联表 music.music_url，不入库） */
+    @TableField(exist = false)
+    private String musicUrl;
+
+    /** 时长（秒，联表 music.timelength，不入库） */
+    @TableField(exist = false)
+    private Integer timelength;
+
+    /** 歌词URL（联表 music.lyric，不入库） */
+    @TableField(exist = false)
+    private String lyric;
+
+    /** 播放量（联表 music.listen_numb，不入库） */
+    @TableField(exist = false)
+    private Integer listenNumb;
+
+    /** 封面URL（联表 music.image_url，不入库，前端统一用 imageUrl） */
+    @TableField(exist = false)
+    private String imageUrl;
 }
