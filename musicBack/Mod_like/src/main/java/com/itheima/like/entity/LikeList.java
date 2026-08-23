@@ -41,4 +41,8 @@ public class LikeList implements Serializable {
     /** 创建者用户名（联表 user.username，不入库） */
     @TableField(exist = false)
     private String username;
+
+    /** 歌单风格（联表 song_list.style，不入库） */
+    @TableField(exist = false)
+    private String listStyle;
 }

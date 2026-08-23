@@ -1,10 +1,11 @@
 import request from './request'
 
 // 对接 music_gateway 路由：
-// /api/music/**    → Mod_recommend MusicController
-// /api/songList/** → Mod_songList SongListController
+// /api/music/**   → Mod_recommend MusicController
+// /api/singer/**  → Mod_recommend ArtistController
 //
 // 注：网关 StripPrefix=1 会去掉 /api 前缀，baseURL 已含 /api
+// 歌单相关接口见 songList.js，收藏相关见 like.js
 
 // ===== 歌曲相关 =====
 
@@ -50,40 +51,20 @@ export function songDetailApi(musicId) {
 // ===== 歌手相关 =====
 
 // 推荐歌手
-// GET /api/music/recommend/artists?limit=
+// GET /api/singer/recommend/artists?limit=
 export function recommendArtistsApi(limit = 10) {
   return request({
-    url: '/music/recommend/artists',
+    url: '/singer/recommend/artists',
     method: 'get',
     params: { limit }
   })
 }
 
 // 歌手详情
-// GET /api/artists/{artistId}
+// GET /api/singer/detail/{artistId}
 export function artistDetailApi(artistId) {
   return request({
-    url: `/artists/${artistId}`,
-    method: 'get'
-  })
-}
-
-// ===== 歌单相关 =====
-
-// 公开歌单列表
-// GET /api/songList/public/list
-export function publicSongListApi() {
-  return request({
-    url: '/songList/public/list',
-    method: 'get'
-  })
-}
-
-// 歌单详情
-// GET /api/songList/public/detail/{id}
-export function songListDetailApi(id) {
-  return request({
-    url: `/songList/public/detail/${id}`,
+    url: `/singer/detail/${artistId}`,
     method: 'get'
   })
 }

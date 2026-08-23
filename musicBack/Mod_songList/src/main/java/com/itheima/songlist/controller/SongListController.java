@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 歌单接口
@@ -68,7 +69,34 @@ public class SongListController {
         return Result.success(songList);
     }
 
+    /**
+     * 2.1 获取歌单内的歌曲列表
+     * <p>
+     * GET /songList/public/songs/{listId}
+     * 联表 music 和 user 返回完整歌曲信息（含歌手名称）
+     */
+    @GetMapping("/public/songs/{listId}")
+    public Result<List<ListMusic>> publicSongs(@PathVariable Integer listId) {
+        List<ListMusic> songs = listMusicService.getSongsByListId(listId);
+        return Result.success(songs);
+    }
+
     // ======================== 需登录接口 ========================
+
+    /**
+     * 2.2 获取当前用户创建的歌单列表
+     * <p>
+     * GET /songList/my
+     */
+    @GetMapping("/my")
+    public Result<List<SongList>> myCreatedList(@RequestHeader("X-User-Id") Integer userId) {
+        List<SongList> all = songListService.getPublicList(userId);
+        // 过滤出当前用户创建的歌单
+        List<SongList> mine = all.stream()
+                .filter(s -> userId.equals(s.getUserId()))
+                .collect(Collectors.toList());
+        return Result.success(mine);
+    }
 
     /**
      * 3. 创建歌单
