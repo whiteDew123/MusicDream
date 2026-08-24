@@ -61,7 +61,6 @@ public class LikeController {
         LikeMusic like = new LikeMusic();
         like.setUserId(userId);
         like.setMusicId(musicId);
-        like.setCreateDate(new Date());
         likeMusicService.save(like);
         return Result.success();
     }
