@@ -28,28 +28,20 @@ public class SongList implements Serializable {
     /** 歌单名称 */
     private String name;
 
-    /** 封面URL（列 image） */
-    @TableField("image")
+    /** 封面URL */
     private String pic;
 
-    /** 简介（列 message） */
-    @TableField("message")
+    /** 简介 */
     private String introduction;
 
-    /** 风格（数据库无此列，不入库） */
-    @TableField(exist = false)
+    /** 风格 */
     private String style;
 
-    /** 创建者用户ID（列 user） */
-    @TableField("user")
+    /** 创建者用户ID */
     private Integer userId;
 
-    /** 创建时间（列 create_date） */
-    @TableField("create_date")
+    /** 创建时间 */
     private Date createDate;
-
-    /** 标签（逗号分隔） */
-    private String tags;
 
     /** 创建者用户名（联表 user.username，不入库） */
     @TableField(exist = false)

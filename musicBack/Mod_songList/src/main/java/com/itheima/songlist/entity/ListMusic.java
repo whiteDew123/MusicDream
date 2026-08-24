@@ -22,12 +22,14 @@ public class ListMusic implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    /** 歌曲ID（列 music，复合主键之一） */
-    @TableField("music")
+    /** 关联ID */
+    @TableId(type = IdType.AUTO)
+    private Integer id;
+
+    /** 歌曲ID */
     private Integer musicId;
 
-    /** 歌单ID（列 listid，复合主键之一） */
-    @TableField("listid")
+    /** 歌单ID */
     private Integer listId;
 
     /** 歌曲名称（联表 music.music_name，不入库） */

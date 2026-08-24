@@ -7,33 +7,33 @@
 
 -- 歌单主表
 CREATE TABLE IF NOT EXISTS `song_list` (
-  `id`          INT          NOT NULL AUTO_INCREMENT COMMENT '歌单ID',
-  `name`        VARCHAR(255)          DEFAULT NULL COMMENT '歌单名称',
-  `image`       VARCHAR(500)          DEFAULT NULL COMMENT '封面URL',
-  `message`     VARCHAR(2000)         DEFAULT NULL COMMENT '简介',
-  `user`        INT                   DEFAULT NULL COMMENT '创建者用户ID（关联 user.id）',
-  `create_date` DATETIME              DEFAULT NULL COMMENT '创建时间',
-  `tags`        VARCHAR(255)          DEFAULT NULL COMMENT '标签',
+  `id`           INT          NOT NULL AUTO_INCREMENT COMMENT '歌单ID',
+  `name`         VARCHAR(255)          DEFAULT NULL COMMENT '歌单名',
+  `user_id`      INT                   DEFAULT NULL COMMENT '所属用户ID',
+  `pic`          VARCHAR(255)          DEFAULT NULL COMMENT '封面图片URL',
+  `introduction` VARCHAR(255)          DEFAULT NULL COMMENT '歌单简介',
+  `create_date`  DATE                  DEFAULT NULL COMMENT '创建时间',
+  `style`        VARCHAR(255)          DEFAULT NULL COMMENT '风格',
   PRIMARY KEY (`id`),
-  KEY `idx_song_list_user` (`user`)
+  KEY `idx_song_list_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='歌单表';
 
--- 歌单-歌曲关联表（复合主键：music + listid）
+-- 歌单-歌曲关联表（自增ID + UNIQUE约束）
 CREATE TABLE IF NOT EXISTS `list_music` (
-  `music`       INT NOT NULL COMMENT '歌曲ID（关联 music.music_id）',
-  `listid`      INT NOT NULL COMMENT '歌单ID（关联 song_list.id）',
-  PRIMARY KEY (`music`, `listid`),
-  KEY `idx_list_music_list` (`listid`),
-  CONSTRAINT `fk_lm_list` FOREIGN KEY (`listid`) REFERENCES `song_list` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
-  CONSTRAINT `fk_lm_music` FOREIGN KEY (`music`) REFERENCES `music` (`music_id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+  `id`       INT NOT NULL AUTO_INCREMENT COMMENT '关联ID',
+  `music_id` INT NOT NULL COMMENT '音乐ID',
+  `list_id`  INT NOT NULL COMMENT '歌单ID',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_music_list` (`music_id`, `list_id`),
+  KEY `idx_list_music_list` (`list_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='歌单-歌曲关联表';
 
--- 用户收藏歌单表（复合主键：userId + listid）
+-- 用户收藏歌单表（自增ID + UNIQUE约束）
 CREATE TABLE IF NOT EXISTS `likelist` (
-  `userId`      INT NOT NULL COMMENT '用户ID（关联 user.id）',
-  `listid`      INT NOT NULL COMMENT '歌单ID（关联 song_list.id）',
-  PRIMARY KEY (`userId`, `listid`),
-  KEY `idx_likelist_list` (`listid`),
-  CONSTRAINT `fk_ll_list` FOREIGN KEY (`listid`) REFERENCES `song_list` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
-  CONSTRAINT `fk_ll_user` FOREIGN KEY (`userId`) REFERENCES `user` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+  `id`      INT NOT NULL AUTO_INCREMENT COMMENT '收藏ID',
+  `user_id` INT NOT NULL COMMENT '用户ID',
+  `list_id` INT NOT NULL COMMENT '歌单ID',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_list` (`user_id`, `list_id`),
+  KEY `idx_likelist_list` (`list_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='收藏歌单表';
