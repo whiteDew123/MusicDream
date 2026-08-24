@@ -1,0 +1,35 @@
+server:
+  port: 8005
+
+spring:
+  application:
+    name: mod-upload
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: public
+        username: nacos
+        password: ${NACOS_PASSWORD:nacos}
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+upload:
+  image:
+    allowed-types: jpg,jpeg,png,gif,bmp,webp
+    max-size: 10485760
+  lrc:
+    allowed-types: lrc
+    max-size: 1048576
+  music:
+    allowed-types: mp3,wav,flac
+    max-size: 52428800
+
+logging:
+  level:
+    com.itheima.upload: debug

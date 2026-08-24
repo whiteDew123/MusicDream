@@ -38,7 +38,8 @@ build/
 .DS_Store
 
 ### 微服务敏感配置文件 ###
-# Mod_login 配置（含数据库密码 / JWT 密钥 / 邮箱授权码）
-Mod_login/src/main/resources/application.yml
-# music_gateway 配置（含 Nacos 密码 / JWT 密钥）
-music_gateway/src/main/resources/application.yml
+# 忽略所有模块的 application.yml（含数据库密码等敏感信息）
+# 请使用 application-template.yml 作为模板，复制为 application.yml 后修改本地配置
+**/src/main/resources/application.yml
+# 不忽略模板文件（提交到 Git 供团队参考）
+!**/src/main/resources/application-template.yml
