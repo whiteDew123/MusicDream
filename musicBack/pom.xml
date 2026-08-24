@@ -28,6 +28,8 @@
         <module>Mod_songList</module>
         <module>Mod_like</module>
         <module>Mod_recommend</module>
+        <module>Mod_capsule</module>
+        <module>Mod_recognize</module>
     </modules>
 
     <properties>

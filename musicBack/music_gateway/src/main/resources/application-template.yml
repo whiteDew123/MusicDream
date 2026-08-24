@@ -76,6 +76,20 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: mod-capsule
+          uri: lb://music-capsule-service
+          predicates:
+            - Path=/api/capsule/**
+          filters:
+            - StripPrefix=1
+
+          - id: mod-recognize
+            uri: lb://mod-recognize
+            predicates:
+              - Path=/api/recognize/**
+            filters:
+              - StripPrefix=1
+
       globalcors:
         cors-configurations:
           '[/**]':

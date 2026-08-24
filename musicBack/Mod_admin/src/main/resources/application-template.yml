@@ -33,6 +33,9 @@ mybatis-plus:
     db-config:
       id-type: auto
 
+recognize:
+  service-url: ${RECOGNIZE_SERVICE_URL:http://localhost:8011}
+
 logging:
   level:
     com.itheima.admin: debug
