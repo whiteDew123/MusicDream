@@ -21,12 +21,13 @@ public interface LikeMusicMapper extends BaseMapper<LikeMusic> {
      *
      * @param userId 用户ID
      */
-    @Select("SELECT lm.*, m.music_name, m.music_url, m.image_url AS music_pic, " +
+    @Select("SELECT lm.music AS music_id, lm.user AS user_id, " +
+            "m.music_name, m.music_url, m.image_url AS music_pic, " +
             "m.image_url, m.timelength, m.lyric, m.listen_numb, u.username AS singer_name " +
-            "FROM like_music lm " +
-            "LEFT JOIN music m ON lm.music_id = m.music_id " +
+            "FROM mylike lm " +
+            "LEFT JOIN music m ON lm.music = m.music_id " +
             "LEFT JOIN user u ON m.from_singer = u.id " +
-            "WHERE lm.user_id = #{userId} " +
-            "ORDER BY lm.id DESC")
+            "WHERE lm.user = #{userId} " +
+            "ORDER BY m.create_time DESC")
     List<LikeMusic> selectLikedMusicByUserId(@Param("userId") Integer userId);
 }

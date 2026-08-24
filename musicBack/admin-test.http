@@ -6,6 +6,13 @@
 @baseUrl = http://localhost:9000
 @adminUrl = http://localhost:8003
 @loginUrl = http://localhost:8001
+@musicUrl = http://localhost:8002
+@singerUrl = http://localhost:8004
+@settingUrl = http://localhost:8005
+@msgUrl = http://localhost:8006
+@uploadUrl = http://localhost:8007
+@songListUrl = http://localhost:8008
+@likeUrl = http://localhost:8009
 @token =
 
 ### ====================================================

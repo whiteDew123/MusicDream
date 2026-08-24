@@ -1,7 +1,6 @@
 package com.itheima.songlist.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -20,13 +19,14 @@ public class LikeList implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    /** 收藏ID */
-    @TableId(type = IdType.AUTO)
+    @TableField(exist = false)
     private Integer id;
 
-    /** 用户ID */
+    /** 用户ID（列 userId） */
+    @TableField("userId")
     private Integer userId;
 
-    /** 歌单ID */
+    /** 歌单ID（列 listid） */
+    @TableField("listid")
     private Integer listId;
 }

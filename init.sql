@@ -5,7 +5,7 @@
 
 SET FOREIGN_KEY_CHECKS = 0;
 
-DROP TABLE IF EXISTS `log`;
+DROP TABLE IF EXISTS `operation_log`;
 DROP TABLE IF EXISTS `mylike`;
 DROP TABLE IF EXISTS `likelist`;
 DROP TABLE IF EXISTS `msg`;
@@ -40,6 +40,8 @@ CREATE TABLE `music` (
   `music_name` varchar(255) DEFAULT NULL COMMENT '歌曲名',
   `music_url` varchar(255) DEFAULT NULL COMMENT '音频URL',
   `activation` int DEFAULT 0 COMMENT '状态: 0-正常 1-用户锁定 2-管理员锁定',
+  `audit_status` int DEFAULT 0 COMMENT '审核状态: 0-待审核, 1-已通过, 2-已驳回',
+  `audit_remark` varchar(255) DEFAULT NULL COMMENT '审核备注',
   `listen_numb` int DEFAULT 0 COMMENT '播放量',
   `image_url` varchar(255) DEFAULT NULL COMMENT '封面',
   `timelength` int DEFAULT NULL COMMENT '时长(秒)',
@@ -121,13 +123,13 @@ CREATE TABLE `msg` (
 -- ============================================
 -- 8. 日志表
 -- ============================================
-CREATE TABLE `log` (
-  `log_id` int NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+CREATE TABLE `operation_log` (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '日志ID',
   `userName` varchar(255) DEFAULT NULL COMMENT '操作用户名',
   `do_some` varchar(255) DEFAULT NULL COMMENT '操作内容',
   `MusicName` varchar(255) DEFAULT NULL COMMENT '音乐名称',
   `create_date` date DEFAULT NULL COMMENT '操作日期',
-  PRIMARY KEY (`log_id`)
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='日志表';
 
 -- ============================================
@@ -143,18 +145,46 @@ INSERT INTO `user` (`id`, `username`, `password`, `email`, `phone`, `role`, `act
 (11, 'hss',     'e10adc3949ba59abbe56e057f', 'hss@test.com',      '13800000011', 2, 0, CURDATE(), NULL);
 
 -- 音乐数据
-INSERT INTO `music` (`music_id`, `from_singer`, `music_name`, `music_url`, `activation`, `listen_numb`, `image_url`, `timelength`, `create_time`, `tags`) VALUES
-(1, 3, '稻香',     '/music/daoxiang.mp3',     0, 2000, '/img/daoxiang.jpg',     223, CURDATE(), '民谣'),
-(2, 3, '告白气球', '/music/gaobai.mp3',      0, 3000, '/img/gaobai.jpg',       215, CURDATE(), '流行'),
-(3, 2, '夜曲',     '/music/yequ.mp3',         0, 1000, '/img/yequ.jpg',         245, CURDATE(), '流行'),
-(4, 11, '测试歌曲1', '/music/test1.mp3',      0, 100,  '/img/test1.jpg',        245, CURDATE(), '流行'),
-(5, 11, '测试歌曲2', '/music/test2.mp3',      0, 200,  '/img/test2.jpg',        223, CURDATE(), '民谣');
+INSERT INTO `music` (`music_id`, `from_singer`, `music_name`, `music_url`, `activation`, `audit_status`, `listen_numb`, `image_url`, `timelength`, `create_time`, `tags`) VALUES
+(1, 3, '稻香',     '/music/daoxiang.mp3',     0, 1, 2000, '/img/daoxiang.jpg',     223, CURDATE(), '民谣'),
+(2, 3, '告白气球', '/music/gaobai.mp3',      0, 1, 3000, '/img/gaobai.jpg',       215, CURDATE(), '流行'),
+(3, 2, '夜曲',     '/music/yequ.mp3',         0, 1, 1000, '/img/yequ.jpg',         245, CURDATE(), '流行'),
+(4, 11, '测试歌曲1', '/music/test1.mp3',      0, 1, 100,  '/img/test1.jpg',        245, CURDATE(), '流行'),
+(5, 11, '测试歌曲2', '/music/test2.mp3',      0, 1, 200,  '/img/test2.jpg',        223, CURDATE(), '民谣');
 
 -- 日志数据
-INSERT INTO `log` (`userName`, `do_some`, `MusicName`, `create_date`) VALUES
+INSERT INTO `operation_log` (`userName`, `do_some`, `MusicName`, `create_date`) VALUES
 ('admin', '冻结用户', '夜曲', CURDATE()),
 ('admin', '删除歌曲', '稻香', CURDATE()),
 ('hss',   '上传歌曲', '测试歌曲1', CURDATE()),
 ('admin', '解冻用户', NULL, CURDATE());
+
+-- 歌单数据
+INSERT INTO `song_list` (`name`, `user`, `image`, `message`, `create_date`, `tags`) VALUES
+('我的最爱', 1, '/img/songlist1.jpg', '个人精选收藏', CURDATE(), '流行'),
+('华语经典', 3, '/img/songlist2.jpg', '华语经典歌曲合集', CURDATE(), '经典'),
+('睡前音乐', 11, '/img/songlist3.jpg', '助你安然入睡', CURDATE(), '轻音乐'),
+('流行精选', 7, '/img/songlist4.jpg', '热门流行歌曲', CURDATE(), '流行');
+
+-- 歌单-音乐关联数据
+INSERT INTO `list_music` (`music`, `listid`) VALUES
+(1,1),(2,1),(3,1),
+(1,2),(3,2),
+(2,3),(4,3),
+(1,4),(2,4),(3,4),(4,4);
+
+-- 单曲收藏数据
+INSERT INTO `mylike` (`music`, `user`) VALUES
+(1,1),(2,1),(3,1),
+(1,3),
+(2,11),(3,11),
+(1,7),(2,7);
+
+-- 歌单收藏数据
+INSERT INTO `likelist` (`userId`, `listid`) VALUES
+(1,2),(1,3),
+(3,1),
+(11,4),
+(7,1),(7,2);
 
 SET FOREIGN_KEY_CHECKS = 1;

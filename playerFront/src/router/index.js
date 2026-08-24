@@ -55,6 +55,20 @@ const routes = [
         meta: { title: '歌单', icon: 'Files' }
       },
       {
+        // 时空胶囊广场（公开）
+        path: 'capsule/plaza',
+        name: 'CapsulePlaza',
+        component: () => import('@/views/capsule/CapsulePlaza.vue'),
+        meta: { title: '时空胶囊', icon: 'MagicStick', public: true }
+      },
+      {
+        // 胶囊详情
+        path: 'capsule/:id',
+        name: 'CapsuleDetail',
+        component: () => import('@/views/capsule/CapsuleDetail.vue'),
+        meta: { title: '胶囊详情', public: true }
+      },
+      {
         // 歌单详情页
         path: 'songlist/:id',
         name: 'SongListDetail',
@@ -71,6 +85,18 @@ const routes = [
             name: 'MyLiked',
             component: () => import('@/views/my/Liked.vue'),
             meta: { title: '我喜欢的音乐', icon: 'Star' }
+          },
+          {
+            path: 'capsules',
+            name: 'MyCapsules',
+            component: () => import('@/views/capsule/MyCapsules.vue'),
+            meta: { title: '我的胶囊', icon: 'MagicStick' }
+          },
+          {
+            path: 'capsule/create',
+            name: 'CreateCapsule',
+            component: () => import('@/views/capsule/CreateCapsule.vue'),
+            meta: { title: '创建胶囊' }
           },
           {
             path: 'favorite',
