@@ -109,19 +109,18 @@ public class UploadServiceImpl implements UploadService {
             throw new IllegalArgumentException("文件大小超过限制，最大允许" + (maxSize / 1024 / 1024) + "MB");
         }
 
-        String contentType = file.getContentType();
-        if (contentType == null || !Arrays.asList(allowedTypes).contains(contentType)) {
-            throw new IllegalArgumentException("不支持的文件类型，允许的类型: " + Arrays.toString(allowedTypes));
-        }
-
         String originalFilename = file.getOriginalFilename();
         String extension = "";
         if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+        }
+
+        if (extension.isEmpty() || !Arrays.asList(allowedTypes).contains(extension)) {
+            throw new IllegalArgumentException("不支持的文件类型，允许的类型: " + Arrays.toString(allowedTypes));
         }
 
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
-        String fileName = UUID.randomUUID().toString().replace("-", "") + extension;
+        String fileName = UUID.randomUUID().toString().replace("-", "") + "." + extension;
         String dirPath = basePath + datePath;
         File dir = new File(dirPath);
         if (!dir.exists()) {
@@ -144,7 +143,7 @@ public class UploadServiceImpl implements UploadService {
         result.setFilePath(filePath);
         result.setFileUrl(fileUrl);
         result.setFileSize(file.getSize());
-        result.setFileType(contentType);
+        result.setFileType(file.getContentType());
 
         if ("music".equals(fileType)) {
             Integer duration = AudioDurationUtil.getDuration(Paths.get(filePath));

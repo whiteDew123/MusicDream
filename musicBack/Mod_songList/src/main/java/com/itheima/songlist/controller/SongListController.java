@@ -178,7 +178,6 @@ public class SongListController {
         if (existing != null) {
             return Result.fail("歌曲已在歌单中");
         }
-        listMusic.setId(null);
         listMusicService.save(listMusic);
         return Result.success();
     }
@@ -222,7 +221,9 @@ public class SongListController {
                 .eq(LikeList::getUserId, userId)
                 .eq(LikeList::getListId, id));
         if (existing != null) {
-            likeListService.removeById(existing.getId());
+            likeListService.remove(new LambdaQueryWrapper<LikeList>()
+                    .eq(LikeList::getUserId, userId)
+                    .eq(LikeList::getListId, id));
             return Result.success("取消收藏", false);
         }
         LikeList like = new LikeList();

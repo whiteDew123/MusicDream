@@ -70,6 +70,12 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Druid -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-3-starter</artifactId>
+        </dependency>
+
         <!-- SpringDoc OpenAPI (接口文档) -->
         <dependency>
             <groupId>org.springdoc</groupId>

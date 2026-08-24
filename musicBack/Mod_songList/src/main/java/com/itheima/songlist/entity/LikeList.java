@@ -20,12 +20,13 @@ public class LikeList implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    /** 收藏ID */
     @TableId(type = IdType.AUTO)
     private Integer id;
 
-    /** 用户ID（列 user_id） */
+    /** 用户ID */
     private Integer userId;
 
-    /** 歌单ID（列 list_id） */
+    /** 歌单ID */
     private Integer listId;
 }

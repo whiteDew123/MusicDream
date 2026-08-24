@@ -22,7 +22,7 @@ public interface SongListMapper extends BaseMapper<SongList> {
      * @param userId 当前用户ID，为 null 时不判断收藏状态
      */
     @Select("SELECT s.*, u.username, " +
-            "CASE WHEN l.id IS NOT NULL THEN 1 ELSE NULL END AS is_like " +
+            "CASE WHEN l.user_id IS NOT NULL THEN 1 ELSE NULL END AS is_like " +
             "FROM song_list s " +
             "LEFT JOIN user u ON s.user_id = u.id " +
             "LEFT JOIN likelist l ON l.list_id = s.id AND l.user_id = #{userId} " +
@@ -36,7 +36,7 @@ public interface SongListMapper extends BaseMapper<SongList> {
      * @param userId 当前用户ID，为 null 时不判断收藏状态
      */
     @Select("SELECT s.*, u.username, " +
-            "CASE WHEN l.id IS NOT NULL THEN 1 ELSE NULL END AS is_like " +
+            "CASE WHEN l.user_id IS NOT NULL THEN 1 ELSE NULL END AS is_like " +
             "FROM song_list s " +
             "LEFT JOIN user u ON s.user_id = u.id " +
             "LEFT JOIN likelist l ON l.list_id = s.id AND l.user_id = #{userId} " +

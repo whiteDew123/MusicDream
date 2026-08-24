@@ -27,6 +27,6 @@ public interface LikeMusicMapper extends BaseMapper<LikeMusic> {
             "LEFT JOIN music m ON lm.music_id = m.music_id " +
             "LEFT JOIN user u ON m.from_singer = u.id " +
             "WHERE lm.user_id = #{userId} " +
-            "ORDER BY lm.create_date DESC")
+            "ORDER BY lm.id DESC")
     List<LikeMusic> selectLikedMusicByUserId(@Param("userId") Integer userId);
 }

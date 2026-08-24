@@ -37,7 +37,7 @@ public class SongList implements Serializable {
     /** 风格 */
     private String style;
 
-    /** 创建者用户ID（列 user_id） */
+    /** 创建者用户ID */
     private Integer userId;
 
     /** 创建时间 */
