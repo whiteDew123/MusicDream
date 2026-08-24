@@ -11,7 +11,7 @@ import java.io.Serializable;
 import java.time.LocalDate;
 
 @Data
-@TableName("log")
+@TableName("operation_log")
 public class Log implements Serializable {
 
     @Serial

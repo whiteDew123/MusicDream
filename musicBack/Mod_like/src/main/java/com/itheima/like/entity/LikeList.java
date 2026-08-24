@@ -21,13 +21,15 @@ public class LikeList implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.AUTO)
+    @TableField(exist = false)
     private Integer id;
 
-    /** 用户ID（列 user_id） */
+    /** 用户ID（列 userId） */
+    @TableField("userId")
     private Integer userId;
 
-    /** 歌单ID（列 list_id） */
+    /** 歌单ID（列 listid） */
+    @TableField("listid")
     private Integer listId;
 
     /** 歌单名称（联表 song_list.name，不入库） */
