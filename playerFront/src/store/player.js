@@ -27,10 +27,45 @@ export const usePlayerStore = defineStore('player', () => {
   const playMode = ref(0)
   const playModeLabels = ['顺序播放', '单曲循环', '随机播放']
 
+  // ===== 歌词 =====
+  // 解析后的歌词数组：[{ time: 秒数, text: '歌词文本' }]
+  const lyrics = ref([])
+  // 当前高亮歌词行索引
+  const currentLyricIndex = ref(-1)
+
   // ===== 当前歌曲（计算属性）=====
   const currentSong = computed(() => {
     return currentIndex.value >= 0 ? playlist.value[currentIndex.value] : null
   })
+
+  // ===== 歌词解析 =====
+  // 解析 LRC 格式歌词，返回 [{ time: 秒数, text: '歌词' }] 按时间升序
+  function parseLyrics(lrcString) {
+    if (!lrcString || typeof lrcString !== 'string') return []
+    const lines = lrcString.split(/\r?\n/)
+    const result = []
+    // 匹配 [mm:ss.xx] 或 [mm:ss] 时间标签
+    const timeReg = /\[(\d{1,2}):(\d{1,2})(?:\.(\d{1,3}))?\]/g
+    for (const line of lines) {
+      let match
+      const times = []
+      while ((match = timeReg.exec(line)) !== null) {
+        const min = parseInt(match[1])
+        const sec = parseInt(match[2])
+        const ms = match[3] ? parseInt(match[3].padEnd(3, '0')) : 0
+        times.push(min * 60 + sec + ms / 1000)
+      }
+      // 提取歌词文本（去掉所有时间标签）
+      const text = line.replace(timeReg, '').trim()
+      // 跳过空行和元数据标签（ti/ar/al/by/offset 等）
+      if (times.length === 0) continue
+      for (const t of times) {
+        result.push({ time: t, text })
+      }
+    }
+    result.sort((a, b) => a.time - b.time)
+    return result
+  }
 
   // ===== 播放控制 =====
 
@@ -66,6 +101,9 @@ export const usePlayerStore = defineStore('player', () => {
     const song = currentSong.value
     if (!song || !audio.value) return
     audio.value.src = song.musicUrl || ''
+    // 解析歌词
+    lyrics.value = parseLyrics(song.lyric)
+    currentLyricIndex.value = -1
     audio.value
       .play()
       .then(() => {
@@ -182,6 +220,17 @@ export const usePlayerStore = defineStore('player', () => {
     if (!audio.value) return
     audio.value.addEventListener('timeupdate', () => {
       currentTime.value = audio.value.currentTime
+      // 追踪当前歌词行
+      const t = currentTime.value
+      let idx = -1
+      for (let i = 0; i < lyrics.value.length; i++) {
+        if (lyrics.value[i].time <= t) {
+          idx = i
+        } else {
+          break
+        }
+      }
+      currentLyricIndex.value = idx
     })
     audio.value.addEventListener('loadedmetadata', () => {
       duration.value = audio.value.duration
@@ -213,6 +262,8 @@ export const usePlayerStore = defineStore('player', () => {
     muted,
     playMode,
     playModeLabels,
+    lyrics,
+    currentLyricIndex,
     currentSong,
     setPlaylist,
     playSong,
@@ -227,6 +278,7 @@ export const usePlayerStore = defineStore('player', () => {
     toggleMute,
     removeFromPlaylist,
     clearPlaylist,
-    initAudioEvents
+    initAudioEvents,
+    parseLyrics
   }
 })

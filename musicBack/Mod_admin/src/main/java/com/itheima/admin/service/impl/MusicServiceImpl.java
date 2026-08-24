@@ -30,7 +30,6 @@ public class MusicServiceImpl implements MusicService {
                     .like("tags", keyword)
             );
         }
-        wrapper.orderByDesc("create_time");
         Page<Music> page = musicMapper.selectPage(musicPage, wrapper);
         return Result.success("查询成功", page);
     }
@@ -49,5 +48,40 @@ public class MusicServiceImpl implements MusicService {
         musicWrapper.eq("music_id", id).setSql("activation = 0");
         musicMapper.update(null, musicWrapper);
         return Result.success("解冻成功", null);
+    }
+
+    @Override
+    public Result pagePendingMusic(Integer pn, Integer size) {
+        Page<Music> musicPage = new Page<>(pn, size);
+        QueryWrapper<Music> wrapper = new QueryWrapper<>();
+        wrapper.eq("audit_status", 0);
+        Page<Music> page = musicMapper.selectPage(musicPage, wrapper);
+        return Result.success("查询成功", page);
+    }
+
+    @Override
+    public Result approveMusic(Integer id) {
+        UpdateWrapper<Music> musicWrapper = new UpdateWrapper<>();
+        musicWrapper.eq("music_id", id).setSql("audit_status = 1");
+        musicMapper.update(null, musicWrapper);
+        return Result.success("审核通过", null);
+    }
+
+    @Override
+    public Result rejectMusic(Integer id, String remark) {
+        UpdateWrapper<Music> musicWrapper = new UpdateWrapper<>();
+        musicWrapper.eq("music_id", id)
+                .setSql("audit_status = 2");
+        if (remark != null) {
+            musicWrapper.set(true, "audit_remark", remark);
+        }
+        musicMapper.update(null, musicWrapper);
+        return Result.success("驳回成功", null);
+    }
+
+    @Override
+    public Result deleteMusic(Integer id) {
+        musicMapper.deleteById(id);
+        return Result.success("删除成功", null);
     }
 }

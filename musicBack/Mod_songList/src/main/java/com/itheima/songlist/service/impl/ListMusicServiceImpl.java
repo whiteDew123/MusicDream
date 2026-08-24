@@ -6,6 +6,13 @@ import com.itheima.songlist.mapper.ListMusicMapper;
 import com.itheima.songlist.service.ListMusicService;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class ListMusicServiceImpl extends ServiceImpl<ListMusicMapper, ListMusic> implements ListMusicService {
+
+    @Override
+    public List<ListMusic> getSongsByListId(Integer listId) {
+        return baseMapper.selectSongsByListId(listId);
+    }
 }

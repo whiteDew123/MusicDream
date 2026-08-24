@@ -1,43 +1,28 @@
 <template>
-  <div class="msg-list-container">
+  <div class="msg-list">
     <div class="page-header">
-      <h1 class="page-title">消息通知</h1>
-      <p class="page-desc">查看和管理收到的消息</p>
+      <div>
+        <p class="eyebrow">MESSAGE · NOTIFY</p>
+        <h2 class="page-title">消息通知</h2>
+        <p class="page-desc">查看和管理收到的消息。</p>
+      </div>
     </div>
 
-    <el-card class="list-card" shadow="never">
-      <template #header>
-        <div class="card-header">
-          <div class="header-left">
-            <span class="header-title">消息列表</span>
-            <el-badge
-              v-if="unreadCount > 0"
-              :value="unreadCount"
-              :max="99"
-              class="unread-badge"
-            />
-          </div>
-          <div class="header-right">
-            <el-button
-              type="primary"
-              :disabled="unreadCount === 0 || loading"
-              @click="handleMarkAllRead"
-              class="mark-all-btn"
-            >
-              全部标记为已读
-            </el-button>
-            <el-button @click="fetchMessages" :loading="loading">
-              刷新
-            </el-button>
-          </div>
+    <div class="panel list-panel">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <el-badge v-if="unreadCount > 0" :value="unreadCount" :max="99" class="unread-badge" />
         </div>
-      </template>
+        <div class="toolbar-right">
+          <el-button :disabled="unreadCount === 0 || loading" @click="handleMarkAllRead">
+            全部标记已读
+          </el-button>
+          <el-button :loading="loading" @click="fetchMessages">刷新</el-button>
+        </div>
+      </div>
 
       <div v-loading="loading" class="message-list">
-        <el-empty
-          v-if="!loading && messages.length === 0"
-          description="暂无消息"
-        />
+        <el-empty v-if="!loading && messages.length === 0" description="暂无消息" />
 
         <div
           v-for="message in messages"
@@ -46,25 +31,21 @@
           @click="handleMarkRead(message)"
         >
           <div class="message-indicator" />
-          <div class="message-content">
+          <div class="message-body">
             <div class="message-header">
-              <h3 class="message-title">{{ message.title }}</h3>
+              <span class="message-title">{{ message.title }}</span>
               <span class="message-time">{{ formatTime(message.createTime) }}</span>
             </div>
             <p class="message-text">{{ message.msg }}</p>
           </div>
           <div class="message-status">
-            <el-tag
-              :type="message.isread === 0 ? 'danger' : 'info'"
-              size="small"
-              effect="plain"
-            >
+            <el-tag :type="message.isread === 0 ? 'danger' : 'info'" size="small" effect="light">
               {{ message.isread === 0 ? '未读' : '已读' }}
             </el-tag>
           </div>
         </div>
       </div>
-    </el-card>
+    </div>
   </div>
 </template>
 
@@ -77,7 +58,7 @@ const messages = ref([])
 const unreadCount = ref(0)
 const loading = ref(false)
 
-const fetchMessages = async () => {
+async function fetchMessages() {
   loading.value = true
   try {
     const [msgRes, countRes] = await Promise.all([
@@ -86,56 +67,50 @@ const fetchMessages = async () => {
     ])
     messages.value = msgRes.data || []
     unreadCount.value = countRes.data || 0
-  } catch (error) {
+  } catch {
     ElMessage.error('获取消息列表失败')
   } finally {
     loading.value = false
   }
 }
 
-const handleMarkRead = async (message) => {
+async function handleMarkRead(message) {
   if (message.isread === 1) return
-
   try {
     await markAsRead(message.id)
     message.isread = 1
     unreadCount.value = Math.max(0, unreadCount.value - 1)
     ElMessage.success('已标记为已读')
-  } catch (error) {
+  } catch {
     ElMessage.error('标记失败')
   }
 }
 
-const handleMarkAllRead = async () => {
+async function handleMarkAllRead() {
   if (unreadCount.value === 0) return
-
   try {
     await markAllAsRead()
-    messages.value.forEach(msg => {
-      msg.isread = 1
-    })
+    messages.value.forEach((msg) => { msg.isread = 1 })
     unreadCount.value = 0
     ElMessage.success('已全部标记为已读')
-  } catch (error) {
+  } catch {
     ElMessage.error('操作失败')
   }
 }
 
-const formatTime = (time) => {
+function formatTime(time) {
   if (!time) return ''
   const date = new Date(time)
   const now = new Date()
   const diff = now - date
-
   if (diff < 60000) return '刚刚'
   if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
   if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`
-
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 onMounted(() => {
@@ -144,185 +119,128 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.msg-list-container {
-  padding: 32px;
-  background-color: #f5f6f8;
-  min-height: calc(100vh - 60px);
+.msg-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
 }
 
 .page-header {
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #080808;
-  margin: 0 0 8px 0;
-  letter-spacing: -0.24px;
-}
-
-.page-desc {
-  font-size: 14px;
-  color: #5a5a5a;
-  margin: 0;
-}
-
-.list-card {
-  background-color: #ffffff;
-  border: 1px solid #d8d8d8;
-  border-radius: 8px;
-
-  :deep(.el-card__header) {
-    padding: 16px 32px;
-    border-bottom: 1px solid #d8d8d8;
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--brand-accent);
+    margin-bottom: 8px;
   }
-
-  :deep(.el-card__body) {
-    padding: 0;
+  .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    color: var(--wf-ink);
+    margin-bottom: 6px;
+  }
+  .page-desc {
+    font-size: 14px;
+    color: var(--wf-body-mid);
   }
 }
 
-.card-header {
+.panel {
+  background: var(--wf-canvas);
+  border: 1px solid var(--wf-hairline);
+  border-radius: var(--rounded-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.list-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.toolbar {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.header-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #080808;
-}
-
-.unread-badge {
-  :deep(.el-badge__content) {
-    background-color: #ee1d36;
-  }
-}
-
-.header-right {
-  display: flex;
-  gap: 12px;
-}
-
-.mark-all-btn {
-  background-color: #080808;
-  border-color: #080808;
-  border-radius: 4px;
-  padding: 8px 16px;
-  font-weight: 500;
-
-  &:hover:not(:disabled) {
-    background-color: #222222;
-    border-color: #222222;
-  }
-
-  &:active:not(:disabled) {
-    background-color: #363636;
-    border-color: #363636;
-  }
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-bottom: 1px solid var(--wf-hairline);
 }
 
 .message-list {
-  min-height: 400px;
+  min-height: 200px;
 }
 
 .message-item {
   display: flex;
   align-items: flex-start;
-  padding: 16px 32px;
-  border-bottom: 1px solid #d8d8d8;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-bottom: 1px solid var(--wf-hairline);
   cursor: pointer;
-  transition: background-color 0.15s ease;
-  position: relative;
+  transition: background 150ms ease;
+
+  &:hover {
+    background: var(--wf-row-hover);
+  }
+
+  &.is-unread {
+    background: rgba(99, 102, 241, 0.03);
+  }
 
   &:last-child {
     border-bottom: none;
   }
-
-  &:hover {
-    background-color: #f5f6f8;
-
-    .message-indicator {
-      background-color: #4353ff;
-    }
-  }
-
-  &.is-unread {
-    background-color: #fafbfc;
-
-    .message-title {
-      color: #080808;
-      font-weight: 500;
-    }
-  }
 }
 
 .message-indicator {
-  width: 2px;
-  min-height: 100%;
-  background-color: transparent;
-  position: absolute;
-  left: 0;
-  top: 0;
-  transition: background-color 0.2s ease-out;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-accent);
+  margin-top: 6px;
+  flex-shrink: 0;
+  opacity: 0;
+
+  .is-unread & {
+    opacity: 1;
+  }
 }
 
-.message-content {
+.message-body {
   flex: 1;
-  margin-left: 16px;
+  min-width: 0;
 }
 
 .message-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  margin-bottom: 4px;
 }
 
 .message-title {
-  font-size: 15px;
-  color: #363636;
-  margin: 0;
-  font-weight: 400;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wf-ink);
 }
 
 .message-time {
   font-size: 12px;
-  color: #898989;
-  white-space: nowrap;
+  color: var(--wf-mute);
+  flex-shrink: 0;
+  margin-left: var(--spacing-md);
 }
 
 .message-text {
-  font-size: 14px;
-  color: #5a5a5a;
+  font-size: 13px;
+  color: var(--wf-body-mid);
+  line-height: 1.5;
   margin: 0;
-  line-height: 1.6;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .message-status {
-  margin-left: 16px;
   flex-shrink: 0;
-}
-
-:deep(.el-tag) {
-  border-radius: 4px;
-}
-
-:deep(.el-button) {
-  border-radius: 4px;
-  padding: 8px 16px;
-  font-weight: 500;
+  margin-top: 2px;
 }
 </style>

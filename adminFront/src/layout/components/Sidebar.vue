@@ -10,7 +10,7 @@
       </transition>
     </div>
 
-    <!-- 菜单：从 navData 动态生成，支持角色过滤 -->
+    <!-- 菜单：Webflow 亮色风格，支持分组子菜单 -->
     <el-menu
       :default-active="activeMenu"
       :collapse="isCollapse"
@@ -18,37 +18,35 @@
       class="wf-menu"
       router
     >
-      <!-- 一级菜单 -->
-      <template v-for="item in menuList" :key="item.path">
-        <!-- 有子菜单：渲染 sub-menu -->
+      <template v-for="item in menuRoutes" :key="item.path">
+        <!-- 分组：带 children 的项渲染为可展开 sub-menu -->
         <el-sub-menu
           v-if="item.children && item.children.length"
           :index="'/' + item.path"
         >
           <template #title>
-            <el-icon class="menu-icon"><component :is="item.icon" /></el-icon>
-            <span class="menu-title">{{ item.title }}</span>
+            <el-icon class="menu-icon"><component :is="item.meta.icon" /></el-icon>
+            <span class="menu-title">{{ item.meta.title }}</span>
           </template>
-          <!-- 二级菜单（按角色过滤） -->
           <el-menu-item
-            v-for="child in filterChildren(item.children)"
+            v-for="child in item.children"
             :key="child.path"
             :index="'/' + item.path + '/' + child.path"
             class="wf-menu-item wf-menu-item--child"
           >
-            <el-icon class="menu-icon"><component :is="child.icon" /></el-icon>
+            <el-icon class="menu-icon"><component :is="child.meta.icon" /></el-icon>
             <template #title>
-              <span class="menu-title">{{ child.title }}</span>
+              <span class="menu-title">{{ child.meta.title }}</span>
             </template>
             <span class="active-bar"></span>
           </el-menu-item>
         </el-sub-menu>
 
-        <!-- 无子菜单：渲染 menu-item -->
+        <!-- 单项：无 children 渲染为普通 menu-item -->
         <el-menu-item v-else :index="'/' + item.path" class="wf-menu-item">
-          <el-icon class="menu-icon"><component :is="item.icon" /></el-icon>
+          <el-icon class="menu-icon"><component :is="item.meta.icon" /></el-icon>
           <template #title>
-            <span class="menu-title">{{ item.title }}</span>
+            <span class="menu-title">{{ item.meta.title }}</span>
           </template>
           <span class="active-bar"></span>
         </el-menu-item>
@@ -60,8 +58,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Headset } from '@element-plus/icons-vue'
-import navData from '@/utils/navData'
+import { routes } from '@/router'
 import { useUserStore } from '@/store/user'
 
 defineProps({
@@ -74,27 +71,41 @@ defineProps({
 const route = useRoute()
 const userStore = useUserStore()
 
-const userInfo = computed(() => userStore.userInfo)
+const menuRoutes = computed(() => {
+  const layout = routes.find((r) => r.path === '/')
+  if (!layout || !layout.children) return []
 
-// 按角色过滤一级菜单
-const menuList = computed(() => {
-  return navData.filter((item) => {
-    if (item.show === 'all') return true
-    if (item.show === 'admin' && userInfo.value?.role === 0) return true
-    if (item.show === 'singer' && userInfo.value?.role === 1) return true
-    return false
-  })
+  return layout.children
+    .filter((item) => {
+      if (item.meta?.skipMenu) return false
+
+      if (item.children && item.children.length) {
+        const filtered = item.children.filter((child) => {
+          const childRoles = child.meta?.roles
+          if (!childRoles) return true
+          return userStore.hasRole(...childRoles)
+        })
+        return filtered.length > 0
+      }
+
+      const itemRoles = item.meta?.roles
+      if (!itemRoles) return true
+      return userStore.hasRole(...itemRoles)
+    })
+    .map((item) => {
+      if (item.children && item.children.length) {
+        return {
+          ...item,
+          children: item.children.filter((child) => {
+            const childRoles = child.meta?.roles
+            if (!childRoles) return true
+            return userStore.hasRole(...childRoles)
+          })
+        }
+      }
+      return item
+    })
 })
-
-// 按角色过滤二级菜单
-function filterChildren(children) {
-  return children.filter((child) => {
-    if (child.show === 'all') return true
-    if (child.show === 'admin' && userInfo.value?.role === 0) return true
-    if (child.show === 'singer' && userInfo.value?.role === 1) return true
-    return false
-  })
-}
 
 const activeMenu = computed(() => route.path)
 </script>
@@ -106,7 +117,7 @@ const activeMenu = computed(() => route.path)
   flex-direction: column;
 }
 
-/* Logo 区 */
+/* ===== Logo 区：白色 canvas + 底部 hairline 边框 ===== */
 .sidebar-logo {
   height: 56px;
   display: flex;
@@ -123,7 +134,12 @@ const activeMenu = computed(() => route.path)
     height: 32px;
     flex-shrink: 0;
     border-radius: var(--rounded-md);
-    background: linear-gradient(135deg, var(--brand-accent) 0%, var(--wf-accent-blue) 100%);
+    /* logo 容器使用 Webflow 蓝色渐变 */
+    background: linear-gradient(
+      135deg,
+      var(--brand-accent) 0%,
+      var(--wf-accent-blue) 100%
+    );
     display: flex;
     align-items: center;
     justify-content: center;
@@ -141,6 +157,7 @@ const activeMenu = computed(() => route.path)
   }
 }
 
+/* Logo 文字折叠过渡（animation.md 第四章：250ms ease-in-out）*/
 .fade-width-enter-active,
 .fade-width-leave-active {
   transition: opacity 200ms ease;
@@ -150,7 +167,7 @@ const activeMenu = computed(() => route.path)
   opacity: 0;
 }
 
-/* 菜单样式 */
+/* ===== Webflow 亮色菜单 ===== */
 .wf-menu {
   flex: 1;
   background: var(--wf-canvas);
@@ -159,6 +176,7 @@ const activeMenu = computed(() => route.path)
   overflow-y: auto;
   overflow-x: hidden;
 
+  /* 一级 menu-item 与 sub-menu 标题共用同一套样式 */
   :deep(.el-menu-item),
   :deep(.el-sub-menu__title) {
     position: relative;
@@ -177,15 +195,21 @@ const activeMenu = computed(() => route.path)
     background: var(--wf-row-hover);
     color: var(--wf-ink);
   }
+
+  /* 一级激活项：ink 文字 + 600 字重 */
   :deep(.el-menu-item.is-active) {
     background: var(--wf-row-hover);
     color: var(--wf-ink);
     font-weight: 600;
   }
+
+  /* sub-menu 展开时标题保持 ink */
   :deep(.el-sub-menu.is-active > .el-sub-menu__title),
   :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
     color: var(--wf-ink);
   }
+
+  /* 图标颜色 */
   :deep(.el-menu-item .el-icon),
   :deep(.el-sub-menu__title .el-icon) {
     font-size: 18px;
@@ -199,9 +223,13 @@ const activeMenu = computed(() => route.path)
   :deep(.el-menu-item.is-active .el-icon) {
     color: var(--brand-accent);
   }
+
+  /* sub-menu 展开箭头颜色 */
   :deep(.el-sub-menu__icon-arrow) {
     color: var(--wf-mute);
   }
+
+  /* 二级 menu-item：稍缩进，颜色稍弱 */
   :deep(.el-menu-item.wf-menu-item--child) {
     height: 40px;
     line-height: 40px;
@@ -221,13 +249,15 @@ const activeMenu = computed(() => route.path)
   :deep(.el-menu-item.wf-menu-item--child.is-active .el-icon) {
     color: var(--brand-accent);
   }
+
+  /* 折叠态：去掉 icon 的 margin-right，子项用 popup 模式 */
   &.el-menu--collapse :deep(.el-menu-item .el-icon),
   &.el-menu--collapse :deep(.el-sub-menu__title .el-icon) {
     margin-right: 0;
   }
 }
 
-/* 激活项竖条 */
+/* ===== 激活项左侧蓝色竖条（animation.md 第四章：#4353ff，200ms ease-out）===== */
 .active-bar {
   position: absolute;
   left: -8px;

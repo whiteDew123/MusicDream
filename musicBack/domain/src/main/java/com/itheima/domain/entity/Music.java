@@ -31,8 +31,14 @@ public class Music implements Serializable {
     /** 音频文件URL */
     private String musicUrl;
 
-    /** 状态: 0-正常, 1-用户锁定, 2-管理员锁定 */
+    /** 状态: 0-正常, 1-用户锁定, 2-管理员冻结 */
     private Integer activation;
+
+    /** 审核状态: 0-待审核, 1-已通过, 2-已驳回 */
+    private Integer auditStatus;
+
+    /** 审核备注（驳回原因） */
+    private String auditRemark;
 
     /** 播放量 */
     private Integer listenNumb;

@@ -10,6 +10,8 @@ import com.itheima.singer.dto.MusicDTO;
 import com.itheima.singer.mapper.MusicMapper;
 import com.itheima.singer.mapper.UserMapper;
 import com.itheima.singer.service.SingerService;
+import com.itheima.singer.util.ReviewResult;
+import com.itheima.singer.util.SensitiveWordUtil;
 import com.itheima.singer.vo.MusicVO;
 import com.itheima.singer.vo.SingerVO;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -33,6 +37,64 @@ public class SingerServiceImpl implements SingerService {
     private final UserMapper userMapper;
 
     @Override
+    public Map<String, Object> getDashboard(Integer singerId) {
+        Map<String, Object> data = new LinkedHashMap<>();
+
+        if (singerId == null) {
+            data.put("myMusicTotal", 0);
+            data.put("totalListenNumb", 0);
+            data.put("pendingAuditTotal", 0);
+            data.put("approvedTotal", 0);
+            data.put("myTopMusic", List.of());
+            data.put("recentUploads", List.of());
+            return data;
+        }
+
+        // 我的歌曲总数
+        Long myMusicTotal = musicMapper.selectCount(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId));
+        // 总播放量（仅已通过审核且未冻结的歌曲）
+        List<Music> activeMusic = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId)
+                .eq(Music::getAuditStatus, 1)
+                .eq(Music::getActivation, 0));
+        long totalListenNumb = activeMusic.stream().mapToLong(m -> m.getListenNumb() == null ? 0 : m.getListenNumb()).sum();
+        // 待审核数
+        Long pendingAuditTotal = musicMapper.selectCount(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId)
+                .eq(Music::getAuditStatus, 0));
+        // 已通过数
+        Long approvedTotal = musicMapper.selectCount(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId)
+                .eq(Music::getAuditStatus, 1));
+
+        // 我的歌曲播放排行 TOP5
+        List<Music> topList = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId)
+                .eq(Music::getAuditStatus, 1)
+                .eq(Music::getActivation, 0)
+                .orderByDesc(Music::getListenNumb)
+                .last("LIMIT 5"));
+        List<MusicVO> myTopMusic = topList.stream().map(this::toMusicVO).collect(Collectors.toList());
+
+        // 最近上传的 5 首
+        List<Music> recentList = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getFromSinger, singerId)
+                .orderByDesc(Music::getCreateTime)
+                .last("LIMIT 5"));
+        List<MusicVO> recentUploads = recentList.stream().map(this::toMusicVO).collect(Collectors.toList());
+
+        data.put("myMusicTotal", myMusicTotal == null ? 0 : myMusicTotal.intValue());
+        data.put("totalListenNumb", totalListenNumb);
+        data.put("pendingAuditTotal", pendingAuditTotal == null ? 0 : pendingAuditTotal.intValue());
+        data.put("approvedTotal", approvedTotal == null ? 0 : approvedTotal.intValue());
+        data.put("myTopMusic", myTopMusic);
+        data.put("recentUploads", recentUploads);
+
+        return data;
+    }
+
+    @Override
     public PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size) {
         long current = page == null || page < 1 ? 1 : page;
         long pageSize = size == null || size < 1 ? 10 : Math.min(size, 100);
@@ -40,11 +102,13 @@ public class SingerServiceImpl implements SingerService {
         Page<Music> p = new Page<>(current, pageSize);
 
         LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
-                .eq(Music::getActivation, 0)
                 .orderByDesc(Music::getCreateTime)
                 .orderByDesc(Music::getListenNumb);
         if (singerId != null) {
             wrapper.eq(Music::getFromSinger, singerId);
+        } else {
+            wrapper.eq(Music::getAuditStatus, 1)
+                   .eq(Music::getActivation, 0);
         }
 
         musicMapper.selectPage(p, wrapper);
@@ -58,6 +122,9 @@ public class SingerServiceImpl implements SingerService {
 
     @Override
     public MusicVO publishSong(MusicDTO dto) {
+        // 自动审核
+        ReviewResult review = SensitiveWordUtil.autoReview(dto);
+
         Music music = new Music();
         music.setFromSinger(dto.getFromSinger());
         music.setMusicName(dto.getMusicName());
@@ -67,6 +134,15 @@ public class SingerServiceImpl implements SingerService {
         music.setTags(dto.getTags());
         music.setLyric(dto.getLyric());
         music.setActivation(0);
+        // 根据自动审核结果设置审核状态
+        if (review.isPass()) {
+            music.setAuditStatus(1);          // 直接公开
+        } else if (review.isReject()) {
+            music.setAuditStatus(2);          // 自动驳回
+            music.setAuditRemark(review.getMessage());
+        } else {
+            music.setAuditStatus(0);          // 进入管理员审核列表
+        }
         music.setListenNumb(0);
         music.setCreateTime(LocalDate.now());
 
@@ -112,15 +188,22 @@ public class SingerServiceImpl implements SingerService {
 
     @Override
     public boolean deleteSong(Integer musicId) {
-        Music exist = musicMapper.selectById(musicId);
-        if (exist == null) {
-            return false;
-        }
+        return musicMapper.deleteById(musicId) > 0;
+    }
 
-        // 软删除：歌手下架自己的歌曲，置为 1（用户锁定），避免外键引用导致物理删除失败
+    @Override
+    public boolean freezeSong(Integer musicId) {
         LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
                 .eq(Music::getMusicId, musicId)
-                .set(Music::getActivation, 1);
+                .set(Music::getActivation, 2);
+        return musicMapper.update(null, wrapper) > 0;
+    }
+
+    @Override
+    public boolean unfreezeSong(Integer musicId) {
+        LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
+                .eq(Music::getMusicId, musicId)
+                .set(Music::getActivation, 0);
         return musicMapper.update(null, wrapper) > 0;
     }
 
@@ -139,6 +222,7 @@ public class SingerServiceImpl implements SingerService {
 
         Long songCount = musicMapper.selectCount(new LambdaQueryWrapper<Music>()
                 .eq(Music::getFromSinger, singerId)
+                .eq(Music::getAuditStatus, 1)
                 .eq(Music::getActivation, 0));
 
         SingerVO vo = new SingerVO();
@@ -160,6 +244,8 @@ public class SingerServiceImpl implements SingerService {
         vo.setMusicName(music.getMusicName());
         vo.setMusicUrl(music.getMusicUrl());
         vo.setActivation(music.getActivation());
+        vo.setAuditStatus(music.getAuditStatus());
+        vo.setAuditRemark(music.getAuditRemark());
         vo.setListenNumb(music.getListenNumb());
         vo.setImageUrl(music.getImageUrl());
         vo.setTimelength(music.getTimelength());

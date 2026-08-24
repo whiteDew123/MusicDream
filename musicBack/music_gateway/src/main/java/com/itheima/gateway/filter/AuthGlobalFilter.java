@@ -39,10 +39,8 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             "/api/login/**",
             "/api/register/**",
             "/api/email/**",
-            "/api/music/list",
-            "/api/music/search",
-            "/api/music/detail/**",
-            "/api/singer/list",
+            "/api/music/**",
+            "/api/singer/recommend/**",
             "/api/singer/detail/**",
             "/api/songList/public/**"
     );

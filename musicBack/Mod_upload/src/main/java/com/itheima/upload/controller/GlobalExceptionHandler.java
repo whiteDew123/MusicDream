@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -15,6 +16,12 @@ public class GlobalExceptionHandler {
     public Result<Void> handleBusinessException(RuntimeException e) {
         log.warn("业务异常: {}", e.getMessage());
         return Result.fail(400, e.getMessage());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public Result<Void> handleNotFound(NoResourceFoundException e) {
+        log.warn("资源未找到: {}", e.getResourcePath());
+        return Result.fail(404, "资源不存在");
     }
 
     @ExceptionHandler(Exception.class)

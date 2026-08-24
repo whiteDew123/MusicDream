@@ -14,6 +14,7 @@ import com.itheima.recommend.vo.ArtistVO;
 import com.itheima.recommend.vo.MusicVO;
 import com.itheima.recommend.vo.SongDetailVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -28,8 +29,10 @@ import java.util.stream.Collectors;
 /**
  * 歌曲推荐搜索模块业务实现
  *
- * <p>使用 MyBatis Plus 条件构造器进行查询，使用 Redis 缓存热点数据。</p>
+ * <p>使用 MyBatis Plus 条件构造器进行查询，使用 Redis 缓存热点数据。
+ * Redis 不可用时自动降级为直接查询数据库。</p>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RecommendServiceImpl implements RecommendService {
@@ -46,9 +49,9 @@ public class RecommendServiceImpl implements RecommendService {
         int size = normalizeLimit(limit);
         String cacheKey = "recommend:songs:" + safe(userId) + ":" + size;
 
-        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
-        if (cached != null) {
-            return JSON.parseArray(cached, MusicVO.class);
+        List<MusicVO> cachedList = getCachedList(cacheKey, MusicVO.class);
+        if (cachedList != null) {
+            return cachedList;
         }
 
         List<Music> result;
@@ -62,7 +65,7 @@ public class RecommendServiceImpl implements RecommendService {
                 .map(this::toMusicVO)
                 .collect(Collectors.toList());
 
-        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(voList), CACHE_TTL);
+        setCache(cacheKey, JSON.toJSONString(voList));
         return voList;
     }
 
@@ -71,9 +74,9 @@ public class RecommendServiceImpl implements RecommendService {
         int size = normalizeLimit(limit);
         String cacheKey = "music:rank:" + size;
 
-        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
-        if (cached != null) {
-            return JSON.parseArray(cached, MusicVO.class);
+        List<MusicVO> cachedList = getCachedList(cacheKey, MusicVO.class);
+        if (cachedList != null) {
+            return cachedList;
         }
 
         List<Music> songs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
@@ -85,7 +88,7 @@ public class RecommendServiceImpl implements RecommendService {
                 .map(this::toMusicVO)
                 .collect(Collectors.toList());
 
-        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(voList), CACHE_TTL);
+        setCache(cacheKey, JSON.toJSONString(voList));
         return voList;
     }
 
@@ -96,9 +99,9 @@ public class RecommendServiceImpl implements RecommendService {
         String safeKeyword = keyword == null ? "" : keyword.trim();
 
         String cacheKey = "music:search:" + safeKeyword + ":" + current + ":" + pageSize;
-        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
-        if (cached != null) {
-            return JSON.parseArray(cached, MusicVO.class);
+        List<MusicVO> cachedList = getCachedList(cacheKey, MusicVO.class);
+        if (cachedList != null) {
+            return cachedList;
         }
 
         LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
@@ -118,7 +121,7 @@ public class RecommendServiceImpl implements RecommendService {
                 .map(this::toMusicVO)
                 .collect(Collectors.toList());
 
-        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(voList), CACHE_TTL);
+        setCache(cacheKey, JSON.toJSONString(voList));
         return voList;
     }
 
@@ -128,9 +131,10 @@ public class RecommendServiceImpl implements RecommendService {
             return null;
         }
         String cacheKey = "music:detail:" + musicId;
-        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+
+        SongDetailVO cached = getCachedObject(cacheKey, SongDetailVO.class);
         if (cached != null) {
-            return JSON.parseObject(cached, SongDetailVO.class);
+            return cached;
         }
 
         Music music = musicMapper.selectById(musicId);
@@ -158,7 +162,7 @@ public class RecommendServiceImpl implements RecommendService {
             vo.setSingerAbout(singer.getAbout());
         }
 
-        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(vo), CACHE_TTL);
+        setCache(cacheKey, JSON.toJSONString(vo));
         return vo;
     }
 
@@ -167,9 +171,9 @@ public class RecommendServiceImpl implements RecommendService {
         int size = normalizeLimit(limit);
         String cacheKey = "recommend:artists:" + size;
 
-        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
-        if (cached != null) {
-            return JSON.parseArray(cached, ArtistVO.class);
+        List<ArtistVO> cachedList = getCachedList(cacheKey, ArtistVO.class);
+        if (cachedList != null) {
+            return cachedList;
         }
 
         List<User> singers = userMapper.selectList(new LambdaQueryWrapper<User>()
@@ -201,7 +205,7 @@ public class RecommendServiceImpl implements RecommendService {
                 .limit(size)
                 .collect(Collectors.toList());
 
-        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(result), CACHE_TTL);
+        setCache(cacheKey, JSON.toJSONString(result));
         return result;
     }
 
@@ -211,9 +215,10 @@ public class RecommendServiceImpl implements RecommendService {
             return null;
         }
         String cacheKey = "artist:detail:" + artistId;
-        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+
+        ArtistDetailVO cached = getCachedObject(cacheKey, ArtistDetailVO.class);
         if (cached != null) {
-            return JSON.parseObject(cached, ArtistDetailVO.class);
+            return cached;
         }
 
         User singer = userMapper.selectOne(new LambdaQueryWrapper<User>()
@@ -241,8 +246,49 @@ public class RecommendServiceImpl implements RecommendService {
                 .sum());
         vo.setSongs(songs.stream().map(this::toMusicVO).collect(Collectors.toList()));
 
-        stringRedisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(vo), CACHE_TTL);
+        setCache(cacheKey, JSON.toJSONString(vo));
         return vo;
+    }
+
+    /**
+     * 安全获取缓存列表，Redis 不可用时返回 null
+     */
+    private <T> List<T> getCachedList(String cacheKey, Class<T> clazz) {
+        try {
+            String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cached != null && !cached.isEmpty()) {
+                return JSON.parseArray(cached, clazz);
+            }
+        } catch (Exception e) {
+            log.warn("Redis 读取失败，降级为直接查询数据库: key={}, error={}", cacheKey, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 安全获取缓存对象，Redis 不可用时返回 null
+     */
+    private <T> T getCachedObject(String cacheKey, Class<T> clazz) {
+        try {
+            String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cached != null && !cached.isEmpty()) {
+                return JSON.parseObject(cached, clazz);
+            }
+        } catch (Exception e) {
+            log.warn("Redis 读取失败，降级为直接查询数据库: key={}, error={}", cacheKey, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 安全写入缓存，Redis 不可用时静默失败
+     */
+    private void setCache(String cacheKey, String value) {
+        try {
+            stringRedisTemplate.opsForValue().set(cacheKey, value, CACHE_TTL);
+        } catch (Exception e) {
+            log.warn("Redis 写入失败，跳过缓存: key={}, error={}", cacheKey, e.getMessage());
+        }
     }
 
     /**
@@ -284,7 +330,6 @@ public class RecommendServiceImpl implements RecommendService {
                     .last("LIMIT " + size));
         }
 
-        // 使用 MyBatis Plus 条件构造器拼接标签 OR 条件
         LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
                 .eq(Music::getActivation, 0)
                 .notIn(!likedMusicIds.isEmpty(), Music::getMusicId, likedMusicIds);

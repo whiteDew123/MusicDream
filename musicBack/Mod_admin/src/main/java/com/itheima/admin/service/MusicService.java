@@ -9,4 +9,12 @@ public interface MusicService {
     Result freezeMusic(Integer id);
 
     Result unFreezeMusic(Integer id);
+
+    Result pagePendingMusic(Integer pn, Integer size);
+
+    Result approveMusic(Integer id);
+
+    Result rejectMusic(Integer id, String remark);
+
+    Result deleteMusic(Integer id);
 }
