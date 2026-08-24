@@ -70,5 +70,9 @@ musicBack/**/src/main/resources/bootstrap-*.yml
 musicBack/**/src/main/resources/application.properties
 musicBack/**/src/main/resources/application-*.properties
 
+### JTransforms ###
+**/JTransforms-*.jar
+**/jtransforms-*.jar
+
 ### Database backups ###
 backup_database.sql
