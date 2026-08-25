@@ -19,6 +19,12 @@ const routes = [
     meta: { title: '注册', public: true }
   },
   {
+    path: '/player',
+    name: 'SwipePlayer',
+    component: () => import('@/views/player/SwipePlayer.vue'),
+    meta: { title: '播放器' }
+  },
+  {
     path: '/',
     component: () => import('@/layout/Layout.vue'),
     redirect: '/discover',

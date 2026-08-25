@@ -21,7 +21,7 @@
       <template v-for="item in menuRoutes" :key="item.path">
         <!-- 分组：带 children 的项渲染为可展开 sub-menu -->
         <el-sub-menu
-          v-if="item.children && item.children.length"
+          v-if="item.children && filterChildren(item.children).length"
           :index="'/' + item.path"
         >
           <template #title>

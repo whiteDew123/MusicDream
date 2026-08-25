@@ -33,11 +33,11 @@ export default defineConfig({
         changeOrigin: true
       },
       '/uploads': {
-        target: 'http://localhost:8005',
+        target: 'http://localhost:9000',
         changeOrigin: true
       },
       // 静态资源（音乐/封面/歌词）：统一由 Mod_upload (8005) 从 musicBack/resource/ 提供
-      // 兼容 /music /img /lyric（历史数据）与 /uploads（新上传）
+      // 兼容 /music /img /lyric（历史数据）
       '/music': { target: 'http://localhost:8005', changeOrigin: true },
       '/img': { target: 'http://localhost:8005', changeOrigin: true },
       '/lyric': { target: 'http://localhost:8005', changeOrigin: true }

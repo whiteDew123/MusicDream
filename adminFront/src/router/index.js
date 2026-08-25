@@ -114,6 +114,16 @@ const router = createRouter({
   routes
 })
 
+// 检查当前路由对于指定角色是否可见
+function canAccessRoute(meta, role) {
+  if (!meta) return true
+  const show = meta.show
+  if (!show || show === 'all') return true
+  if (show === 'admin' && role === 0) return true
+  if (show === 'singer' && role === 1) return true
+  return false
+}
+
 // 全局前置守卫
 // - public 路由直接放行
 // - 非 public：未登录跳 /login；已登录但非管理员/歌手拒绝进入
@@ -127,9 +137,26 @@ router.beforeEach((to, from, next) => {
     return next({ path: '/login', query: { redirect: to.fullPath } })
   }
   const userStore = useUserStore()
-  if (!userStore.hasRole(0, 1)) {
+  const role = userStore.userInfo?.role
+
+  // 仅允许管理员 (role=0) 和歌手 (role=1) 登录后台
+  if (role !== 0 && role !== 1) {
     return next({ path: '/login' })
   }
+
+  // 检查路由级权限：如果路由对当前角色不可见，跳转到首页
+  if (!canAccessRoute(to.meta, role)) {
+    // 检查父路由
+    if (to.matched.length > 1) {
+      const parentMatched = to.matched.find((m, i) => i === to.matched.length - 2)
+      if (parentMatched && !canAccessRoute(parentMatched.meta, role)) {
+        return next('/dashboard')
+      }
+    } else {
+      return next('/dashboard')
+    }
+  }
+
   next()
 })
 

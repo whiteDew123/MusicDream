@@ -117,54 +117,13 @@
       </div>
     </transition>
 
-    <!-- 歌词面板（点击封面弹出，参考网易云） -->
-    <transition name="lyric-fade">
-      <div v-if="showLyrics" class="lyrics-panel" @click.self="toggleLyrics">
-        <div class="lyrics-header">
-          <button class="lyrics-close" @click="toggleLyrics">
-            <el-icon><ArrowDown /></el-icon>
-          </button>
-          <span class="lyrics-title">{{ currentSong?.musicName || '暂无播放' }}</span>
-        </div>
-        <div class="lyrics-body">
-          <!-- 左侧：封面 + 歌曲信息 -->
-          <div class="lyrics-left">
-            <div class="lyrics-cover" :class="{ spinning: playerStore.playing }">
-              <img
-                v-if="currentSong?.imageUrl"
-                :src="currentSong.imageUrl"
-                :alt="currentSong.musicName"
-              />
-              <el-icon v-else class="cover-fallback"><Headset /></el-icon>
-            </div>
-            <div class="lyrics-song-name">{{ currentSong?.musicName }}</div>
-            <div class="lyrics-song-singer">{{ currentSong?.singerName }}</div>
-          </div>
-          <!-- 右侧：歌词滚动 -->
-          <div class="lyrics-right" ref="lyricsScrollRef">
-            <div v-if="playerStore.lyrics.length === 0" class="no-lyric">
-              暂无歌词
-            </div>
-            <div v-else class="lyric-lines">
-              <p
-                v-for="(line, idx) in playerStore.lyrics"
-                :key="idx"
-                :ref="(el) => { if (idx === playerStore.currentLyricIndex) activeLyricRef = el }"
-                class="lyric-line"
-                :class="{ active: idx === playerStore.currentLyricIndex }"
-              >
-                {{ line.text }}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
+    <!-- 全屏播放器面板（抖音风格） -->
+    <FullPlayer v-if="showLyrics" @close="toggleLyrics" />
   </footer>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed } from 'vue'
 import {
   Headset,
   Sort,
@@ -177,10 +136,10 @@ import {
   Tickets,
   MuteNotification,
   Microphone,
-  Close,
-  ArrowDown
+  Close
 } from '@element-plus/icons-vue'
 import { usePlayerStore } from '@/store/player'
+import FullPlayer from '@/components/FullPlayer.vue'
 
 const playerStore = usePlayerStore()
 
@@ -188,27 +147,12 @@ const showPlaylist = ref(false)
 const showLyrics = ref(false)
 const progressBarRef = ref(null)
 const volumeBarRef = ref(null)
-const lyricsScrollRef = ref(null)
-const activeLyricRef = ref(null)
 
-// 切换歌词面板
+// 切换全屏播放器面板
 function toggleLyrics() {
   if (!currentSong.value) return
   showLyrics.value = !showLyrics.value
 }
-
-// 当前歌词行变化时自动滚动到视口中央
-watch(
-  () => playerStore.currentLyricIndex,
-  async () => {
-    if (!showLyrics.value || !activeLyricRef.value) return
-    await nextTick()
-    activeLyricRef.value.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center'
-    })
-  }
-)
 
 const currentSong = computed(() => playerStore.currentSong)
 
@@ -619,181 +563,5 @@ function handleVolumeMouseDown(e) {
   transform: translateY(12px);
 }
 
-/* === 歌词面板 === */
-.lyrics-panel {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(20px);
-  display: flex;
-  flex-direction: column;
-}
 
-.lyrics-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px 32px;
-
-  .lyrics-close {
-    border: none;
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 18px;
-    transition: background 200ms ease;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-  }
-
-  .lyrics-title {
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 500;
-  }
-}
-
-.lyrics-body {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 80px;
-  padding: 0 64px;
-  overflow: hidden;
-}
-
-/* 左侧：封面 + 歌名 */
-.lyrics-left {
-  flex-shrink: 0;
-  text-align: center;
-
-  .lyrics-cover {
-    width: 300px;
-    height: 300px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.05);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 8px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .cover-fallback {
-      font-size: 80px;
-      color: rgba(255, 255, 255, 0.3);
-    }
-
-    /* 播放中封面旋转（参考黑胶唱片）*/
-    &.spinning {
-      animation: coverSpin 20s linear infinite;
-    }
-  }
-
-  .lyrics-song-name {
-    margin-top: 24px;
-    font-size: 20px;
-    color: #fff;
-    font-weight: 600;
-  }
-
-  .lyrics-song-singer {
-    margin-top: 6px;
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.5);
-  }
-}
-
-@keyframes coverSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* 右侧：歌词滚动 */
-.lyrics-right {
-  flex: 1;
-  max-width: 500px;
-  height: 100%;
-  overflow-y: auto;
-  padding: 40px 0;
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    #000 15%,
-    #000 85%,
-    transparent 100%
-  );
-
-  /* 隐藏滚动条 */
-  &::-webkit-scrollbar {
-    display: none;
-  }
-  scrollbar-width: none;
-}
-
-.lyric-lines {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-}
-
-.lyric-line {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.35);
-  text-align: center;
-  line-height: 1.6;
-  transition: all 300ms ease;
-  cursor: pointer;
-  padding: 2px 0;
-
-  &:hover {
-    color: rgba(255, 255, 255, 0.6);
-  transform: scale(1.02);
-  transform-origin: center;
-  }
-
-  /* 当前行高亮放大 */
-  &.active {
-    color: #fff;
-    font-size: 18px;
-    font-weight: 600;
-    transform: scale(1.05);
-    transform-origin: center;
-    text-shadow: 0 2px 12px rgba(94, 92, 230, 0.4);
-  }
-}
-
-.no-lyric {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 16px;
-  padding: 80px 0;
-}
-
-/* 歌词面板入场动画 */
-.lyric-fade-enter-active,
-.lyric-fade-leave-active {
-  transition: opacity 300ms ease;
-}
-.lyric-fade-enter-from,
-.lyric-fade-leave-to {
-  opacity: 0;
-}
 </style>

@@ -132,8 +132,49 @@
         <el-form-item label="音频URL">
           <el-input v-model="editForm.musicUrl" placeholder="请输入音频文件URL" />
         </el-form-item>
-        <el-form-item label="封面URL">
-          <el-input v-model="editForm.imageUrl" placeholder="请输入封面图片URL" />
+        <el-form-item label="封面">
+          <div class="cover-upload">
+            <div class="cover-preview">
+              <el-image
+                v-if="editForm.imageUrl"
+                :src="editForm.imageUrl"
+                fit="cover"
+                class="preview-img"
+                :preview-src-list="[editForm.imageUrl]"
+                preview-teleported
+              />
+              <div v-else class="preview-placeholder">
+                <el-icon><Picture /></el-icon>
+              </div>
+            </div>
+            <div class="cover-actions">
+              <input
+                ref="coverInputRef"
+                type="file"
+                accept="image/*"
+                style="display:none"
+                @change="handleCoverUpload"
+              />
+              <el-button
+                type="primary"
+                size="small"
+                :loading="coverUploading"
+                @click="coverInputRef?.click()"
+              >
+                {{ coverUploading ? '上传中...' : '本地上传' }}
+              </el-button>
+              <el-button
+                v-if="editForm.imageUrl"
+                size="small"
+                @click="clearCover"
+              >清除</el-button>
+            </div>
+            <el-input
+              v-model="editForm.imageUrl"
+              placeholder="或输入封面图片URL"
+              size="small"
+            />
+          </div>
         </el-form-item>
         <el-form-item label="时长(秒)">
           <el-input-number v-model="editForm.timelength" :min="0" :controls="false" style="width: 100%" />
@@ -156,8 +197,9 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Headset } from '@element-plus/icons-vue'
+import { Search, Headset, Picture } from '@element-plus/icons-vue'
 import { useAdminMusicStore } from '@/store/adminMusic'
+import { uploadFileApi } from '@/api/music'
 
 const store = useAdminMusicStore()
 
@@ -169,6 +211,8 @@ const pagination = reactive({
 
 const editVisible = ref(false)
 const editFormRef = ref()
+const coverUploading = ref(false)
+const coverInputRef = ref(null)
 const editForm = reactive({
   musicId: null,
   fromSinger: null,
@@ -224,6 +268,40 @@ function openEdit(row) {
   editForm.tags = row.tags || ''
   editForm.lyric = row.lyric || ''
   editVisible.value = true
+}
+
+async function handleCoverUpload(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning('请选择图片文件')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.warning('图片不能超过 5MB')
+    return
+  }
+  coverUploading.value = true
+  try {
+    const res = await uploadFileApi(file, 'image')
+    if (res.data?.fileUrl) {
+      editForm.imageUrl = res.data.fileUrl
+      ElMessage.success('封面上传成功')
+    } else {
+      ElMessage.error('上传失败：未获取到文件路径')
+    }
+  } catch (err) {
+    ElMessage.error('封面上传失败')
+  } finally {
+    coverUploading.value = false
+    if (coverInputRef.value) {
+      coverInputRef.value.value = ''
+    }
+  }
+}
+
+function clearCover() {
+  editForm.imageUrl = ''
 }
 
 async function handleSaveEdit() {
@@ -400,6 +478,47 @@ function formatDuration(seconds) {
   height: 48px;
   border-radius: var(--rounded-sm);
   display: block;
+}
+
+.cover-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.cover-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--rounded-md);
+  overflow: hidden;
+  border: 1px solid var(--wf-hairline);
+  flex-shrink: 0;
+
+  .preview-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+}
+
+.preview-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--rounded-md);
+  background: var(--wf-canvas-soft);
+  color: var(--wf-mute);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.cover-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .cover-placeholder {
