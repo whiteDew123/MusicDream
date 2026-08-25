@@ -8,6 +8,7 @@ import com.itheima.admin.service.MusicService;
 import com.itheima.domain.common.Result;
 import com.itheima.domain.entity.Music;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,10 @@ import org.springframework.web.client.RestTemplate;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -24,12 +29,38 @@ public class MusicServiceImpl implements MusicService {
     @Autowired
     private MusicMapper musicMapper;
 
+    @Autowired(required = false)
+    private StringRedisTemplate stringRedisTemplate;
+
     private static final Logger log = LoggerFactory.getLogger(MusicServiceImpl.class);
 
     @Value("${recognize.service-url:http://localhost:8011}")
     private String recognizeServiceUrl;
 
     private final RestTemplate restTemplate = new RestTemplate();
+
+    /**
+     * 清理推荐模块 Redis 缓存；未配置 Redis 或清理失败时跳过
+     */
+    private void evictRecommendCache() {
+        if (stringRedisTemplate == null) {
+            return;
+        }
+        List<String> patterns = Arrays.asList("recommend:*", "music:*", "artist:*");
+        try {
+            Set<String> allKeys = new HashSet<>();
+            for (String pattern : patterns) {
+                Set<String> keys = stringRedisTemplate.keys(pattern);
+                if (keys != null && !keys.isEmpty()) {
+                    allKeys.addAll(keys);
+                }
+            }
+            if (!allKeys.isEmpty()) {
+                stringRedisTemplate.delete(allKeys);
+            }
+        } catch (Exception ignored) {
+        }
+    }
 
     @Override
     public Result searchMusic(Integer pn, Integer size, String keyword) {
@@ -94,6 +125,7 @@ public class MusicServiceImpl implements MusicService {
                 log.error("歌曲指纹注册失败: musicId={}", id, e);
             }
         }
+        evictRecommendCache();
         return Result.success("审核通过", null);
     }
 
@@ -106,12 +138,14 @@ public class MusicServiceImpl implements MusicService {
             musicWrapper.set(true, "audit_remark", remark);
         }
         musicMapper.update(null, musicWrapper);
+        evictRecommendCache();
         return Result.success("驳回成功", null);
     }
 
     @Override
     public Result deleteMusic(Integer id) {
         musicMapper.deleteById(id);
+        evictRecommendCache();
         return Result.success("删除成功", null);
     }
 }

@@ -41,4 +41,9 @@ public interface RecommendService {
      * 歌手详情
      */
     ArtistDetailVO artistDetail(Integer artistId);
+
+    /**
+     * 清理推荐模块相关缓存（歌曲发布、审核通过、删除后调用）
+     */
+    void evictRecommendCache();
 }

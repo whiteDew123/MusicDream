@@ -1,6 +1,6 @@
 package com.itheima.recognize.algorithm;
 
-import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
+import org.jtransforms.fft.DoubleFFT_1D;
 
 import java.util.ArrayList;
 import java.util.HashMap;

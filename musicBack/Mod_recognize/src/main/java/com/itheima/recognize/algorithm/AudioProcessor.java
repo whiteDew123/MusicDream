@@ -1,6 +1,6 @@
 package com.itheima.recognize.algorithm;
 
-import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
+import org.jtransforms.fft.DoubleFFT_1D;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;

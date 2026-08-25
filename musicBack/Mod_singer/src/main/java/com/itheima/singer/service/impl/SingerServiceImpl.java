@@ -15,13 +15,17 @@ import com.itheima.singer.util.SensitiveWordUtil;
 import com.itheima.singer.vo.MusicVO;
 import com.itheima.singer.vo.SingerVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -35,6 +39,27 @@ public class SingerServiceImpl implements SingerService {
 
     private final MusicMapper musicMapper;
     private final UserMapper userMapper;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    /**
+     * 清理推荐模块 Redis 缓存；不可用时跳过，等待 TTL 自动过期
+     */
+    private void evictRecommendCache() {
+        List<String> patterns = Arrays.asList("recommend:*", "music:*", "artist:*");
+        try {
+            Set<String> allKeys = new HashSet<>();
+            for (String pattern : patterns) {
+                Set<String> keys = stringRedisTemplate.keys(pattern);
+                if (keys != null && !keys.isEmpty()) {
+                    allKeys.addAll(keys);
+                }
+            }
+            if (!allKeys.isEmpty()) {
+                stringRedisTemplate.delete(allKeys);
+            }
+        } catch (Exception ignored) {
+        }
+    }
 
     @Override
     public Map<String, Object> getDashboard(Integer singerId) {
@@ -147,6 +172,7 @@ public class SingerServiceImpl implements SingerService {
         music.setCreateTime(LocalDate.now());
 
         musicMapper.insert(music);
+        evictRecommendCache();
         return toMusicVO(music);
     }
 
