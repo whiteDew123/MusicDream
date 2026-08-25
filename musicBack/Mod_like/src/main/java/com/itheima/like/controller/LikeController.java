@@ -1,6 +1,5 @@
 package com.itheima.like.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.itheima.domain.common.Result;
 import com.itheima.like.entity.LikeList;
 import com.itheima.like.entity.LikeMusic;
@@ -8,7 +7,6 @@ import com.itheima.like.service.LikeListService;
 import com.itheima.like.service.LikeMusicService;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -39,7 +37,11 @@ public class LikeController {
      * GET /like/music
      */
     @GetMapping("/music")
-    public Result<List<LikeMusic>> likedMusic(@RequestHeader("X-User-Id") Integer userId) {
+    public Result<List<LikeMusic>> likedMusic(
+            @RequestHeader(value = "X-User-Id", required = false) Integer userId) {
+        if (userId == null) {
+            return Result.error(401, "请先登录");
+        }
         List<LikeMusic> list = likeMusicService.getLikedMusic(userId);
         return Result.success(list);
     }
@@ -51,18 +53,14 @@ public class LikeController {
      */
     @PostMapping("/music/{musicId}")
     public Result<Void> addMusic(@PathVariable Integer musicId,
-                                 @RequestHeader("X-User-Id") Integer userId) {
-        LikeMusic existing = likeMusicService.getOne(new LambdaQueryWrapper<LikeMusic>()
-                .eq(LikeMusic::getUserId, userId)
-                .eq(LikeMusic::getMusicId, musicId));
-        if (existing != null) {
-            return Result.fail("已收藏过该歌曲");
+                                 @RequestHeader(value = "X-User-Id", required = false) Integer userId) {
+        if (userId == null) {
+            return Result.error(401, "请先登录");
         }
-        LikeMusic like = new LikeMusic();
-        like.setUserId(userId);
-        like.setMusicId(musicId);
-        like.setCreateDate(new Date());
-        likeMusicService.save(like);
+        if (likeMusicService.isLiked(userId, musicId)) {
+            return Result.error("已收藏过该歌曲");
+        }
+        likeMusicService.addLike(userId, musicId);
         return Result.success();
     }
 
@@ -73,10 +71,11 @@ public class LikeController {
      */
     @DeleteMapping("/music/{musicId}")
     public Result<Void> removeMusic(@PathVariable Integer musicId,
-                                    @RequestHeader("X-User-Id") Integer userId) {
-        likeMusicService.remove(new LambdaQueryWrapper<LikeMusic>()
-                .eq(LikeMusic::getUserId, userId)
-                .eq(LikeMusic::getMusicId, musicId));
+                                    @RequestHeader(value = "X-User-Id", required = false) Integer userId) {
+        if (userId == null) {
+            return Result.error(401, "请先登录");
+        }
+        likeMusicService.removeLike(userId, musicId);
         return Result.success();
     }
 
@@ -88,7 +87,11 @@ public class LikeController {
      * GET /like/list
      */
     @GetMapping("/list")
-    public Result<List<LikeList>> likedList(@RequestHeader("X-User-Id") Integer userId) {
+    public Result<List<LikeList>> likedList(
+            @RequestHeader(value = "X-User-Id", required = false) Integer userId) {
+        if (userId == null) {
+            return Result.error(401, "请先登录");
+        }
         List<LikeList> list = likeListService.getLikedList(userId);
         return Result.success(list);
     }
@@ -100,17 +103,14 @@ public class LikeController {
      */
     @PostMapping("/list/{listId}")
     public Result<Void> addList(@PathVariable Integer listId,
-                                @RequestHeader("X-User-Id") Integer userId) {
-        LikeList existing = likeListService.getOne(new LambdaQueryWrapper<LikeList>()
-                .eq(LikeList::getUserId, userId)
-                .eq(LikeList::getListId, listId));
-        if (existing != null) {
-            return Result.fail("已收藏过该歌单");
+                                @RequestHeader(value = "X-User-Id", required = false) Integer userId) {
+        if (userId == null) {
+            return Result.error(401, "请先登录");
         }
-        LikeList like = new LikeList();
-        like.setUserId(userId);
-        like.setListId(listId);
-        likeListService.save(like);
+        if (likeListService.isLiked(userId, listId)) {
+            return Result.error("已收藏过该歌单");
+        }
+        likeListService.addLike(userId, listId);
         return Result.success();
     }
 
@@ -121,10 +121,11 @@ public class LikeController {
      */
     @DeleteMapping("/list/{listId}")
     public Result<Void> removeList(@PathVariable Integer listId,
-                                   @RequestHeader("X-User-Id") Integer userId) {
-        likeListService.remove(new LambdaQueryWrapper<LikeList>()
-                .eq(LikeList::getUserId, userId)
-                .eq(LikeList::getListId, listId));
+                                   @RequestHeader(value = "X-User-Id", required = false) Integer userId) {
+        if (userId == null) {
+            return Result.error(401, "请先登录");
+        }
+        likeListService.removeLike(userId, listId);
         return Result.success();
     }
 }

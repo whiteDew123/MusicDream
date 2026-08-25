@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import axios from 'axios'
+
+// 创建不经过 /api 前缀的 axios 实例，用于加载静态资源（如歌词文件）
+const resourceAxios = axios.create({
+  timeout: 10000
+})
 
 // 播放器状态管理
 // - 维护播放列表、当前歌曲、播放进度、音量、播放模式
@@ -97,12 +103,12 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   // 加载并播放当前歌曲
-  function loadAndPlay() {
+  async function loadAndPlay() {
     const song = currentSong.value
     if (!song || !audio.value) return
     audio.value.src = song.musicUrl || ''
-    // 解析歌词
-    lyrics.value = parseLyrics(song.lyric)
+    // 解析歌词（支持直接文本和文件路径两种格式）
+    await loadLyrics(song.lyric)
     currentLyricIndex.value = -1
     audio.value
       .play()
@@ -112,6 +118,27 @@ export const usePlayerStore = defineStore('player', () => {
       .catch(() => {
         playing.value = false
       })
+  }
+
+  // 加载歌词：支持直接 LRC 文本或文件路径
+  async function loadLyrics(lyricData) {
+    if (!lyricData) {
+      lyrics.value = []
+      return
+    }
+    // 如果是文件路径（以 / 或 http 开头），则通过 HTTP 获取内容
+    if (typeof lyricData === 'string' && (lyricData.startsWith('/') || lyricData.startsWith('http'))) {
+      try {
+        const res = await resourceAxios.get(lyricData, { responseType: 'text' })
+        lyrics.value = parseLyrics(res.data)
+      } catch (e) {
+        console.warn('歌词文件加载失败:', e)
+        lyrics.value = []
+      }
+    } else {
+      // 直接是 LRC 文本
+      lyrics.value = parseLyrics(lyricData)
+    }
   }
 
   // 播放/暂停切换

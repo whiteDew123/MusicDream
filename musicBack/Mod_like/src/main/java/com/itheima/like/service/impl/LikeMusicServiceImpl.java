@@ -15,4 +15,19 @@ public class LikeMusicServiceImpl extends ServiceImpl<LikeMusicMapper, LikeMusic
     public List<LikeMusic> getLikedMusic(Integer userId) {
         return baseMapper.selectLikedMusicByUserId(userId);
     }
+
+    @Override
+    public boolean isLiked(Integer userId, Integer musicId) {
+        return baseMapper.countByUserAndMusic(userId, musicId) > 0;
+    }
+
+    @Override
+    public void addLike(Integer userId, Integer musicId) {
+        baseMapper.insertLike(userId, musicId);
+    }
+
+    @Override
+    public void removeLike(Integer userId, Integer musicId) {
+        baseMapper.deleteLike(userId, musicId);
+    }
 }
