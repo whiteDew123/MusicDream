@@ -68,6 +68,7 @@ const userInfo = computed(() => userStore.userInfo)
 const menuItems = [
   { path: '/discover', label: '推荐', icon: 'House' },
   { path: '/singer', label: '歌手', icon: 'Microphone' },
+  { path: '/recognize', label: '听歌识曲', icon: 'Microphone' },
   { path: '/rank', label: '排行', icon: 'TrophyBase' },
   { path: '/songlist', label: '歌单', icon: 'Files' },
   { path: '/capsule/plaza', label: '时空胶囊', icon: 'MagicStick' }

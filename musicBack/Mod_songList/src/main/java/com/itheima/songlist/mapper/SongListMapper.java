@@ -21,13 +21,13 @@ public interface SongListMapper extends BaseMapper<SongList> {
      *
      * @param userId 当前用户ID，为 null 时不判断收藏状态
      */
-    @Select("SELECT s.id, s.name, s.user AS user_id, s.image AS pic, " +
-            "s.message AS introduction, s.create_date, s.tags AS style, " +
+    @Select("SELECT s.id, s.name, s.user_id AS user_id, s.pic AS pic, " +
+            "s.introduction AS introduction, s.create_date, s.style AS style, " +
             "u.username, " +
-            "CASE WHEN l.userId IS NOT NULL THEN 1 ELSE NULL END AS is_like " +
+            "CASE WHEN l.user_id IS NOT NULL THEN 1 ELSE NULL END AS is_like " +
             "FROM song_list s " +
-            "LEFT JOIN user u ON s.user = u.id " +
-            "LEFT JOIN likelist l ON l.listid = s.id AND l.userId = #{userId} " +
+            "LEFT JOIN user u ON s.user_id = u.id " +
+            "LEFT JOIN likelist l ON l.list_id = s.id AND l.user_id = #{userId} " +
             "ORDER BY s.create_date DESC")
     List<SongList> selectPublicList(@Param("userId") Integer userId);
 
@@ -37,13 +37,13 @@ public interface SongListMapper extends BaseMapper<SongList> {
      * @param id     歌单ID
      * @param userId 当前用户ID，为 null 时不判断收藏状态
      */
-    @Select("SELECT s.id, s.name, s.user AS user_id, s.image AS pic, " +
-            "s.message AS introduction, s.create_date, s.tags AS style, " +
+    @Select("SELECT s.id, s.name, s.user_id AS user_id, s.pic AS pic, " +
+            "s.introduction AS introduction, s.create_date, s.style AS style, " +
             "u.username, " +
-            "CASE WHEN l.userId IS NOT NULL THEN 1 ELSE NULL END AS is_like " +
+            "CASE WHEN l.user_id IS NOT NULL THEN 1 ELSE NULL END AS is_like " +
             "FROM song_list s " +
-            "LEFT JOIN user u ON s.user = u.id " +
-            "LEFT JOIN likelist l ON l.listid = s.id AND l.userId = #{userId} " +
+            "LEFT JOIN user u ON s.user_id = u.id " +
+            "LEFT JOIN likelist l ON l.list_id = s.id AND l.user_id = #{userId} " +
             "WHERE s.id = #{id}")
     SongList selectPublicDetail(@Param("id") Integer id, @Param("userId") Integer userId);
 }
