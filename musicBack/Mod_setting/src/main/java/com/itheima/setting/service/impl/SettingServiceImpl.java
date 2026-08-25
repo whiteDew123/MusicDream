@@ -28,6 +28,12 @@ public class SettingServiceImpl implements SettingService {
     private final UserMapper userMapper;
 
     @Override
+    public UserVO getUserInfo(Integer userId) {
+        User user = getUser(userId);
+        return toVO(user);
+    }
+
+    @Override
     public UserVO updateUserInfo(Integer userId, UserUpdateDTO dto) {
         if (dto == null) {
             throw new IllegalArgumentException("用户信息不能为空");
