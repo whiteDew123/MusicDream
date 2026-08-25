@@ -24,12 +24,12 @@ public class LikeList implements Serializable {
     @TableField(exist = false)
     private Integer id;
 
-    /** 用户ID（列 userId） */
-    @TableField("userId")
+    /** 用户ID（列 user_id） */
+    @TableField("user_id")
     private Integer userId;
 
-    /** 歌单ID（列 listid） */
-    @TableField("listid")
+    /** 歌单ID（列 list_id） */
+    @TableField("list_id")
     private Integer listId;
 
     /** 歌单名称（联表 song_list.name，不入库） */

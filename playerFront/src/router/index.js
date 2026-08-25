@@ -49,6 +49,12 @@ const routes = [
         meta: { title: '歌手详情' }
       },
       {
+        path: 'recognize',
+        name: 'Recognize',
+        component: () => import('@/views/recognize/RecognizePage.vue'),
+        meta: { title: '听歌识曲', icon: 'Microphone' }
+      },
+      {
         path: 'rank',
         name: 'Rank',
         component: () => import('@/views/rank/Rank.vue'),

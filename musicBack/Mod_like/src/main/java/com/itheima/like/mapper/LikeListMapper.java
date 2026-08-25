@@ -22,13 +22,13 @@ public interface LikeListMapper extends BaseMapper<LikeList> {
     /**
      * 查询用户收藏的歌单（联表 song_list 获取歌单名称/封面，联表 user 获取创建者名称）
      */
-    @Select("SELECT ll.userId AS user_id, ll.listid AS list_id, " +
-            "sl.name AS list_name, sl.image AS list_pic, sl.tags AS list_style, u.username " +
+    @Select("SELECT ll.user_id AS user_id, ll.list_id AS list_id, " +
+            "sl.name AS list_name, sl.pic AS list_pic, sl.style AS list_style, u.username " +
             "FROM likelist ll " +
-            "LEFT JOIN song_list sl ON ll.listid = sl.id " +
-            "LEFT JOIN user u ON sl.user = u.id " +
-            "WHERE ll.userId = #{userId} " +
-            "ORDER BY ll.listid DESC")
+            "LEFT JOIN song_list sl ON ll.list_id = sl.id " +
+            "LEFT JOIN user u ON sl.user_id = u.id " +
+            "WHERE ll.user_id = #{userId} " +
+            "ORDER BY ll.list_id DESC")
     List<LikeList> selectLikedListByUserId(@Param("userId") Integer userId);
 
     /**

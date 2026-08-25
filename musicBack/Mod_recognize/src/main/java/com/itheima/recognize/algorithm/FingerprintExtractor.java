@@ -14,7 +14,7 @@ public class FingerprintExtractor {
 
     public static final int FFT_SIZE = 1024;
     public static final int HOP_SIZE = 512;
-    private static final float ENERGY_THRESHOLD = 10.0f;
+    private static final float ENERGY_THRESHOLD = 1.0f;
     private static final int TOP_PEAKS_PER_FRAME = 5;
 
     /**

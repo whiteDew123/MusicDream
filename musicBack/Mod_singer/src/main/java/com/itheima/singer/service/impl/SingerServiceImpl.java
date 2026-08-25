@@ -18,6 +18,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.client.RestTemplate;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -60,6 +67,13 @@ public class SingerServiceImpl implements SingerService {
         } catch (Exception ignored) {
         }
     }
+
+    private static final Logger log = LoggerFactory.getLogger(SingerServiceImpl.class);
+
+    @Value("${recognize.service-url:http://localhost:8011}")
+    private String recognizeServiceUrl;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
     public Map<String, Object> getDashboard(Integer singerId) {
@@ -173,6 +187,11 @@ public class SingerServiceImpl implements SingerService {
 
         musicMapper.insert(music);
         evictRecommendCache();
+
+        // 自动审核通过后，同步触发听歌识曲指纹注册（失败不影响发布）
+        if (review.isPass() && StringUtils.hasText(music.getMusicUrl())) {
+            triggerFingerprintRegister(music);
+        }
         return toMusicVO(music);
     }
 
@@ -284,5 +303,20 @@ public class SingerServiceImpl implements SingerService {
             vo.setSingerName(singer.getUsername());
         }
         return vo;
+    }
+
+    /**
+     * 调用听歌识曲服务注册指纹
+     */
+    private void triggerFingerprintRegister(Music music) {
+        try {
+            String encodedUrl = URLEncoder.encode(music.getMusicUrl(), StandardCharsets.UTF_8);
+            String url = recognizeServiceUrl + "/recognize/registerByUrl?musicId=" + music.getMusicId()
+                    + "&musicUrl=" + encodedUrl;
+            restTemplate.postForEntity(url, null, String.class);
+            log.info("歌曲发布自动通过，指纹注册任务已触发: musicId={}", music.getMusicId());
+        } catch (Exception e) {
+            log.error("歌曲指纹注册失败: musicId={}", music.getMusicId(), e);
+        }
     }
 }
