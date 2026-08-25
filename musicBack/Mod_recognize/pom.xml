@@ -57,11 +57,11 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- MP3 解码 SPI -->
+        <!-- MP3 解码 -->
         <dependency>
-            <groupId>com.googlecode.soundlibs</groupId>
-            <artifactId>mp3spi</artifactId>
-            <version>1.9.5.4</version>
+            <groupId>javazoom</groupId>
+            <artifactId>jlayer</artifactId>
+            <version>1.0.1</version>
         </dependency>
 
         <!-- FLAC 解码 -->

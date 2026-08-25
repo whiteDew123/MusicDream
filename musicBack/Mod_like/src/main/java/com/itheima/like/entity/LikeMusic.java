@@ -13,10 +13,10 @@ import java.util.Date;
 /**
  * 用户收藏歌曲实体
  * <p>
- * 对应表 mylike。musicName、singerName 为联表字段，不入库。
+ * 对应表 like_music。musicName、singerName 为联表字段，不入库。
  */
 @Data
-@TableName("mylike")
+@TableName("like_music")
 public class LikeMusic implements Serializable {
 
     @Serial
@@ -25,12 +25,12 @@ public class LikeMusic implements Serializable {
     @TableField(exist = false)
     private Integer id;
 
-    /** 用户ID（列 user） */
-    @TableField("user")
+    /** 用户ID（列 user_id） */
+    @TableField("user_id")
     private Integer userId;
 
-    /** 歌曲ID（列 music） */
-    @TableField("music")
+    /** 歌曲ID（列 music_id） */
+    @TableField("music_id")
     private Integer musicId;
 
     /** 收藏时间（联表 music.create_time，不入库） */

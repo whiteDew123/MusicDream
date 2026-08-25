@@ -296,13 +296,13 @@ public class RecommendServiceImpl implements RecommendService {
      */
     private List<Music> recommendByUserLikes(Integer userId, int size) {
         List<Mylike> likes = mylikeMapper.selectList(new LambdaQueryWrapper<Mylike>()
-                .eq(Mylike::getUser, userId));
+                .eq(Mylike::getUserId, userId));
         if (likes.isEmpty()) {
             return topSongs(size);
         }
 
         List<Integer> likedMusicIds = likes.stream()
-                .map(Mylike::getMusic)
+                .map(Mylike::getMusicId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
         if (likedMusicIds.isEmpty()) {
