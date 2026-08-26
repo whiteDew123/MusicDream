@@ -38,6 +38,8 @@ export const usePlayerStore = defineStore('player', () => {
   const lyrics = ref([])
   // 当前高亮歌词行索引
   const currentLyricIndex = ref(-1)
+  // 桌面字幕开关
+  const subtitleEnabled = ref(false)
 
   // ===== 当前歌曲（计算属性）=====
   const currentSong = computed(() => {
@@ -291,6 +293,7 @@ export const usePlayerStore = defineStore('player', () => {
     playModeLabels,
     lyrics,
     currentLyricIndex,
+    subtitleEnabled,
     currentSong,
     setPlaylist,
     playSong,

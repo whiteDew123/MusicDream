@@ -68,7 +68,7 @@
       </div>
     </div>
 
-    <!-- 右侧：音量 -->
+    <!-- 右侧：音量 + 字幕开关 -->
     <div class="player-right">
       <button class="ctrl-btn" @click="playerStore.toggleMute()">
         <el-icon v-if="playerStore.muted || playerStore.volume === 0"><MuteNotification /></el-icon>
@@ -83,6 +83,14 @@
           <div class="volume-filled" :style="{ width: volumePercent + '%' }"></div>
         </div>
       </div>
+      <button
+        class="ctrl-btn subtitle-btn"
+        :class="{ active: playerStore.subtitleEnabled }"
+        :title="playerStore.subtitleEnabled ? '关闭桌面字幕' : '开启桌面字幕'"
+        @click="playerStore.subtitleEnabled = !playerStore.subtitleEnabled"
+      >
+        <span class="subtitle-icon">字</span>
+      </button>
     </div>
 
     <!-- 播放列表弹层 -->
@@ -119,6 +127,9 @@
 
     <!-- 全屏播放器面板（抖音风格） -->
     <FullPlayer v-if="showLyrics" @close="toggleLyrics" />
+
+    <!-- 桌面悬浮字幕 -->
+    <DesktopSubtitle v-if="playerStore.subtitleEnabled && currentSong" />
   </footer>
 </template>
 
@@ -136,10 +147,12 @@ import {
   Tickets,
   MuteNotification,
   Microphone,
-  Close
+  Close,
+  ChatLineRound
 } from '@element-plus/icons-vue'
 import { usePlayerStore } from '@/store/player'
 import FullPlayer from '@/components/FullPlayer.vue'
+import DesktopSubtitle from '@/components/DesktopSubtitle.vue'
 
 const playerStore = usePlayerStore()
 
@@ -409,9 +422,22 @@ function handleVolumeMouseDown(e) {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 160px;
+  width: 200px;
   justify-content: flex-end;
   flex-shrink: 0;
+}
+
+.subtitle-btn {
+  &.active {
+    color: var(--st-primary);
+    background: rgba(94, 92, 230, 0.15);
+  }
+
+  .subtitle-icon {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+  }
 }
 
 .volume-slider {
