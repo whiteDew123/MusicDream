@@ -44,7 +44,7 @@
             :on-success="handleImgUploadSuccess"
             :on-error="handleImgUploadError"
             :before-upload="beforeImgUpload"
-            accept="image/jpeg,image/png,image/gif"
+            accept=".jpg,.jpeg,.png,.gif,.webp"
           >
             <img v-if="formData.imgUrl" :src="formData.imgUrl" class="cover-img" />
             <el-icon v-else class="uploader-icon"><plus /></el-icon>
@@ -183,19 +183,21 @@ function handleImgUploadError() {
   ElMessage.error('图片上传失败，请重试')
 }
 
-// 封面上传前校验
+// 封面上传前校验（基于扩展名）
 function beforeImgUpload(file) {
-  const isJPG = ['image/jpeg', 'image/png', 'image/gif'].includes(file.type)
+  const ext = file.name.split('.').pop().toLowerCase()
+  const allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+  const isAllowed = allowed.includes(ext)
   const isLt2M = file.size / 1024 / 1024 < 2
-  if (!isJPG) {
-    ElMessage.warning('图片格式必须为 JPG/PNG/GIF')
+  if (!isAllowed) {
+    ElMessage.warning('图片格式必须为 JPG/PNG/GIF/WEBP')
     return false
   }
   if (!isLt2M) {
     ElMessage.warning('图片大小必须小于 2MB')
     return false
   }
-  return isJPG && isLt2M
+  return true
 }
 
 // 音频上传成功
@@ -212,13 +214,14 @@ function handleMusicFileError() {
   ElMessage.error('音频上传失败，请重试')
 }
 
-// 音频上传前校验 + 自动获取时长
+// 音频上传前校验 + 自动获取时长（基于扩展名）
 function beforeMusicUpload(file) {
-  const allowed = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp4', 'audio/x-m4a']
-  const isAudio = allowed.includes(file.type)
+  const ext = file.name.split('.').pop().toLowerCase()
+  const allowed = ['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg', 'wma']
+  const isAllowed = allowed.includes(ext)
   const isLt50M = file.size / 1024 / 1024 < 50
-  if (!isAudio) {
-    ElMessage.warning('音频格式不支持')
+  if (!isAllowed) {
+    ElMessage.warning('音频格式不支持，支持 MP3/WAV/FLAC/M4A/AAC/OGG/WMA')
     return false
   }
   if (!isLt50M) {
@@ -227,7 +230,7 @@ function beforeMusicUpload(file) {
   }
   // 使用 HTML5 Audio API 获取时长
   getAudioDuration(file)
-  return isAudio && isLt50M
+  return true
 }
 
 // 获取音频时长（秒）
@@ -264,19 +267,20 @@ function handleLrcUploadError() {
   ElMessage.error('歌词上传失败，请重试')
 }
 
-// 歌词上传前校验
+// 歌词上传前校验（基于扩展名）
 function beforeLrcUpload(file) {
-  const isLrc = file.name.endsWith('.lrc') || file.type === 'text/plain'
+  const ext = file.name.split('.').pop().toLowerCase()
+  const isLrc = ext === 'lrc'
   const isLt1M = file.size / 1024 / 1024 < 1
   if (!isLrc) {
-    ElMessage.warning('歌词文件必须为 .lrc 格式或纯文本')
+    ElMessage.warning('歌词文件必须为 .lrc 格式')
     return false
   }
   if (!isLt1M) {
     ElMessage.warning('歌词文件大小必须小于 1MB')
     return false
   }
-  return isLrc && isLt1M
+  return true
 }
 
 // 歌词上传改变

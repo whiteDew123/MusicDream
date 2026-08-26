@@ -14,31 +14,31 @@ export function getUserInfo() {
 
 // 更新用户信息（username / email / phone / about）
 // PUT /api/setting/userInfo
-export function updateUserInfo(data) {
+export function updateUserInfo(userId, data) {
   return request({
     url: '/setting/userInfo',
     method: 'put',
-    data
+    data: { userId, ...data }
   })
 }
 
 // 更新用户头像
 // POST /api/setting/avatar
 // data: { imageUrl: '上传后返回的url' }
-export function updateAvatar(data) {
+export function updateAvatar(userId, data) {
   return request({
     url: '/setting/avatar',
     method: 'post',
-    data
+    data: { userId, ...data }
   })
 }
 
 // 修改密码
 // PUT /api/setting/password
-export function editPassword({ oldPassword, newPassword }) {
+export function updatePassword(userId, { oldPassword, newPassword }) {
   return request({
     url: '/setting/password',
     method: 'put',
-    data: { oldPassword, newPassword }
+    data: { userId, oldPassword, newPassword }
   })
 }
