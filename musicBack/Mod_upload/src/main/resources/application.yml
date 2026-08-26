@@ -19,15 +19,15 @@ spring:
 upload:
   image:
     path: D:/Project/Music/uploads/images/
-    allowed-types: image/jpeg,image/png,image/gif,image/webp
+    allowed-types: jpg,jpeg,png,gif,webp
     max-size: 5242880
   lrc:
     path: D:/Project/Music/uploads/lrc/
-    allowed-types: text/plain,application/octet-stream
+    allowed-types: lrc
     max-size: 1048576
   music:
     path: D:/Project/Music/uploads/music/
-    allowed-types: audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/x-m4a
+    allowed-types: mp3,wav,flac,m4a,aac,ogg,wma
     max-size: 52428800
 
 logging:

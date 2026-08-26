@@ -114,4 +114,20 @@ public interface SingerService {
      * @return 审核后的歌曲
      */
     MusicVO auditSong(Integer musicId, Integer auditStatus, String auditRemark);
+
+    /**
+     * 冻结歌曲（用户主动下架）
+     *
+     * @param musicId 歌曲ID
+     * @return 是否冻结成功
+     */
+    boolean freezeSong(Integer musicId);
+
+    /**
+     * 解冻歌曲（用户重新上架）
+     *
+     * @param musicId 歌曲ID
+     * @return 是否解冻成功
+     */
+    boolean unfreezeSong(Integer musicId);
 }

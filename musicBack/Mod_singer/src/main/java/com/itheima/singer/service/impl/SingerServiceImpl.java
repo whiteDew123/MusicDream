@@ -148,13 +148,7 @@ public class SingerServiceImpl implements SingerService {
 
         Page<Music> p = new Page<>(current, pageSize);
 
-<<<<<<< HEAD
-        LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
-                .orderByDesc(Music::getCreateTime)
-                .orderByDesc(Music::getListenNumb);
-=======
         LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<>();
->>>>>>> c8cbef17a5372295f93a65993d7e845742723550
         if (singerId != null) {
             wrapper.eq(Music::getFromSinger, singerId);
         } else {
@@ -310,7 +304,6 @@ public class SingerServiceImpl implements SingerService {
         return musicMapper.deleteById(musicId) > 0;
     }
 
-<<<<<<< HEAD
     @Override
     public boolean freezeSong(Integer musicId) {
         LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
@@ -325,17 +318,6 @@ public class SingerServiceImpl implements SingerService {
                 .eq(Music::getMusicId, musicId)
                 .set(Music::getActivation, 0);
         return musicMapper.update(null, wrapper) > 0;
-=======
-        try {
-            musicMapper.deleteById(musicId);
-            return true;
-        } catch (Exception e) {
-            LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
-                    .eq(Music::getMusicId, musicId)
-                    .set(Music::getActivation, 1);
-            return musicMapper.update(null, wrapper) > 0;
-        }
->>>>>>> c8cbef17a5372295f93a65993d7e845742723550
     }
 
     @Override
@@ -393,7 +375,6 @@ public class SingerServiceImpl implements SingerService {
         return vo;
     }
 
-<<<<<<< HEAD
     /**
      * 调用听歌识曲服务注册指纹
      */
@@ -408,8 +389,7 @@ public class SingerServiceImpl implements SingerService {
             log.error("歌曲指纹注册失败: musicId={}", music.getMusicId(), e);
         }
     }
-}
-=======
+
     @Override
     public MusicVO auditSong(Integer musicId, Integer auditStatus, String auditRemark) {
         Music exist = musicMapper.selectById(musicId);
@@ -430,4 +410,3 @@ public class SingerServiceImpl implements SingerService {
         return toMusicVO(musicMapper.selectById(musicId));
     }
 }
->>>>>>> c8cbef17a5372295f93a65993d7e845742723550

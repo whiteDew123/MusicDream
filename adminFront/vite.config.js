@@ -32,15 +32,12 @@ export default defineConfig({
         target: 'http://localhost:9000',
         changeOrigin: true
       },
-      '/uploads': {
-        target: 'http://localhost:9000',
-        changeOrigin: true
-      },
-      // 静态资源（音乐/封面/歌词）：统一由 Mod_upload (8005) 从 musicBack/resource/ 提供
-      // 兼容 /music /img /lyric（历史数据）
-      '/music': { target: 'http://localhost:8005', changeOrigin: true },
-      '/img': { target: 'http://localhost:8005', changeOrigin: true },
-      '/lyric': { target: 'http://localhost:8005', changeOrigin: true }
+      // 静态资源（音乐/封面/歌词）：统一由 Mod_upload (8007) 从 musicBack/resource/ 提供
+      // 兼容 /music /img /lyric（历史数据）和 /uploads（新上传路径）
+      '/uploads': { target: 'http://localhost:8007', changeOrigin: true },
+      '/music': { target: 'http://localhost:8007', changeOrigin: true },
+      '/img': { target: 'http://localhost:8007', changeOrigin: true },
+      '/lyric': { target: 'http://localhost:8007', changeOrigin: true }
     }
   }
 })

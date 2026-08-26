@@ -71,6 +71,16 @@ defineProps({
 const route = useRoute()
 const userStore = useUserStore()
 
+// 过滤子菜单：根据角色权限过滤不可见的子菜单项
+function filterChildren(children) {
+  if (!children || !children.length) return []
+  return children.filter((child) => {
+    const childRoles = child.meta?.roles
+    if (!childRoles) return true
+    return userStore.hasRole(...childRoles)
+  })
+}
+
 const menuRoutes = computed(() => {
   const layout = routes.find((r) => r.path === '/')
   if (!layout || !layout.children) return []

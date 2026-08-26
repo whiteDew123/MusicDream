@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getUserInfo, updateUserInfo, updateAvatar, editPassword } from '@/api/setting'
+import { getUserInfo, updateUserInfo, updateAvatar, updatePassword } from '@/api/setting'
 import { setUserInfo } from '@/utils/auth'
 import { useUserStore } from './user'
 
@@ -55,9 +55,9 @@ export const useSettingStore = defineStore('setting', () => {
   }
 
   // 修改密码
-  async function editPwd({ oldPassword, newPassword }) {
+  async function editPwd({ userId, oldPassword, newPassword }) {
     try {
-      const res = await editPassword({ oldPassword, newPassword })
+      const res = await updatePassword(userId, { oldPassword, newPassword })
       if (res.code === 200) {
         ElMessage.success(res.message || '密码修改成功，请重新登录')
       } else if (res.code === 50) {

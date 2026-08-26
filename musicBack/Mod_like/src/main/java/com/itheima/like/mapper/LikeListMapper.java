@@ -14,15 +14,16 @@ import java.util.List;
  * 收藏歌单 Mapper 接口
  * <p>
  * 自定义查询使用 #{} 预编译参数，防止 SQL 注入。
- * 复合主键 (userId, listid) 不使用 BaseMapper.save/remove，改用显式 SQL。
  */
 @Mapper
 public interface LikeListMapper extends BaseMapper<LikeList> {
 
     /**
      * 查询用户收藏的歌单（联表 song_list 获取歌单名称/封面，联表 user 获取创建者名称）
+     *
+     * @param userId 用户ID
      */
-    @Select("SELECT ll.user_id AS user_id, ll.list_id AS list_id, " +
+    @Select("SELECT ll.user_id, ll.list_id, " +
             "sl.name AS list_name, sl.pic AS list_pic, sl.style AS list_style, u.username " +
             "FROM likelist ll " +
             "LEFT JOIN song_list sl ON ll.list_id = sl.id " +

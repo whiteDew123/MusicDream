@@ -24,10 +24,4 @@ public class MusicVO {
     private LocalDate createTime;
     private String tags;
     private String lyric;
-
-    /** 审核状态: 0-待审核, 1-已通过, 2-已驳回 */
-    private Integer auditStatus;
-
-    /** 审核备注（驳回原因等） */
-    private String auditRemark;
 }
