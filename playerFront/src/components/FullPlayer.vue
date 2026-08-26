@@ -1,5 +1,9 @@
 <template>
   <div class="full-player" ref="playerRef">
+    <!-- 毛玻璃背景层 -->
+    <div class="player-bg-blur" v-if="currentSong?.imageUrl">
+      <img :src="currentSong.imageUrl" alt="" />
+    </div>
     <!-- 顶部栏 -->
     <div class="top-bar">
       <button class="back-btn" @click.stop="$emit('close')">
@@ -8,15 +12,6 @@
       <div class="top-center" v-if="currentSong">
         <span class="top-label">正在播放</span>
         <span class="top-title">{{ currentSong.musicName }}</span>
-      </div>
-      <div class="top-actions">
-        <button class="mode-btn" @click.stop="playerStore.togglePlayMode()">
-          <el-icon :size="20">
-            <Sort v-if="playerStore.playMode === 0" />
-            <Refresh v-else-if="playerStore.playMode === 1" />
-            <Switch v-else />
-          </el-icon>
-        </button>
       </div>
     </div>
 
@@ -75,7 +70,7 @@
             <!-- 右侧：歌词 -->
             <div class="right-panel">
               <!-- 多行歌词滚动 -->
-              <div class="lyrics-container">
+              <div class="lyrics-container" @wheel.prevent="handleLyricWheel">
                 <div
                   v-for="line in visibleLyrics"
                   :key="line.index"
@@ -86,6 +81,7 @@
                     'fade-bottom': line.offset > 0
                   }"
                   :style="getLyricStyle(line)"
+                  @click.stop="seekToLyric(line)"
                 >
                   {{ line.text || '♪' }}
                 </div>
@@ -117,7 +113,7 @@
             </div>
 
             <!-- 多行歌词（移动端） -->
-            <div class="mobile-lyrics">
+            <div class="mobile-lyrics" @wheel.prevent="handleLyricWheel">
               <div
                 v-for="line in visibleLyrics"
                 :key="'m-' + line.index"
@@ -128,6 +124,7 @@
                   'fade-bottom': line.offset > 0
                 }"
                 :style="getMobileLyricStyle(line)"
+                @click.stop="seekToLyric(line)"
               >
                 {{ line.text || '♪' }}
               </div>
@@ -152,72 +149,119 @@
       </div>
     </div>
 
-    <!-- ========== 右侧边栏（抖音风格）========== -->
-    <div class="side-actions" v-if="currentSong">
-      <button
-        class="side-btn"
-        :class="{ active: stats.liked }"
-        @click.stop="handleLike"
-      >
-        <el-icon :size="28"><StarFilled v-if="stats.liked" /><Star /></el-icon>
-        <span v-if="stats.likesCount > 0">{{ formatCount(stats.likesCount) }}</span>
-      </button>
-      <button
-        class="side-btn"
-        @click.stop="showComment = true"
-      >
-        <el-icon :size="28"><ChatDotRound /></el-icon>
-        <span v-if="stats.commentCount > 0">{{ formatCount(stats.commentCount) }}</span>
-      </button>
-      <button
-        class="side-btn"
-        :class="{ active: favorited }"
-        @click.stop="handleFavorite"
-      >
-        <el-icon :size="28"><StarFilled v-if="favorited" /><Star /></el-icon>
-        <span>{{ favorited ? '已收藏' : '收藏' }}</span>
-      </button>
-      <button
-        class="side-btn"
-        @click.stop="handleShare"
-      >
-        <el-icon :size="28"><Promotion /></el-icon>
-        <span v-if="stats.shareCount > 0">{{ formatCount(stats.shareCount) }}</span>
-      </button>
-    </div>
-
-    <!-- 桌面端底部播放控件 -->
-    <div class="desktop-bottom" v-if="isDesktop && currentSong">
-      <div class="player-controls">
-        <button class="ctrl-btn" @click.stop="playerStore.playPrev()">
-          <el-icon :size="28"><CaretLeft /></el-icon>
-        </button>
-        <button class="play-btn" @click.stop="playerStore.togglePlay()">
-          <el-icon :size="32">
-            <VideoPause v-if="playerStore.playing" />
-            <VideoPlay v-else />
-          </el-icon>
-        </button>
-        <button class="ctrl-btn" @click.stop="playerStore.playNext()">
-          <el-icon :size="28"><CaretRight /></el-icon>
-        </button>
+    <!-- 桌面端底部播放控件（复用 PlayerBar 样式） -->
+    <div 
+      class="desktop-bottom" 
+      v-if="isDesktop && currentSong"
+      @mouseenter="showBottomControls = true"
+      @mouseleave="showBottomControls = false"
+    >
+      <!-- 左侧：歌曲信息 -->
+      <div class="bottom-left">
+        <div class="bottom-cover" @click.stop="$emit('close')">
+          <img v-if="currentSong.imageUrl" :src="currentSong.imageUrl" :alt="currentSong.musicName" />
+          <el-icon v-else><Headset /></el-icon>
+        </div>
+        <div class="bottom-song-text">
+          <div class="bottom-song-name">{{ currentSong.musicName }}</div>
+          <div class="bottom-song-singer">{{ currentSong.singerName || '未知歌手' }}</div>
+        </div>
       </div>
-      <div class="progress-area">
-        <span class="time-label">{{ formatTime(playerStore.currentTime) }}</span>
-        <div class="progress-wrap" @click.stop="handleProgressClick">
-          <div class="progress-track">
-            <div
-              class="progress-filled"
-              :style="{ width: progressPercent + '%' }"
-            ></div>
-            <div
-              class="progress-thumb"
-              :style="{ left: progressPercent + '%' }"
-            ></div>
+
+      <!-- 中间：播放控制 + 进度条 -->
+      <div class="bottom-center">
+        <div class="bottom-controls">
+          <button class="b-ctrl-btn mode-btn" @click.stop="playerStore.togglePlayMode()" :title="playerStore.playModeLabels[playerStore.playMode]">
+            <el-icon v-if="playerStore.playMode === 0"><Sort /></el-icon>
+            <el-icon v-else-if="playerStore.playMode === 1"><Refresh /></el-icon>
+            <el-icon v-else><Switch /></el-icon>
+          </button>
+          <button class="b-ctrl-btn" @click.stop="playerStore.playPrev()">
+            <el-icon><CaretLeft /></el-icon>
+          </button>
+          <button class="b-ctrl-btn b-play-btn" @click.stop="playerStore.togglePlay()">
+            <el-icon v-if="!playerStore.playing"><VideoPlay /></el-icon>
+            <el-icon v-else><VideoPause /></el-icon>
+          </button>
+          <button class="b-ctrl-btn" @click.stop="playerStore.playNext()">
+            <el-icon><CaretRight /></el-icon>
+          </button>
+          <button class="b-ctrl-btn list-btn" @click.stop="showPlaylist = !showPlaylist">
+            <el-icon><Tickets /></el-icon>
+          </button>
+        </div>
+        <div class="bottom-progress">
+          <span class="b-time">{{ formatTime(playerStore.currentTime) }}</span>
+          <div class="b-progress-bar" ref="bottomProgressBarRef" @mousedown.stop="handleBottomProgressMouseDown">
+            <div class="b-progress-track">
+              <div class="b-progress-filled" :style="{ width: progressPercent + '%' }"></div>
+            </div>
+            <div class="b-progress-thumb" :style="{ left: progressPercent + '%' }"></div>
+          </div>
+          <span class="b-time">{{ formatTime(playerStore.duration) }}</span>
+        </div>
+      </div>
+
+      <!-- 右侧：音量 + 操作按钮 -->
+      <div class="bottom-right">
+        <button class="b-ctrl-btn" @click.stop="playerStore.toggleMute()">
+          <el-icon v-if="playerStore.muted || playerStore.volume === 0"><MuteNotification /></el-icon>
+          <el-icon v-else><Microphone /></el-icon>
+        </button>
+        <div class="b-volume-slider">
+          <div class="b-volume-track" ref="bottomVolumeBarRef" @mousedown.stop="handleBottomVolumeMouseDown">
+            <div class="b-volume-filled" :style="{ width: volumePercent + '%' }"></div>
           </div>
         </div>
-        <span class="time-label">{{ formatTime(playerStore.duration) }}</span>
+
+        <!-- 操作按钮组（鼠标移入时显示） -->
+        <transition name="fade-up">
+          <div class="bottom-action-btns" v-show="showBottomControls">
+            <button class="b-action-btn" :class="{ active: stats.liked }" @click.stop="handleLike" title="点赞">
+              <span class="heart-icon" :class="{ active: stats.liked }">♥</span>
+              <span v-if="stats.likesCount > 0">{{ formatCount(stats.likesCount) }}</span>
+            </button>
+            <button class="b-action-btn" @click.stop="showComment = true" title="评论">
+              <el-icon :size="18"><ChatDotRound /></el-icon>
+              <span v-if="stats.commentCount > 0">{{ formatCount(stats.commentCount) }}</span>
+            </button>
+            <button class="b-action-btn" :class="{ active: favorited }" @click.stop="handleFavorite" title="收藏">
+              <el-icon :size="18"><StarFilled v-if="favorited" /><Star v-else /></el-icon>
+            </button>
+            <button class="b-action-btn" @click.stop="handleShare" title="分享">
+              <el-icon :size="18"><Promotion /></el-icon>
+              <span v-if="stats.shareCount > 0">{{ formatCount(stats.shareCount) }}</span>
+            </button>
+          </div>
+        </transition>
       </div>
+
+      <!-- 播放列表弹层 -->
+      <transition name="slide-up">
+        <div v-if="showPlaylist" class="playlist-popup">
+          <div class="playlist-header">
+            <span>播放列表（{{ playerStore.playlist.length }}）</span>
+            <button class="clear-btn" @click.stop="playerStore.clearPlaylist()">清空</button>
+          </div>
+          <div class="playlist-items">
+            <div
+              v-for="(song, idx) in playerStore.playlist"
+              :key="song.musicId"
+              class="playlist-item"
+              :class="{ active: idx === playerStore.currentIndex }"
+              @click.stop="playerStore.setPlaylist(playerStore.playlist, idx)"
+            >
+              <span class="item-index">{{ idx + 1 }}</span>
+              <span class="item-name">{{ song.musicName }}</span>
+              <span class="item-singer">{{ song.singerName }}</span>
+              <button class="item-remove" @click.stop="playerStore.removeFromPlaylist(idx)">
+                <el-icon><Close /></el-icon>
+              </button>
+            </div>
+            <div v-if="playerStore.playlist.length === 0" class="empty-tip">播放列表为空</div>
+          </div>
+        </div>
+      </transition>
     </div>
 
     <!-- 移动端底部播放控件 -->
@@ -247,6 +291,39 @@
           </div>
         </div>
         <span class="time-label">{{ formatTime(playerStore.duration) }}</span>
+      </div>
+      <!-- 移动端底部操作按钮 -->
+      <div class="bottom-actions mobile-actions">
+        <button
+          class="bottom-btn"
+          :class="{ active: stats.liked }"
+          @click.stop="handleLike"
+        >
+          <el-icon :size="18"><StarFilled v-if="stats.liked" /><Star /></el-icon>
+          <span>{{ stats.likesCount > 0 ? formatCount(stats.likesCount) : '赞' }}</span>
+        </button>
+        <button
+          class="bottom-btn"
+          @click.stop="showComment = true"
+        >
+          <el-icon :size="18"><ChatDotRound /></el-icon>
+          <span>{{ stats.commentCount > 0 ? formatCount(stats.commentCount) : '评' }}</span>
+        </button>
+        <button
+          class="bottom-btn"
+          :class="{ active: favorited }"
+          @click.stop="handleFavorite"
+        >
+          <el-icon :size="18"><StarFilled v-if="favorited" /><Star /></el-icon>
+          <span>{{ favorited ? '藏' : '藏' }}</span>
+        </button>
+        <button
+          class="bottom-btn"
+          @click.stop="handleShare"
+        >
+          <el-icon :size="18"><Promotion /></el-icon>
+          <span>{{ stats.shareCount > 0 ? formatCount(stats.shareCount) : '享' }}</span>
+        </button>
       </div>
     </div>
 
@@ -326,7 +403,10 @@ import {
   ChatDotRound,
   Promotion,
   User,
-  Close
+  Close,
+  Tickets,
+  MuteNotification,
+  Microphone
 } from '@element-plus/icons-vue'
 import ShareModal from '@/components/ShareModal.vue'
 import { usePlayerStore } from '@/store/player'
@@ -347,6 +427,8 @@ const stackRef = ref(null)
 
 // 响应式
 const isDesktop = ref(window.innerWidth >= 768)
+// 底部控件显示状态
+const showBottomControls = ref(false)
 
 function handleResize() {
   isDesktop.value = window.innerWidth >= 768
@@ -361,6 +443,11 @@ const dragStartTime = ref(0)
 // 面板状态
 const showComment = ref(false)
 const showShare = ref(false)
+const showPlaylist = ref(false)
+
+// 底部进度条和音量条 ref
+const bottomProgressBarRef = ref(null)
+const bottomVolumeBarRef = ref(null)
 
 // 交互状态
 const stats = reactive({
@@ -377,6 +464,10 @@ const commentList = ref([])
 
 // 歌词行高
 const LYRIC_LINE_HEIGHT = 52
+// 手动歌词偏移（滚轮控制）
+const lyricManualOffset = ref(0)
+// 自动回位定时器
+let lyricAutoResetTimer = null
 
 // 收藏歌曲 ID 集合
 const favoriteIds = ref(new Set())
@@ -394,22 +485,27 @@ const progressPercent = computed(() => {
   return (playerStore.currentTime / playerStore.duration) * 100
 })
 
-// 可见歌词窗口（当前行前后各 2 行，共 5 行）
+const volumePercent = computed(() => {
+  return (playerStore.muted ? 0 : playerStore.volume) * 100
+})
+
+// 可见歌词窗口（当前行前后各 8 行，共 17 行，支持手动滚轮偏移）
 const visibleLyrics = computed(() => {
   const lyrics = playerStore.lyrics
   const idx = playerStore.currentLyricIndex
   if (!lyrics.length || idx < 0) return []
 
-  const HALF = 2
-  const start = Math.max(0, idx - HALF)
-  const end = Math.min(lyrics.length, idx + HALF + 1)
+  const HALF = 8
+  const baseCenter = idx + lyricManualOffset.value
+  const start = Math.max(0, baseCenter - HALF)
+  const end = Math.min(lyrics.length, baseCenter + HALF + 1)
 
   const result = []
   for (let i = start; i < end; i++) {
     result.push({
       ...lyrics[i],
       index: i,
-      offset: i - idx
+      offset: i - baseCenter
     })
   }
   return result
@@ -417,23 +513,23 @@ const visibleLyrics = computed(() => {
 
 // 桌面端歌词样式
 function getLyricStyle(line) {
-  const absOffset = Math.abs(line.offset)
+  const isActive = line.offset === 0
   return {
     transform: `translateY(${line.offset * LYRIC_LINE_HEIGHT}px)`,
-    opacity: Math.max(0.2, 1 - absOffset * 0.35),
-    fontSize: line.offset === 0 ? '32px' : `${28 - absOffset * 5}px`,
-    fontWeight: line.offset === 0 ? 700 : 400
+    opacity: 1,
+    fontSize: isActive ? '32px' : '26px',
+    fontWeight: isActive ? 700 : 400
   }
 }
 
 // 移动端歌词样式
 function getMobileLyricStyle(line) {
-  const absOffset = Math.abs(line.offset)
+  const isActive = line.offset === 0
   return {
     transform: `translateY(${line.offset * 38}px)`,
-    opacity: Math.max(0.2, 1 - absOffset * 0.35),
-    fontSize: line.offset === 0 ? '26px' : `${22 - absOffset * 3}px`,
-    fontWeight: line.offset === 0 ? 700 : 400
+    opacity: 1,
+    fontSize: isActive ? '26px' : '20px',
+    fontWeight: isActive ? 700 : 400
   }
 }
 
@@ -636,6 +732,69 @@ function handleProgressClick(e) {
   playerStore.seekTo(percent * playerStore.duration)
 }
 
+// 底部进度条拖拽
+function handleBottomProgressMouseDown(e) {
+  if (!playerStore.duration) return
+  const bar = bottomProgressBarRef.value
+  const updateProgress = (ev) => {
+    const rect = bar.getBoundingClientRect()
+    const percent = Math.min(Math.max((ev.clientX - rect.left) / rect.width, 0), 1)
+    playerStore.seekTo(percent * playerStore.duration)
+  }
+  updateProgress(e)
+  const onMove = (ev) => updateProgress(ev)
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
+// 底部音量条拖拽
+function handleBottomVolumeMouseDown(e) {
+  const bar = bottomVolumeBarRef.value
+  const updateVolume = (ev) => {
+    const rect = bar.getBoundingClientRect()
+    const percent = Math.min(Math.max((ev.clientX - rect.left) / rect.width, 0), 1)
+    playerStore.setVolume(percent)
+  }
+  updateVolume(e)
+  const onMove = (ev) => updateVolume(ev)
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
+function seekToLyric(line) {
+  if (line.time != null) {
+    playerStore.seekTo(line.time)
+    lyricManualOffset.value = 0
+  }
+}
+
+function handleLyricWheel(e) {
+  e.preventDefault()
+  const delta = e.deltaY > 0 ? 1 : -1
+  lyricManualOffset.value += delta
+  const lyrics = playerStore.lyrics
+  const idx = playerStore.currentLyricIndex
+  const maxOffset = lyrics.length - 1 - idx
+  const minOffset = -idx
+  lyricManualOffset.value = Math.max(minOffset, Math.min(maxOffset, lyricManualOffset.value))
+
+  // 清除旧定时器，重新计时
+  if (lyricAutoResetTimer) {
+    clearTimeout(lyricAutoResetTimer)
+  }
+  lyricAutoResetTimer = setTimeout(() => {
+    lyricManualOffset.value = 0
+  }, 2000)
+}
+
 // ===== 触摸/鼠标事件 =====
 function onTouchStart(e) {
   dragStartY.value = e.touches[0].clientY
@@ -731,6 +890,29 @@ onBeforeUnmount(() => {
   -webkit-user-select: none;
 }
 
+/* === 毛玻璃背景层 === */
+.player-bg-blur {
+  position: absolute;
+  inset: -40px;
+  z-index: 0;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(60px) saturate(1.5) brightness(0.6);
+    transform: scale(1.1);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+  }
+}
+
 /* === 顶部栏 === */
 .top-bar {
   position: absolute;
@@ -740,14 +922,13 @@ onBeforeUnmount(() => {
   z-index: 100;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 20px 32px;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, transparent 100%);
   pointer-events: none;
 }
 
-.back-btn,
-.mode-btn {
+.back-btn {
   pointer-events: auto;
   width: 40px;
   height: 40px;
@@ -1000,32 +1181,29 @@ onBeforeUnmount(() => {
 .lyrics-container {
   position: relative;
   width: 100%;
-  height: 320px;
+  height: 520px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 20px;
   padding: 20px 24px;
-  backdrop-filter: blur(8px);
   mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(0, 0, 0, 0.3) 12%,
-    rgba(0, 0, 0, 1) 30%,
-    rgba(0, 0, 0, 1) 70%,
-    rgba(0, 0, 0, 0.3) 88%,
+    rgba(0, 0, 0, 0.5) 10%,
+    rgba(0, 0, 0, 1) 20%,
+    rgba(0, 0, 0, 1) 80%,
+    rgba(0, 0, 0, 0.5) 90%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(0, 0, 0, 0.3) 12%,
-    rgba(0, 0, 0, 1) 30%,
-    rgba(0, 0, 0, 1) 70%,
-    rgba(0, 0, 0, 0.3) 88%,
+    rgba(0, 0, 0, 0.5) 10%,
+    rgba(0, 0, 0, 1) 20%,
+    rgba(0, 0, 0, 1) 80%,
+    rgba(0, 0, 0, 0.5) 90%,
     transparent 100%
   );
 }
@@ -1035,16 +1213,21 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   text-align: center;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.85);
   transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 400ms ease,
     font-size 300ms ease,
-    color 300ms ease;
+    font-weight 300ms ease;
   padding: 0 20px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 0.02em;
+  cursor: pointer;
+
+  &:hover {
+    color: rgba(255, 255, 255, 1);
+  }
 
   &.active {
     color: #fff;
@@ -1332,19 +1515,431 @@ onBeforeUnmount(() => {
   transform: translate(-50%, -50%) scale(1);
 }
 
-/* ========== 桌面端底部控件 ========== */
+/* ========== 桌面端底部控件（复用 PlayerBar 样式） ========== */
 .desktop-bottom {
   position: absolute;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
   display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 20px;
+  height: 72px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.5) 70%,
+    transparent 100%
+  );
+  backdrop-filter: blur(12px);
+  transition: opacity 300ms ease, transform 300ms ease;
+  opacity: 0;
+  transform: translateY(10px);
+
+  &:hover {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 左侧：歌曲信息 */
+.bottom-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 240px;
+  flex-shrink: 0;
+
+  .bottom-cover {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: box-shadow 200ms ease;
+
+    &:hover {
+      box-shadow: 0 0 0 2px var(--st-primary);
+    }
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .el-icon {
+      font-size: 22px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+  }
+
+  .bottom-song-text {
+    overflow: hidden;
+
+    .bottom-song-name {
+      font-size: 14px;
+      color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .bottom-song-singer {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+/* 中间：控制 + 进度 */
+.bottom-center {
+  flex: 1;
+  display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 16px;
-  width: 60%;
+  align-items: center;
+  gap: 4px;
   max-width: 600px;
+  margin: 0 auto;
+}
+
+.bottom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.b-ctrl-btn {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 200ms ease;
+
+  &:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &.b-play-btn {
+    width: 36px !important;
+    height: 36px !important;
+    background: var(--st-primary) !important;
+    color: #fff !important;
+    font-size: 18px !important;
+
+    &:hover {
+      background: var(--st-primary-hover, #7a78eb) !important;
+      transform: scale(1.1);
+    }
+
+    &:active {
+      transform: scale(0.85);
+    }
+  }
+}
+
+.bottom-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+
+  .b-time {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    font-feature-settings: 'tnum';
+    min-width: 36px;
+    text-align: center;
+  }
+}
+
+.b-progress-bar {
+  flex: 1;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+
+  .b-progress-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .b-progress-filled {
+    height: 100%;
+    background: var(--st-primary);
+    border-radius: 2px;
+    transition: width 150ms linear;
+  }
+
+  .b-progress-thumb {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 150ms ease, transform 150ms ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+
+  &:hover .b-progress-thumb {
+    opacity: 1;
+  }
+}
+
+/* 右侧：音量 + 操作按钮 */
+.bottom-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 280px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.b-volume-slider {
+  width: 80px;
+
+  .b-volume-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    cursor: pointer;
+
+    .b-volume-filled {
+      height: 100%;
+      background: var(--st-primary);
+      border-radius: 2px;
+      transition: width 150ms ease;
+    }
+  }
+}
+
+/* 底部操作按钮组 */
+.bottom-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.heart-icon {
+  font-size: 18px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 200ms ease;
+
+  &.active {
+    color: #ff4757;
+    animation: heart-beat 300ms ease;
+  }
+}
+
+@keyframes heart-beat {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.b-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 200ms ease;
+  font-size: 12px;
+  backdrop-filter: blur(8px);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+
+  &.active {
+    color: var(--st-primary);
+    background: rgba(94, 92, 230, 0.15);
+  }
+
+  span {
+    font-size: 11px;
+    font-weight: 500;
+  }
+}
+
+/* 播放列表弹层 */
+.playlist-popup {
+  position: absolute;
+  bottom: calc(72px + 8px);
+  right: 24px;
+  width: 360px;
+  max-height: 380px;
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+  backdrop-filter: blur(16px);
+
+  .playlist-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+
+    .clear-btn {
+      border: none;
+      background: transparent;
+      color: var(--st-primary);
+      font-size: 13px;
+      cursor: pointer;
+
+      &:hover {
+        color: var(--st-primary-hover, #7a78eb);
+      }
+    }
+  }
+
+  .playlist-items {
+    overflow-y: auto;
+    max-height: 320px;
+  }
+
+  .playlist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 150ms ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+
+      .item-remove {
+        opacity: 1;
+      }
+    }
+
+    &.active {
+      background: rgba(94, 92, 230, 0.15);
+
+      .item-name {
+        color: var(--st-primary);
+        font-weight: 600;
+      }
+    }
+
+    .item-index {
+      width: 20px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+      text-align: center;
+      font-feature-settings: 'tnum';
+    }
+
+    .item-name {
+      flex: 1;
+      font-size: 13px;
+      color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-singer {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-remove {
+      opacity: 0;
+      border: none;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.4);
+      cursor: pointer;
+      font-size: 14px;
+      transition: opacity 200ms ease, color 150ms ease;
+
+      &:hover {
+        color: var(--st-primary);
+      }
+    }
+  }
+
+  .empty-tip {
+    padding: 32px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 14px;
+  }
+}
+
+/* 弹层入场动画 */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* 淡入淡出动画 */
+.fade-up-enter-active,
+.fade-up-leave-active {
+  transition: all 300ms ease;
+}
+
+.fade-up-enter-from,
+.fade-up-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 
 /* ========== 移动端底部控件 ========== */
