@@ -301,7 +301,15 @@ public class SingerServiceImpl implements SingerService {
 
     @Override
     public boolean deleteSong(Integer musicId) {
-        return musicMapper.deleteById(musicId) > 0;
+        try {
+            musicMapper.deleteById(musicId);
+            return true;
+        } catch (Exception e) {
+            LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
+                    .eq(Music::getMusicId, musicId)
+                    .set(Music::getActivation, 1);
+            return musicMapper.update(null, wrapper) > 0;
+        }
     }
 
     @Override
@@ -375,7 +383,7 @@ public class SingerServiceImpl implements SingerService {
         return vo;
     }
 
-    /**
+/**
      * 调用听歌识曲服务注册指纹
      */
     private void triggerFingerprintRegister(Music music) {

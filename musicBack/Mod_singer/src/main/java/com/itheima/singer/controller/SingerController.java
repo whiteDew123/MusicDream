@@ -54,7 +54,7 @@ public class SingerController {
     /**
      * 发布歌曲（公开接口，用于用户端APP）
      */
-    @PostMapping({"/songs", "/addMusic"})
+    @PostMapping("/songs")
     public Result<MusicVO> publishSong(@RequestBody MusicDTO dto) {
         if (dto.getFromSinger() == null) {
             return Result.error(400, "歌手ID不能为空");

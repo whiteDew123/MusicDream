@@ -1,5 +1,11 @@
+# ============================================================
+# 环境变量配置说明
+#   不设置环境变量则使用默认值（冒号后面的值），无需额外配置即可启动
+#   需要自定义请设置环境变量，例如 NACOS_PASSWORD=xxx
+# ============================================================
+
 server:
-  port: 8007
+  port: 8012
 
 spring:
   application:
@@ -10,7 +16,7 @@ spring:
         server-addr: localhost:8848
         namespace: public
         username: nacos
-        password: nacos
+        password: ${NACOS_PASSWORD:8ECJshugKVQP}
   servlet:
     multipart:
       max-file-size: 50MB
@@ -18,16 +24,16 @@ spring:
 
 upload:
   image:
-    path: D:/Project/Music/uploads/images/
-    allowed-types: jpg,jpeg,png,gif,webp
+    path: ../resource/image/
+    allowed-types: image/jpeg,image/png,image/gif,image/webp
     max-size: 5242880
   lrc:
-    path: D:/Project/Music/uploads/lrc/
-    allowed-types: lrc
+    path: ../resource/lrc/
+    allowed-types: text/plain,application/octet-stream
     max-size: 1048576
   music:
-    path: D:/Project/Music/uploads/music/
-    allowed-types: mp3,wav,flac,m4a,aac,ogg,wma
+    path: ../resource/music/
+    allowed-types: audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/x-m4a
     max-size: 52428800
 
 logging:
