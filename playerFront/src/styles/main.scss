@@ -6,16 +6,16 @@
  * animation.md 特别说明：播放器区域可保留较深背景维持"舞台感"
  */
 :root {
-  /* === 统一品牌色（Design-standards.md §54-72）=== */
-  --brand-primary: #5e5ce6;
-  --brand-primary-hover: #4a3fcf;
-  --brand-accent: #4353ff;
+  /* === 统一品牌色（#6341FF + #BECFFF 主题）=== */
+  --brand-primary: #6341FF;
+  --brand-primary-hover: #4E2AEE;
+  --brand-accent: #7B5EFF;
 
-  /* === Stripe 应用端 token（design-stripe.md）=== */
-  --st-primary: #5e5ce6;            /* 品牌主色：CTA、链接、强调 */
-  --st-primary-hover: #4a3fcf;      /* 悬停加深 */
-  --st-primary-soft: #665efd;       /* 较亮的紫色，用于高亮 */
-  --st-primary-subdued: #b9b9f9;     /* 淡紫，用于标签背景 */
+  /* === Stripe 应用端 token === */
+  --st-primary: #6341FF;            /* 品牌主色：CTA、链接、强调 */
+  --st-primary-hover: #4E2AEE;      /* 悬停加深 */
+  --st-primary-soft: #7B5EFF;       /* 较亮的紫色，用于高亮 */
+  --st-primary-subdued: #F4E4FF;     /* 暖粉紫，用于标签背景 */
   --st-brand-dark: #1c1e54;         /* 深靛蓝，播放器深色区 */
 
   --st-ink: #1a1a1a;               /* 主文字 */
