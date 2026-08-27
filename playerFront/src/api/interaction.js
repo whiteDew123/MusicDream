@@ -1,8 +1,19 @@
 import request from './request'
 
-// 播放器交互 API：点赞、评论、分享
-// 对应后端：Mod_like / Mod_msg
-// 网关路由：/api/like/** → Mod_like, /api/comment/** → Mod_msg, /api/share/** → Mod_msg
+// 播放器交互 API：点赞、评论、分享、播放量
+// 对应后端：Mod_like / Mod_msg / Mod_recommend
+// 网关路由：/api/like/** → Mod_like, /api/comment/** → Mod_msg, /api/share/** → Mod_msg, /api/music/** → Mod_recommend
+
+// ===== 播放量接口 =====
+
+// 记录歌曲播放（+1）
+// POST /api/music/{musicId}/play
+export function recordPlayApi(musicId) {
+  return request({
+    url: `/music/${musicId}/play`,
+    method: 'post'
+  })
+}
 
 // ===== 统一统计接口（AAA 方案：一次请求获取全部交互数据）=====
 

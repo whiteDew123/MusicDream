@@ -1,0 +1,19 @@
+<view class="songlist-page">
+  <view class="page-title">精选歌单</view>
+
+  <view wx:if="{{loading}}" class="grid">
+    <view wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this" class="skeleton playlist-skeleton"></view>
+  </view>
+
+  <view wx:else class="grid">
+    <view wx:for="{{songLists}}" wx:key="id" class="playlist-card" data-id="{{item.id}}" bindtap="onPlaylistTap">
+      <image wx:if="{{item.pic}}" class="playlist-cover" src="{{item.pic}}" mode="aspectFill" lazy-load />
+      <view wx:else class="playlist-cover fallback">♪</view>
+      <view class="playlist-name clamp-2">{{item.name}}</view>
+    </view>
+    <empty-state wx:if="{{!songLists.length}}" text="暂无歌单" />
+  </view>
+
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

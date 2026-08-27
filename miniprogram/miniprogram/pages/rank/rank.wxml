@@ -1,0 +1,13 @@
+<view class="rank-page">
+  <view class="page-title">热门排行</view>
+
+  <view class="skeleton list-skeleton" wx:if="{{loading}}"></view>
+
+  <view wx:else class="list">
+    <song-item wx:for="{{songs}}" wx:key="musicId" song="{{item}}" index="{{index}}" showRank show-plays="{{false}}" />
+    <empty-state wx:if="{{!songs.length}}" text="暂无排行" />
+  </view>
+
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

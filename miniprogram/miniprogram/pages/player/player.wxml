@@ -1,0 +1,84 @@
+<view wx:if="{{song}}" class="player-page">
+  <!-- 顶部歌曲信息 -->
+  <view class="top-info">
+    <view class="song-name">{{song.musicName}}</view>
+    <view class="song-singer">{{song.singerName}}</view>
+  </view>
+
+  <!-- 封面 / 歌词 切换区 -->
+  <view class="stage" bindtap="onToggleView">
+    <block wx:if="{{view === 'album'}}">
+      <image wx:if="{{cover}}" class="album-cover {{ playing ? 'spin' : '' }}" src="{{cover}}" mode="aspectFill" />
+      <view wx:else class="album-cover fallback">♪</view>
+      <view class="album-hint">轻触查看歌词</view>
+    </block>
+
+    <block wx:else>
+      <scroll-view class="lyric-scroll" scroll-y scroll-into-view="lyric-{{currentLyricIndex}}" scroll-with-animation>
+        <view class="lyric-list">
+          <view
+            wx:for="{{lyrics}}"
+            wx:key="index"
+            id="lyric-{{index}}"
+            class="lyric-line {{ index === currentLyricIndex ? 'active' : '' }}"
+          >{{item.text}}</view>
+          <view wx:if="{{!lyrics.length}}" class="lyric-empty">暂无歌词</view>
+        </view>
+      </scroll-view>
+      <view class="album-hint">轻触返回封面</view>
+    </block>
+  </view>
+
+  <!-- 进度条 -->
+  <view class="progress-area">
+    <text class="time">{{currentTimeText}}</text>
+    <slider
+      class="progress-slider"
+      min="0"
+      max="{{song.timelength || 100}}"
+      value="{{sliderValue}}"
+      step="0.1"
+      activeColor="#5e5ce6"
+      backgroundColor="#e3e8ee"
+      block-size="10"
+      bindchanging="onSliderChanging"
+      bindchange="onSliderChange"
+    />
+    <text class="time">{{durationText}}</text>
+  </view>
+
+  <!-- 控制栏 -->
+  <view class="control-bar">
+    <view class="ctrl mode" bindtap="onModeTap">
+      <text class="glyph">{{ playMode === 2 ? '🔀' : (playMode === 1 ? '🔂' : '🔁') }}</text>
+    </view>
+    <view class="ctrl" bindtap="onPrev"><text class="glyph big">⏮</text></view>
+    <view class="ctrl play-btn" bindtap="onTogglePlay"><text class="glyph play">{{ playing ? '⏸' : '▶' }}</text></view>
+    <view class="ctrl" bindtap="onNext"><text class="glyph big">⏭</text></view>
+    <view class="ctrl mode" bindtap="onComment"><text class="glyph">💬</text></view>
+  </view>
+
+  <!-- 副操作 -->
+  <view class="sub-actions">
+    <view class="sub-btn" bindtap="onCollect">
+      <text class="sub-icon">{{ liked ? '♥' : '♡' }}</text>
+      <text class="sub-label">收藏</text>
+    </view>
+    <button class="sub-btn share" open-type="share">
+      <text class="sub-icon">↗</text>
+      <text class="sub-label">分享</text>
+    </button>
+    <view class="sub-btn" bindtap="onAddToSongList">
+      <text class="sub-icon">＋</text>
+      <text class="sub-label">歌单</text>
+    </view>
+    <view class="sub-btn" bindtap="onGoDetail">
+      <text class="sub-icon">⋯</text>
+      <text class="sub-label">歌曲</text>
+    </view>
+  </view>
+</view>
+
+<view wx:else class="player-empty">
+  <empty-state text="暂无正在播放的歌曲" />
+</view>
