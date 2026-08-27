@@ -29,48 +29,66 @@
       <section class="player-panel">
         <div class="player-card">
           <div class="album-cover" :style="{ background: coverBg }">
-            <img v-if="room && room.currentMusicCover" :src="room.currentMusicCover" :alt="room.currentMusicName" />
+            <img v-if="currentSongCover" :src="currentSongCover" :alt="currentSongName" />
             <span v-else class="album-symbol">♪</span>
             <div class="glow"></div>
           </div>
           <div class="player-info">
-            <div class="now-title">{{ room && room.currentMusicName ? room.currentMusicName : '房间里的第一首歌' }}</div>
+            <div class="now-title">{{ currentSongName }}</div>
             <div class="now-sub">
-              {{ room && room.isPlaying === 1 ? '播放中' : '空闲' }}
+              {{ syncState.isPlaying === 1 ? '播放中' : '空闲' }}
               <span class="dot">·</span>
-              <span>歌曲经房主同步共享</span>
+              <span>{{ connected ? '实时同步已连接' : '连接中…' }}</span>
             </div>
             <div class="player-controls">
-              <el-button class="play-btn" round :disabled="!room || !room.currentMusicId" @click="onPlayPlaceholder">
-                <el-icon><VideoPlay /></el-icon>
-                开始播放
-              </el-button>
-              <template v-if="!isOwner">
-                <el-button class="skip-btn" round :disabled="!room || !room.currentMusicId" @click="onInitiateSkip">
+              <template v-if="isOwner">
+                <el-button class="play-btn" round :disabled="!syncState.musicId && playlist.length === 0" @click="toggleRoomPlay">
+                  <el-icon><VideoPlay /></el-icon>
+                  {{ roomPlaying ? '暂停' : '开始播放' }}
+                </el-button>
+              </template>
+              <template v-else>
+                <el-button class="skip-btn" round :disabled="!syncState.musicId" @click="onInitiateSkip">
                   <el-icon><RefreshRight /></el-icon>
                   发起切歌
                 </el-button>
-                <el-button class="skip-btn" round :disabled="!room || !room.currentMusicId" @click="onAgreeVote">
+                <el-button class="skip-btn" round :disabled="!syncState.musicId" @click="onAgreeVote">
                   <el-icon><Select /></el-icon>
                   附议
                 </el-button>
               </template>
             </div>
-            <p class="sync-hint">* P1 将接入 WebSocket 实时播放同步，误差 &lt; 2s</p>
+            <p class="sync-hint">{{ isOwner ? '你正在主持播放，进度每 5s 同步一次' : '房主播放会自动同步给所有成员，误差 &lt; 2s' }}</p>
+          </div>
+          <div v-if="!isOwner && !audioUnlocked" class="unlock-mask" @click="unlockAudio">
+            <el-icon><VideoPlay /></el-icon>
+            <span>点击开始同步收听</span>
           </div>
         </div>
 
-        <!-- 聊天占位 -->
+        <!-- 聊天 -->
         <div class="chat-panel">
           <div class="chat-title">
             <el-icon><ChatDotRound /></el-icon>
             一起聊
+            <span class="chat-status" :class="{ on: connected }">{{ connected ? '已连接' : '连接中' }}</span>
           </div>
-          <div class="chat-body">
-            <div class="chat-empty">
-              <p>边听边聊（文字 / Emoji 快捷消息将在 P2 上线）</p>
-              <el-input placeholder="说点什么…" disabled />
+          <div class="chat-list" ref="chatListRef">
+            <div v-if="messages.length === 0" class="chat-empty">开始聊天吧～（支持文字 / Emoji）</div>
+            <div v-for="msg in messages" :key="msg.id" class="chat-item" :class="{ me: msg.userId === myUserId }">
+              <span class="chat-name">{{ msg.username || '系统' }}</span>
+              <span class="chat-text">{{ msg.content }}</span>
             </div>
+          </div>
+          <div class="chat-input">
+            <div class="emoji-bar">
+              <button v-for="e in quickEmojis" :key="e" class="emoji-btn" @click="sendChat(1, e)">{{ e }}</button>
+            </div>
+            <el-input v-model="chatInput" placeholder="说点什么…" @keyup.enter="sendChat(0)">
+              <template #append>
+                <el-button @click="sendChat(0)">发送</el-button>
+              </template>
+            </el-input>
           </div>
         </div>
       </section>
@@ -165,7 +183,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -175,9 +193,10 @@ import {
 import { useUserStore } from '@/store/user'
 import {
   roomDetailApi, roomPlaylistApi, addRoomPlaylistApi, removeRoomPlaylistApi,
-  leaveRoomApi, closeRoomApi, skipVoteApi, agreeVoteApi
+  leaveRoomApi, closeRoomApi, roomMessagesApi
 } from '@/api/room'
 import { searchSongsApi } from '@/api/music'
+import { createRoomSocket } from '@/utils/room-socket'
 
 const route = useRoute()
 const router = useRouter()
@@ -197,10 +216,61 @@ const searchResults = ref([])
 const addingId = ref(null)
 
 const isOwner = computed(() => room.value && room.value.ownerId === userStore.userInfo?.userId)
+const myUserId = computed(() => userStore.userInfo?.userId)
+
+// ===== 实时同步状态 =====
+const syncState = reactive({ musicId: null, progress: 0, isPlaying: 0 })
+const connected = ref(false)
+const messages = ref([])
+const chatInput = ref('')
+const chatListRef = ref(null)
+const quickEmojis = ['🎵', '👍', '❤️', '😂', '🔥']
+
+let socket = null
+let roomAudio = null
+let lastPublishTs = 0
+let hasConnectedOnce = false
+let lastMusicId = null
+const audioUnlocked = ref(false)
+
+const currentSongName = computed(() => {
+  const s = playlist.value.find((x) => x.musicId === syncState.musicId)
+  if (s) return s.musicName
+  return room.value?.currentMusicName || '房间里的第一首歌'
+})
+const currentSongCover = computed(() => {
+  const s = playlist.value.find((x) => x.musicId === syncState.musicId)
+  return s ? s.cover : room.value?.currentMusicCover
+})
+const roomPlaying = computed(() => syncState.isPlaying === 1)
 
 onMounted(async () => {
   await loadRoom()
   await loadPlaylist()
+  initRoomAudio()
+  // 成员端：应用 REST 返回的初始播放状态，不等 WS 首条推送
+  if (!isOwner.value && syncState.musicId) {
+    applySyncState({ musicId: syncState.musicId, progress: syncState.progress, isPlaying: syncState.isPlaying })
+  }
+  // 房主刷新后：恢复音频源和进度，但不自动播放，由房主手动控制
+  if (isOwner.value && syncState.musicId) {
+    const song = playlist.value.find((x) => x.musicId === syncState.musicId)
+    if (song && song.musicUrl) {
+      lastMusicId = syncState.musicId
+      roomAudio.src = song.musicUrl
+      roomAudio.currentTime = syncState.progress || 0
+    }
+  }
+  connectRoomSocket()
+  loadMessages()
+})
+
+onUnmounted(() => {
+  if (socket) socket.disconnect()
+  if (roomAudio) {
+    roomAudio.pause()
+    roomAudio.removeAttribute('src')
+  }
 })
 
 async function loadRoom() {
@@ -208,6 +278,10 @@ async function loadRoom() {
     const res = await roomDetailApi(roomId)
     room.value = res.data
     members.value = res.data?.members || []
+    // 同步初始播放状态
+    syncState.musicId = res.data?.currentMusicId ?? null
+    syncState.progress = res.data?.currentProgress ?? 0
+    syncState.isPlaying = res.data?.isPlaying ?? 0
   } catch (e) {
     ElMessage.error('房间加载失败')
     router.push('/rooms')
@@ -258,38 +332,172 @@ function closeRoom() {
   }).catch(() => {})
 }
 
-// 开始播放占位（P0 骨架，P1 接入 WS 同步）
-function onPlayPlaceholder() {
-  ElMessage.info('实际播放同步将于 P1 接入 WebSocket 后生效')
+// ===== 房间音频（本地 Audio，用于房间内播放）=====
+function initRoomAudio() {
+  if (typeof window === 'undefined') return
+  roomAudio = new Audio()
+  roomAudio.preload = 'auto'
+  roomAudio.addEventListener('play', () => {
+    if (isOwner.value) publishSync({ isPlaying: 1 })
+  })
+  roomAudio.addEventListener('pause', () => {
+    if (isOwner.value) publishSync({ isPlaying: 0 })
+  })
+  roomAudio.addEventListener('timeupdate', () => {
+    if (isOwner.value) maybePublishProgress()
+  })
+  roomAudio.addEventListener('ended', () => {
+    if (isOwner.value) publishSync({ isPlaying: 0 })
+  })
+  roomAudio.addEventListener('error', () => {
+    // 暴露真实加载错误，便于定位是 404 / 编码 / 上传服务未启动
+    ElMessage.error('歌曲加载失败，请确认音频可访问：' + (roomAudio.src || ''))
+  })
 }
 
-// 发起切歌投票
-async function onInitiateSkip() {
-  const musicId = room.value?.currentMusicId
-  if (!musicId) return
-  try {
-    await skipVoteApi(roomId, { musicId })
-    ElMessage.success('已发起切歌投票，等待成员附议')
-  } catch (e) {
-    // 失败提示已由拦截器处理
+// 成员端：点击解锁自动播放权限（浏览器 autoplay 限制需要一次用户手势）
+function unlockAudio() {
+  audioUnlocked.value = true
+  if (roomAudio && roomAudio.src) {
+    const p = roomAudio.play()
+    if (p) p.then(() => { if (syncState.isPlaying !== 1) roomAudio.pause() }).catch(() => {})
   }
 }
 
-// 附议切歌
-async function onAgreeVote() {
-  const musicId = room.value?.currentMusicId
-  if (!musicId) return
-  try {
-    const res = await agreeVoteApi(roomId, { musicId })
-    if (res.data === true) {
-      ElMessage.success('切歌成功')
-      loadRoom()
-      loadPlaylist()
-    } else {
-      ElMessage.success('已附议，等待更多成员')
+// ===== WebSocket 连接 =====
+function connectRoomSocket() {
+  socket = createRoomSocket({
+    roomId,
+    onStatus: (s) => {
+      connected.value = s
+      if (s) {
+        // 断线重连后重新拉取播放状态 / 歌单 / 消息，恢复同步
+        if (hasConnectedOnce) {
+          loadRoom()
+          loadPlaylist()
+          loadMessages()
+        }
+        hasConnectedOnce = true
+      }
+    },
+    onState: (msg) => applySyncState(msg),
+    onMembers: (list) => {
+      members.value = list || []
+      if (room.value) room.value.memberCount = (list || []).length
+    },
+    onMessage: (msg) => { messages.value.push(msg); scrollChat() },
+    onVote: (payload) => handleVote(payload)
+  })
+}
+
+// 成员端应用服务端广播的播放状态
+function applySyncState(msg) {
+  syncState.musicId = msg.musicId
+  syncState.progress = msg.progress
+  syncState.isPlaying = msg.isPlaying
+  // 仅成员端被动跟播；房主本地已自行控制，避免被自己的广播反覆盖而暂停
+  if (isOwner.value || !roomAudio) return
+  const song = playlist.value.find((x) => x.musicId === msg.musicId)
+  // 仅切歌时才重新设置 src，避免每次同步都重载音频导致 error 事件
+  if (song && song.musicUrl && msg.musicId !== lastMusicId) {
+    lastMusicId = msg.musicId
+    roomAudio.src = song.musicUrl
+  }
+  if (roomAudio.src && roomAudio.src !== window.location.origin + '/') {
+    // 偏差超过 2s 才校准，避免频繁跳动
+    if (typeof msg.progress === 'number' && Math.abs((roomAudio.currentTime || 0) - msg.progress) > 2) {
+      roomAudio.currentTime = msg.progress
     }
+    if (msg.isPlaying === 1) roomAudio.play().catch(() => {})
+    else roomAudio.pause()
+  }
+}
+
+// 房主：进度节流同步（每 5s 一次）
+function maybePublishProgress() {
+  if (!roomAudio) return
+  const now = Date.now()
+  if (now - lastPublishTs < 5000) return
+  lastPublishTs = now
+  publishSync({ progress: roomAudio.currentTime })
+}
+
+// 上报播放状态（仅房主角色有效，服务端会校验）
+function publishSync(overrides = {}) {
+  if (!socket) return
+  const body = {
+    musicId: overrides.musicId !== undefined ? overrides.musicId : syncState.musicId,
+    progress: overrides.progress !== undefined ? overrides.progress : (roomAudio ? roomAudio.currentTime : syncState.progress),
+    isPlaying: overrides.isPlaying !== undefined ? overrides.isPlaying : (roomAudio ? (roomAudio.paused ? 0 : 1) : syncState.isPlaying)
+  }
+  socket.publish('/sync', body)
+}
+
+// 房主播放 / 暂停
+async function toggleRoomPlay() {
+  if (!roomAudio) return
+  if (roomPlaying.value) {
+    roomAudio.pause()
+    return
+  }
+  // 无当前歌曲时，取歌单第一首
+  if (!syncState.musicId && playlist.value.length > 0) {
+    const first = playlist.value[0]
+    syncState.musicId = first.musicId
+    roomAudio.src = first.musicUrl || ''
+  }
+  if (!roomAudio.src) {
+    ElMessage.info('请先在歌单里添加歌曲')
+    return
+  }
+  try {
+    await roomAudio.play()
   } catch (e) {
-    // 失败提示已由拦截器处理（如已投过票 / 投票过期）
+    ElMessage.error('播放失败：' + (roomAudio.src || '无音频地址') + ' — ' + (e && e.message ? e.message : ''))
+  }
+}
+
+// ===== 聊天 =====
+function sendChat(type, content) {
+  const text = content !== undefined ? content : chatInput.value
+  if (!text || !String(text).trim()) return
+  if (!socket) return
+  socket.publish('/chat', { type, content: String(text).trim() })
+  if (type === 0) chatInput.value = ''
+}
+
+async function loadMessages() {
+  try {
+    const res = await roomMessagesApi(roomId)
+    messages.value = res.data || []
+    scrollChat()
+  } catch (e) {
+    console.error('加载消息失败:', e)
+  }
+}
+
+function scrollChat() {
+  nextTick(() => {
+    if (chatListRef.value) chatListRef.value.scrollTop = chatListRef.value.scrollHeight
+  })
+}
+
+// ===== 切歌投票（走 WS，实时反馈）=====
+function onInitiateSkip() {
+  if (!socket || !syncState.musicId) return
+  socket.publish('/skip-vote', { musicId: syncState.musicId })
+}
+
+function onAgreeVote() {
+  if (!socket || !syncState.musicId) return
+  socket.publish('/skip-vote/agree', { musicId: syncState.musicId })
+}
+
+function handleVote(payload) {
+  if (payload.action === 'passed') {
+    ElMessage.success('切歌成功')
+    loadRoom()
+    loadPlaylist()
   }
 }
 
@@ -444,6 +652,7 @@ function goBack() {
 }
 
 .player-card {
+  position: relative;
   flex: 1;
   display: flex;
   gap: 32px;
@@ -453,6 +662,26 @@ function goBack() {
   border-radius: var(--rounded-xl);
   padding: 32px;
   box-shadow: var(--shadow-1);
+
+  .unlock-mask {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(30, 30, 30, 0.45);
+    backdrop-filter: blur(2px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #fff;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 150ms ease;
+    z-index: 2;
+    &:hover { background: rgba(30, 30, 30, 0.55); }
+    .el-icon { font-size: 40px; }
+  }
 
   .album-cover {
     position: relative;
@@ -511,12 +740,15 @@ function goBack() {
 }
 
 .chat-panel {
-  height: 220px;
+  height: 260px;
   flex-shrink: 0;
   background: var(--st-canvas);
   border: 1px solid var(--st-hairline);
   border-radius: var(--rounded-xl);
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+
   .chat-title {
     display: flex;
     align-items: center;
@@ -526,11 +758,44 @@ function goBack() {
     color: var(--st-ink);
     margin-bottom: 12px;
     .el-icon { color: var(--st-primary); }
+    .chat-status {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--st-ink-mute);
+      &.on { color: var(--st-primary); }
+    }
   }
-  .chat-body .chat-empty {
-    color: var(--st-ink-mute);
-    font-size: 13px;
-    p { margin-bottom: 12px; }
+
+  .chat-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+    .chat-empty { color: var(--st-ink-mute); font-size: 13px; text-align: center; padding: 16px 0; }
+    .chat-item {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 13px;
+      .chat-name { color: var(--st-primary); font-weight: 600; flex-shrink: 0; }
+      .chat-text { color: var(--st-ink); word-break: break-word; }
+      &.me { justify-content: flex-end; .chat-name { color: var(--st-ink-mute); } }
+    }
+  }
+
+  .chat-input {
+    .emoji-bar { display: flex; gap: 6px; margin-bottom: 8px; }
+    .emoji-btn {
+      background: var(--st-canvas-hover);
+      border: none;
+      border-radius: var(--rounded-sm);
+      padding: 2px 8px;
+      font-size: 16px;
+      cursor: pointer;
+      &:hover { background: var(--st-primary-subdued); }
+    }
   }
 }
 

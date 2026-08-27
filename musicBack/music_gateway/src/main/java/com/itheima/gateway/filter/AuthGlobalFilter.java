@@ -45,6 +45,7 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             "/api/songList/public/**",
             "/api/capsule/plaza",
             "/api/room/invite/**",
+            "/ws/**",
             "/uploads/**"
     );
 

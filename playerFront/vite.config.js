@@ -33,6 +33,12 @@ export default defineConfig({
         target: 'http://localhost:9000',
         changeOrigin: true
       },
+      // WebSocket（STOMP）：转发到网关，网关再转发到 mod-room
+      '/ws': {
+        target: 'http://localhost:9000',
+        changeOrigin: true,
+        ws: true
+      },
       // 静态资源（音乐/封面/歌词）：统一由 Mod_upload (8012) 从 musicBack/resource/ 提供
       // 兼容 /music /img /lyric（历史数据）与 /uploads（新上传）四种前缀
       '/music': { target: 'http://localhost:8012', changeOrigin: true },

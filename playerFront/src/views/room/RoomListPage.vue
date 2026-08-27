@@ -88,8 +88,8 @@
         </el-form-item>
         <el-form-item label="播放模式">
           <el-radio-group v-model="form.playMode">
-            <el-radio :label="0">循环播放</el-radio>
-            <el-radio :label="1">播放完毕停止</el-radio>
+            <el-radio :value="0">循环播放</el-radio>
+            <el-radio :value="1">播放完毕停止</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
