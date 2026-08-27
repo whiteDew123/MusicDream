@@ -9,10 +9,23 @@
         </h2>
         <p class="page-desc">建一个房间，拉上朋友，像一群人挤在客厅听 CD 一样</p>
       </div>
-      <el-button type="primary" class="create-btn" @click="openCreate">
-        <el-icon><Plus /></el-icon>
-        创建房间
-      </el-button>
+      <div class="header-right">
+        <el-input
+          v-model="inviteCode"
+          class="invite-input"
+          placeholder="输入邀请码，加入房间"
+          clearable
+          @keyup.enter="joinByCode"
+        >
+          <template #append>
+            <el-button @click="joinByCode">加入</el-button>
+          </template>
+        </el-input>
+        <el-button type="primary" class="create-btn" @click="openCreate">
+          <el-icon><Plus /></el-icon>
+          创建房间
+        </el-button>
+      </div>
     </div>
 
     <!-- 骨架屏 -->
@@ -106,7 +119,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Headset, Plus, User, UserFilled } from '@element-plus/icons-vue'
-import { roomListApi, createRoomApi, joinRoomApi } from '@/api/room'
+import { roomListApi, createRoomApi, joinRoomApi, inviteRoomApi } from '@/api/room'
 
 const router = useRouter()
 
@@ -114,6 +127,7 @@ const router = useRouter()
 const loading = ref(true)
 const rooms = ref([])
 const imgErrors = reactive({})
+const inviteCode = ref('')
 
 // 创建弹窗状态
 const createVisible = ref(false)
@@ -192,6 +206,28 @@ async function enterRoom(room) {
   }
 }
 
+// 通过邀请码加入房间
+async function joinByCode() {
+  const code = (inviteCode.value || '').trim()
+  if (!code) {
+    ElMessage.warning('请输入邀请码')
+    return
+  }
+  try {
+    const res = await inviteRoomApi(code)
+    const room = res.data
+    if (!room) return
+    if (room.isMember) {
+      router.push(`/room/${room.id}`)
+    } else {
+      await joinRoomApi(room.id)
+      router.push(`/room/${room.id}`)
+    }
+  } catch (e) {
+    // 邀请码无效/过期已由拦截器提示
+  }
+}
+
 // 封面加载失败：显示默认符号
 function handleImgError(id) {
   imgErrors[id] = true
@@ -252,6 +288,23 @@ onMounted(() => {
     border-radius: var(--rounded-pill);
     height: 40px;
     padding: 0 20px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .invite-input {
+    width: 240px;
+
+    :deep(.el-input__wrapper) {
+      border-radius: var(--rounded-pill) 0 0 var(--rounded-pill);
+    }
+    :deep(.el-input-group__append) {
+      border-radius: 0 var(--rounded-pill) var(--rounded-pill) 0;
+    }
   }
 }
 

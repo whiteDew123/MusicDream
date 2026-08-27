@@ -11,6 +11,8 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +26,8 @@ import java.nio.charset.StandardCharsets;
 @Component
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
+    private static final Logger log = LoggerFactory.getLogger(StompAuthChannelInterceptor.class);
+
     @Value("${jwt.secret}")
     private String secret;
 
@@ -32,7 +36,10 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
             String token = accessor.getFirstNativeHeader("token");
-            if (token != null && !token.isBlank()) {
+            if (token == null || token.isBlank()) {
+                log.warn("STOMP CONNECT 缺少 token，已放行但未鉴权（后续上行消息会被忽略）");
+                accessor.setLeaveMutable(true);
+            } else {
                 try {
                     SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
                     Claims claims = Jwts.parser()
@@ -43,8 +50,10 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                     Long userId = Long.valueOf(claims.getSubject());
                     accessor.setUser(new StompPrincipal(userId));
                     accessor.setLeaveMutable(true);
+                    log.info("STOMP 鉴权成功 userId={}", userId);
                 } catch (Exception e) {
-                    // token 无效：不注入 Principal，后续处理器会拒绝该用户
+                    // token 无效：不注入 Principal，后续处理器会忽略该用户的写操作
+                    log.warn("STOMP token 校验失败: {}", e.getMessage());
                     accessor.setLeaveMutable(true);
                 }
             }

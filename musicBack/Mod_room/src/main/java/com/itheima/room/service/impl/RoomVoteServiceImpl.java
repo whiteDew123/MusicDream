@@ -11,9 +11,11 @@ import com.itheima.room.mapper.RoomMemberMapper;
 import com.itheima.room.mapper.RoomPlaylistMapper;
 import com.itheima.room.mapper.RoomPlaylistVoteMapper;
 import com.itheima.room.service.RoomVoteService;
+import com.itheima.room.vo.RoomVoteVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -80,9 +82,7 @@ public class RoomVoteServiceImpl extends ServiceImpl<RoomPlaylistVoteMapper, Roo
         if (votedMusicId == null) {
             throw new IllegalArgumentException("当前没有可表决的歌曲");
         }
-        if (userId.equals(room.getOwnerId())) {
-            throw new IllegalArgumentException("房主不能参与切歌投票");
-        }
+        // 房主可作为普通成员附议，否则 2 人房（房主+1成员）永远凑不够 50% 附议
 
         // 自己是否已投
         RoomPlaylistVote mine = getOne(new LambdaQueryWrapper<RoomPlaylistVote>()
@@ -133,6 +133,44 @@ public class RoomVoteServiceImpl extends ServiceImpl<RoomPlaylistVoteMapper, Roo
             return true;
         }
         return false;
+    }
+
+    @Override
+    public RoomVoteVO getVoteState(Long roomId, Long musicId) {
+        return buildVoteVO(roomId, musicId);
+    }
+
+    /** 组装投票实时状态（附议数/所需/剩余秒） */
+    private RoomVoteVO buildVoteVO(Long roomId, Long musicId) {
+        RoomVoteVO vo = new RoomVoteVO();
+        vo.setMusicId(musicId);
+        List<RoomPlaylistVote> votes = list(new LambdaQueryWrapper<RoomPlaylistVote>()
+                .eq(RoomPlaylistVote::getRoomId, roomId)
+                .eq(RoomPlaylistVote::getMusicId, musicId)
+                .orderByAsc(RoomPlaylistVote::getCreatedAt));
+        long totalMembers = roomMemberMapper.selectCount(new LambdaQueryWrapper<RoomMember>()
+                .eq(RoomMember::getRoomId, roomId));
+        int required = (int) Math.ceil(totalMembers * 0.5);
+        vo.setRequired(required);
+        if (votes.isEmpty()) {
+            vo.setActive(false);
+            vo.setVotes(0);
+            vo.setAgreeCount(0);
+            vo.setRemainingSeconds(0);
+            return vo;
+        }
+        Set<Long> voters = votes.stream().map(RoomPlaylistVote::getUserId).collect(Collectors.toSet());
+        Long initiator = votes.get(0).getUserId();
+        long agreeCount = voters.stream().filter(v -> !v.equals(initiator)).count();
+        vo.setActive(true);
+        vo.setInitiatorUserId(initiator);
+        vo.setVotes(voters.size());
+        vo.setAgreeCount((int) agreeCount);
+        // 剩余秒数 = 30 - 距最早投票的时间
+        long elapsed = Duration.between(votes.get(0).getCreatedAt(), LocalDateTime.now()).getSeconds();
+        int remaining = (int) Math.max(0, VOTE_WINDOW_SECONDS - elapsed);
+        vo.setRemainingSeconds(remaining);
+        return vo;
     }
 
     /** 校验房间存在且未关闭 */

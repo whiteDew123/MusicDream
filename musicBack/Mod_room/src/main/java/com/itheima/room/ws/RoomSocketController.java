@@ -6,6 +6,7 @@ import com.itheima.room.mapper.RoomMapper;
 import com.itheima.room.service.RoomMessageService;
 import com.itheima.room.service.RoomVoteService;
 import com.itheima.room.vo.RoomMessageVO;
+import com.itheima.room.vo.RoomVoteVO;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -31,17 +32,20 @@ public class RoomSocketController {
     private final RoomMessageService roomMessageService;
     private final RoomVoteService roomVoteService;
     private final RoomPresenceService presenceService;
+    private final RoomNotifier roomNotifier;
 
     public RoomSocketController(SimpMessagingTemplate messagingTemplate,
                                 RoomMapper roomMapper,
                                 RoomMessageService roomMessageService,
                                 RoomVoteService roomVoteService,
-                                RoomPresenceService presenceService) {
+                                RoomPresenceService presenceService,
+                                RoomNotifier roomNotifier) {
         this.messagingTemplate = messagingTemplate;
         this.roomMapper = roomMapper;
         this.roomMessageService = roomMessageService;
         this.roomVoteService = roomVoteService;
         this.presenceService = presenceService;
+        this.roomNotifier = roomNotifier;
     }
 
     /** 房主上报播放状态并广播 */
@@ -114,8 +118,9 @@ public class RoomSocketController {
         }
         presenceService.memberOnline(roomId, userId, sessionId);
         roomVoteService.skipVote(roomId, dto.getMusicId(), userId);
+        RoomVoteVO state = roomVoteService.getVoteState(roomId, dto.getMusicId());
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/skip-vote",
-                Map.of("musicId", dto.getMusicId(), "action", "init"));
+                Map.of("musicId", dto.getMusicId(), "action", "init", "stats", state));
     }
 
     /** 附议切歌投票 */
@@ -136,10 +141,13 @@ public class RoomSocketController {
                 messagingTemplate.convertAndSend("/topic/room/" + roomId + "/state", toState(room));
                 messagingTemplate.convertAndSend("/topic/room/" + roomId + "/skip-vote",
                         Map.of("musicId", room.getCurrentMusicId(), "action", "passed"));
+                // 系统消息：切歌成功
+                roomNotifier.systemMessage(roomId, null, "附议通过，已切至下一首");
             }
         } else {
+            RoomVoteVO state = roomVoteService.getVoteState(roomId, dto.getMusicId());
             messagingTemplate.convertAndSend("/topic/room/" + roomId + "/skip-vote",
-                    Map.of("musicId", dto.getMusicId(), "action", "agree"));
+                    Map.of("musicId", dto.getMusicId(), "action", "agree", "stats", state));
         }
     }
 

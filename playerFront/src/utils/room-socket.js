@@ -10,7 +10,7 @@ import { getToken } from '@/utils/auth'
  * - 每 30s 发送一次心跳，保持在线状态
  */
 export function createRoomSocket(options) {
-  const { roomId, onState, onMembers, onMessage, onVote, onStatus } = options
+  const { roomId, onState, onMembers, onMessage, onVote, onPlaylist, onRoom, onClosed, onStatus } = options
   let client = null
   let reconnectAttempts = 0
   let heartbeatTimer = null
@@ -31,6 +31,9 @@ export function createRoomSocket(options) {
         token: getToken() || '',
         roomId: String(roomId)
       },
+      // 与后端 SimpleBroker 心跳(10s)对齐，空闲时避免被判定失联断开
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
       reconnectDelay: 0 // 手动指数退避
     })
 
@@ -41,6 +44,9 @@ export function createRoomSocket(options) {
       client.subscribe(`/topic/room/${roomId}/members`, (m) => safeEmit(onMembers, m.body))
       client.subscribe(`/topic/room/${roomId}/message`, (m) => safeEmit(onMessage, m.body))
       client.subscribe(`/topic/room/${roomId}/skip-vote`, (m) => safeEmit(onVote, m.body))
+      client.subscribe(`/topic/room/${roomId}/playlist`, (m) => safeEmit(onPlaylist, m.body))
+      client.subscribe(`/topic/room/${roomId}/room`, (m) => safeEmit(onRoom, m.body))
+      client.subscribe(`/topic/room/${roomId}/closed`, (m) => safeEmit(onClosed, m.body))
       startHeartbeat()
       if (onStatus) onStatus(true)
       // 连接后立即心跳一次，尽快上线

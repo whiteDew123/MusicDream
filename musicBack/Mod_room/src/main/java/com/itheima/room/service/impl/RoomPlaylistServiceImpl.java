@@ -13,6 +13,7 @@ import com.itheima.room.mapper.RoomPlaylistMapper;
 import com.itheima.room.mapper.UserMapper;
 import com.itheima.room.service.RoomPlaylistService;
 import com.itheima.room.vo.RoomPlaylistItemVO;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,13 +35,21 @@ public class RoomPlaylistServiceImpl extends ServiceImpl<RoomPlaylistMapper, Roo
     private final RoomMapper roomMapper;
     private final MusicMapper musicMapper;
     private final UserMapper userMapper;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public RoomPlaylistServiceImpl(RoomMapper roomMapper,
                                    MusicMapper musicMapper,
-                                   UserMapper userMapper) {
+                                   UserMapper userMapper,
+                                   SimpMessagingTemplate messagingTemplate) {
         this.roomMapper = roomMapper;
         this.musicMapper = musicMapper;
         this.userMapper = userMapper;
+        this.messagingTemplate = messagingTemplate;
+    }
+
+    /** 歌单变更后广播最新列表，让成员端热更新 */
+    private void broadcastPlaylist(Long roomId) {
+        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/playlist", getList(roomId, null));
     }
 
     @Override
@@ -113,6 +122,7 @@ public class RoomPlaylistServiceImpl extends ServiceImpl<RoomPlaylistMapper, Roo
         p.setStatus(0);
         p.setAddTime(LocalDateTime.now());
         save(p);
+        broadcastPlaylist(roomId);
     }
 
     @Override
@@ -147,6 +157,7 @@ public class RoomPlaylistServiceImpl extends ServiceImpl<RoomPlaylistMapper, Roo
             }
             roomMapper.updateById(room);
         }
+        broadcastPlaylist(roomId);
     }
 
     @Override
@@ -168,6 +179,7 @@ public class RoomPlaylistServiceImpl extends ServiceImpl<RoomPlaylistMapper, Roo
                 updateById(p);
             }
         }
+        broadcastPlaylist(roomId);
     }
 
     // ======================== 私有辅助方法 ========================

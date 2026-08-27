@@ -9,14 +9,22 @@ import com.itheima.room.dto.RoomCreateDTO;
 import com.itheima.room.dto.RoomUpdateDTO;
 import com.itheima.room.entity.Room;
 import com.itheima.room.entity.RoomMember;
+import com.itheima.room.entity.RoomMessage;
+import com.itheima.room.entity.RoomPlaylist;
+import com.itheima.room.entity.RoomPlaylistVote;
 import com.itheima.room.mapper.MusicMapper;
 import com.itheima.room.mapper.RoomMapper;
 import com.itheima.room.mapper.RoomMemberMapper;
+import com.itheima.room.mapper.RoomMessageMapper;
+import com.itheima.room.mapper.RoomPlaylistMapper;
+import com.itheima.room.mapper.RoomPlaylistVoteMapper;
 import com.itheima.room.mapper.UserMapper;
 import com.itheima.room.service.RoomService;
 import com.itheima.room.vo.RoomDetailVO;
 import com.itheima.room.vo.RoomMemberVO;
 import com.itheima.room.vo.RoomVO;
+import com.itheima.room.ws.RoomNotifier;
+import com.itheima.room.ws.RoomPresenceService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,13 +46,28 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
     private final RoomMemberMapper roomMemberMapper;
     private final MusicMapper musicMapper;
     private final UserMapper userMapper;
+    private final RoomPlaylistMapper roomPlaylistMapper;
+    private final RoomPlaylistVoteMapper roomPlaylistVoteMapper;
+    private final RoomMessageMapper roomMessageMapper;
+    private final RoomNotifier roomNotifier;
+    private final RoomPresenceService presenceService;
 
     public RoomServiceImpl(RoomMemberMapper roomMemberMapper,
                            MusicMapper musicMapper,
-                           UserMapper userMapper) {
+                           UserMapper userMapper,
+                           RoomPlaylistMapper roomPlaylistMapper,
+                           RoomPlaylistVoteMapper roomPlaylistVoteMapper,
+                           RoomMessageMapper roomMessageMapper,
+                           RoomNotifier roomNotifier,
+                           RoomPresenceService presenceService) {
         this.roomMemberMapper = roomMemberMapper;
         this.musicMapper = musicMapper;
         this.userMapper = userMapper;
+        this.roomPlaylistMapper = roomPlaylistMapper;
+        this.roomPlaylistVoteMapper = roomPlaylistVoteMapper;
+        this.roomMessageMapper = roomMessageMapper;
+        this.roomNotifier = roomNotifier;
+        this.presenceService = presenceService;
     }
 
     /** 生成邀请码用的安全随机数（排除易混淆字符 0/O/1/I） */
@@ -159,7 +182,9 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
             room.setPlayMode(dto.getPlayMode());
         }
         updateById(room);
-        return getDetail(dto.getId(), userId);
+        RoomDetailVO detail = getDetail(dto.getId(), userId);
+        roomNotifier.roomUpdated(detail);
+        return detail;
     }
 
     @Override
@@ -184,20 +209,20 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
             throw new IllegalArgumentException("房间已关闭");
         }
 
+        // 重复加入同一房间：直接返回详情（先判断，避免不必要的退出其它房间）
+        RoomMember existing = roomMemberMapper.selectOne(new LambdaQueryWrapper<RoomMember>()
+                .eq(RoomMember::getRoomId, id)
+                .eq(RoomMember::getUserId, userId));
+        if (existing != null) {
+            return getDetail(id, userId);
+        }
+
         // 一个用户同时只能在一个房间：自动退出其它房间
         List<RoomMember> otherMembers = roomMemberMapper.selectList(new LambdaQueryWrapper<RoomMember>()
                 .eq(RoomMember::getUserId, userId)
                 .ne(RoomMember::getRoomId, id));
         for (RoomMember other : otherMembers) {
             leaveRoom(other.getRoomId(), userId);
-        }
-
-        // 重复加入同一房间：直接返回详情，前端可据此跳转
-        RoomMember existing = roomMemberMapper.selectOne(new LambdaQueryWrapper<RoomMember>()
-                .eq(RoomMember::getRoomId, id)
-                .eq(RoomMember::getUserId, userId));
-        if (existing != null) {
-            return getDetail(id, userId);
         }
 
         // 人数上限校验
@@ -214,6 +239,8 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
         member.setIsOnline(1);
         member.setJoinTime(LocalDateTime.now());
         roomMemberMapper.insert(member);
+        roomNotifier.systemMessage(id, userId, "加入了房间");
+        presenceService.broadcastPresence(id);
 
         return getDetail(id, userId);
     }
@@ -261,6 +288,11 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
         }
         target.setRole(0);
         roomMemberMapper.updateById(target);
+
+        // 广播：成员角色变化 + 房主变更 + 系统消息，让全员实时感知（transfer 热更新）
+        presenceService.broadcastPresence(id);
+        roomNotifier.roomUpdated(getDetail(id, null));
+        roomNotifier.systemMessage(id, targetUserId, "已成为新房主");
     }
 
     @Override
@@ -284,6 +316,8 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
             throw new IllegalArgumentException("不能移出房主");
         }
         roomMemberMapper.deleteById(target.getId());
+        roomNotifier.systemMessage(id, targetUserId, "被移出房间");
+        presenceService.broadcastPresence(id);
     }
 
     @Override
@@ -333,6 +367,8 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
             return;
         }
         roomMemberMapper.deleteById(member.getId());
+        roomNotifier.systemMessage(roomId, userId, "离开了房间");
+        presenceService.broadcastPresence(roomId);
         // 最后一人离开：房间关闭
         long remaining = roomMemberMapper.selectCount(new LambdaQueryWrapper<RoomMember>()
                 .eq(RoomMember::getRoomId, roomId));
@@ -341,15 +377,16 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
         }
     }
 
-    /** 真正关闭：置状态为已结束并清空成员（P0 不做 WS 广播） */
+    /** 真正关闭：置状态为已结束并清空成员，同时在状态真正变更时广播系统消息 */
     private void doClose(Long roomId) {
-        Room room = getById(roomId);
-        if (room != null) {
-            room.setStatus(2);
-            updateById(room);
-        }
-        roomMemberMapper.delete(new LambdaQueryWrapper<RoomMember>()
-                .eq(RoomMember::getRoomId, roomId));
+        roomNotifier.systemMessage(roomId, null, "房间已关闭");
+        roomNotifier.roomClosed(roomId);
+        presenceService.broadcastPresence(roomId);
+        roomMemberMapper.delete(new LambdaQueryWrapper<RoomMember>().eq(RoomMember::getRoomId, roomId));
+        roomPlaylistMapper.delete(new LambdaQueryWrapper<RoomPlaylist>().eq(RoomPlaylist::getRoomId, roomId));
+        roomPlaylistVoteMapper.delete(new LambdaQueryWrapper<RoomPlaylistVote>().eq(RoomPlaylistVote::getRoomId, roomId));
+        roomMessageMapper.delete(new LambdaQueryWrapper<RoomMessage>().eq(RoomMessage::getRoomId, roomId));
+        removeById(roomId);
     }
 
     /** 生成 8 位不重复邀请码 */

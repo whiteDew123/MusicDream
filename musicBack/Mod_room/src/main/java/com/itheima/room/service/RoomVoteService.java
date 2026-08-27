@@ -21,4 +21,9 @@ public interface RoomVoteService extends IService<RoomPlaylistVote> {
      * @return true 表示切歌成功（已跳至下一首），false 表示仍需等待更多附议
      */
     boolean agreeVote(Long roomId, Long musicId, Long userId);
+
+    /**
+     * 查询当前切歌投票的实时状态（附议数/所需/剩余秒），供前端展示。
+     */
+    com.itheima.room.vo.RoomVoteVO getVoteState(Long roomId, Long musicId);
 }
