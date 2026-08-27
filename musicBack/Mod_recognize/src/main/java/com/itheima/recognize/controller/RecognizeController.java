@@ -6,6 +6,8 @@ import com.itheima.recognize.service.FingerprintService;
 import com.itheima.recognize.service.MatchService;
 import com.itheima.domain.entity.Music;
 import com.itheima.recognize.mapper.MusicMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +33,8 @@ import java.nio.file.StandardCopyOption;
 @RestController
 @RequestMapping("/recognize")
 public class RecognizeController {
+
+    private static final Logger log = LoggerFactory.getLogger(RecognizeController.class);
 
     private final MatchService matchService;
     private final FingerprintService fingerprintService;
@@ -98,19 +102,25 @@ public class RecognizeController {
     @PostMapping("/registerByUrl")
     public Result<Integer> registerByUrl(@RequestParam("musicId") Integer musicId,
                                          @RequestParam("musicUrl") String musicUrl) {
+        log.info("收到指纹注册请求: musicId={}, musicUrl={}", musicId, musicUrl);
         if (musicId == null || musicUrl == null || musicUrl.isBlank()) {
             return Result.error(400, "歌曲ID和音频URL不能为空");
         }
         try {
             String fullUrl = musicUrl.startsWith("http") ? musicUrl : uploadBaseUrl + musicUrl;
+            log.info("下载音频文件: {}", fullUrl);
             File temp = downloadToTemp(fullUrl);
+            log.info("音频下载完成, 开始提取指纹: musicId={}", musicId);
             int count = fingerprintService.register(temp, musicId);
             temp.delete();
             if (count <= 0) {
+                log.warn("未提取到指纹: musicId={}", musicId);
                 return Result.error(500, "未提取到任何指纹，请检查音频文件");
             }
+            log.info("指纹注册成功: musicId={}, 共{}条", musicId, count);
             return Result.success("指纹注册成功，共 " + count + " 条", count);
         } catch (Exception e) {
+            log.error("指纹注册失败: musicId={}", musicId, e);
             return Result.error(500, "指纹注册失败：" + e.getMessage());
         }
     }

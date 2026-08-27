@@ -15,12 +15,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.net.URI;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -114,16 +116,23 @@ public class MusicServiceImpl implements MusicService {
         musicWrapper.eq("music_id", id).setSql("audit_status = 1");
         musicMapper.update(null, musicWrapper);
 
-        // 审核通过后自动注册听歌识曲指纹（失败不影响审核结果）
+        // 审核通过后异步注册听歌识曲指纹（不阻塞审核响应）
         if (StringUtils.hasText(music.getMusicUrl())) {
-            try {
-                String encodedUrl = URLEncoder.encode(music.getMusicUrl(), StandardCharsets.UTF_8);
-                String url = recognizeServiceUrl + "/recognize/registerByUrl?musicId=" + id + "&musicUrl=" + encodedUrl;
-                restTemplate.postForEntity(url, null, String.class);
-                log.info("歌曲审核通过，指纹注册任务已触发: musicId={}", id);
-            } catch (Exception e) {
-                log.error("歌曲指纹注册失败: musicId={}", id, e);
-            }
+            final Integer musicId = id;
+            CompletableFuture.runAsync(() -> {
+                try {
+                    URI uri = UriComponentsBuilder
+                            .fromHttpUrl(recognizeServiceUrl + "/recognize/registerByUrl")
+                            .queryParam("musicId", musicId)
+                            .queryParam("musicUrl", music.getMusicUrl())
+                            .build()
+                            .toUri();
+                    restTemplate.postForEntity(uri, null, String.class);
+                    log.info("歌曲审核通过，指纹注册任务已触发: musicId={}", musicId);
+                } catch (Exception e) {
+                    log.error("歌曲指纹注册失败: musicId={}", musicId, e);
+                }
+            });
         }
         evictRecommendCache();
         return Result.success("审核通过", null);

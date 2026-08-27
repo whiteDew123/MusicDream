@@ -12,9 +12,9 @@ import java.nio.file.Path;
 /**
  * 音频时长解析工具（三层兜底）
  *
- * <p>1. JAudiotagger — 纯 Java，覆盖 MP3/FLAC/WAV/OGG/MP4，毫秒级</p>
- * <p>2. mp3agic — MP3 专用纯 Java 兜底</p>
- * <p>3. ffprobe — 外部进程万能兜底，覆盖 WMA/APE/ALAC 等罕见格式</p>
+ * <p>1. ffprobe — 外部进程，最准确，优先使用</p>
+ * <p>2. JAudiotagger — 纯 Java，覆盖 MP3/FLAC/WAV/OGG/MP4，毫秒级</p>
+ * <p>3. mp3agic — MP3 专用纯 Java 兜底</p>
  */
 public final class AudioDurationUtil {
 
@@ -41,18 +41,24 @@ public final class AudioDurationUtil {
      * @return 时长（秒）；解析失败返回 null
      */
     public static Integer getDuration(Path filePath) {
-        // 1. JAudiotagger（纯 Java，覆盖主流格式）
+        // 1. ffprobe（最准确，优先使用）
+        Integer duration = parseWithFfprobe(filePath);
+        if (duration != null) {
+            return duration;
+        }
+
+        // 2. JAudiotagger（纯 Java，覆盖主流格式）
         try {
             AudioFile audioFile = AudioFileIO.read(filePath.toFile());
-            int duration = audioFile.getAudioHeader().getTrackLength();
-            if (duration > 0) {
-                return duration;
+            int sec = audioFile.getAudioHeader().getTrackLength();
+            if (sec > 0) {
+                return sec;
             }
         } catch (Exception ignored) {
             // 非致命，继续下一个
         }
 
-        // 2. mp3agic（MP3 专用纯 Java 兜底）
+        // 3. mp3agic（MP3 专用纯 Java 兜底）
         try {
             Mp3File mp3 = new Mp3File(filePath.toFile());
             long seconds = mp3.getLengthInSeconds();
@@ -63,8 +69,8 @@ public final class AudioDurationUtil {
             // 非致命，继续下一个
         }
 
-        // 3. ffprobe（万能兜底，覆盖所有格式）
-        return parseWithFfprobe(filePath);
+        log.warn("所有时长解析方式均失败: {}", filePath.getFileName());
+        return null;
     }
 
     private static Integer parseWithFfprobe(Path filePath) {
@@ -94,7 +100,6 @@ public final class AudioDurationUtil {
             log.warn("ffprobe 调用异常: {}", e.getMessage());
         }
 
-        log.warn("所有时长解析方式均失败: {}", filePath.getFileName());
         return null;
     }
 }
