@@ -5,7 +5,20 @@
         <el-icon><TrophyBase /></el-icon>
         音乐排行
       </h2>
-      <p class="page-desc">最热歌曲榜单，按播放量排名</p>
+      <p class="page-desc">{{ activeTab === 'play' ? '最热歌曲榜单，按播放量排名' : '最新歌曲榜单，按发布时间排名' }}</p>
+    </div>
+
+    <!-- Tab 切换 -->
+    <div class="rank-tabs">
+      <div class="tab-item" :class="{ active: activeTab === 'play' }" @click="switchTab('play')">
+        <el-icon><VideoPlay /></el-icon>
+        播放量榜
+      </div>
+      <div class="tab-item" :class="{ active: activeTab === 'time' }" @click="switchTab('time')">
+        <el-icon><Clock /></el-icon>
+        新歌榜
+      </div>
+      <div class="tab-indicator" :style="indicatorStyle"></div>
     </div>
 
     <!-- 骨架屏 -->
@@ -25,7 +38,8 @@
         <span class="col-rank">排名</span>
         <span class="col-song">歌曲</span>
         <span class="col-singer">歌手</span>
-        <span class="col-plays">播放量</span>
+        <span class="col-plays" v-if="activeTab === 'play'">播放量</span>
+        <span class="col-plays" v-else>发布时间</span>
         <span class="col-action"></span>
       </div>
       <div
@@ -47,7 +61,8 @@
           <span class="song-name" :title="song.musicName">{{ song.musicName }}</span>
         </div>
         <span class="col-singer singer-name" :title="song.singerName">{{ song.singerName }}</span>
-        <span class="col-plays">{{ formatPlays(song.listenNumb) }}</span>
+        <span class="col-plays" v-if="activeTab === 'play'">{{ formatPlays(song.listenNumb) }}</span>
+        <span class="col-plays" v-else>{{ formatTime(song.createTime) }}</span>
         <span class="col-action">
           <button class="play-icon-btn" @click.stop="playSong(song)" title="播放">
             <el-icon><VideoPlay /></el-icon>
@@ -70,15 +85,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { TrophyBase, Headset, VideoPlay, Plus } from '@element-plus/icons-vue'
-import { rankSongsApi } from '@/api/music'
+import { ref, onMounted, computed } from 'vue'
+import { TrophyBase, Headset, VideoPlay, Plus, Clock } from '@element-plus/icons-vue'
+import { rankSongsApi, rankSongsByTimeApi } from '@/api/music'
 import { usePlayerStore } from '@/store/player'
 
 const playerStore = usePlayerStore()
 
 const loading = ref(true)
 const rankSongs = ref([])
+const activeTab = ref('play')
+
+const indicatorStyle = computed(() => {
+  return activeTab.value === 'play'
+    ? { transform: 'translateX(0)' }
+    : { transform: 'translateX(100%)' }
+})
+
+function switchTab(tab) {
+  activeTab.value = tab
+  loadData()
+}
 
 function playSong(song) {
   playerStore.playSong(song)
@@ -101,6 +128,15 @@ function formatPlays(num) {
   return num.toString()
 }
 
+function formatTime(time) {
+  if (!time) return '-'
+  const date = new Date(time)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 function handleImgError(e) {
   e.target.style.display = 'none'
 }
@@ -108,7 +144,8 @@ function handleImgError(e) {
 async function loadData() {
   loading.value = true
   try {
-    const res = await rankSongsApi(100)
+    const api = activeTab.value === 'play' ? rankSongsApi : rankSongsByTimeApi
+    const res = await api(100)
     rankSongs.value = res.data || []
   } catch (e) {
     console.error('加载排行数据失败:', e)
@@ -144,6 +181,50 @@ onMounted(() => {
     font-size: 14px;
     color: var(--st-ink-mute);
     margin-top: 4px;
+  }
+}
+
+/* Tab 切换 */
+.rank-tabs {
+  position: relative;
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  background: var(--st-canvas);
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--rounded-md);
+  overflow: hidden;
+  width: fit-content;
+
+  .tab-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--st-ink-mute);
+    cursor: pointer;
+    transition: color 200ms ease;
+    user-select: none;
+
+    &:hover {
+      color: var(--st-ink);
+    }
+
+    &.active {
+      color: var(--st-primary);
+    }
+  }
+
+  .tab-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 50%;
+    height: 2px;
+    background: var(--st-primary);
+    transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 

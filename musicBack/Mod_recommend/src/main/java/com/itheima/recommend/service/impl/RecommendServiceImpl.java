@@ -75,38 +75,42 @@ public class RecommendServiceImpl implements RecommendService {
     @Override
     public List<MusicVO> rankSongs(Integer limit) {
         int size = normalizeLimit(limit);
-        String cacheKey = "music:rank:" + size;
+        String cacheKey = "music:rank:play:" + size;
 
         List<MusicVO> cachedList = getCachedList(cacheKey, MusicVO.class);
         if (cachedList != null) {
             return cachedList;
         }
 
-        LocalDate sevenDaysAgo = LocalDate.now().minusDays(7);
-        // 30% 名额给近 7 天内审核通过的新歌（按创建时间倒序）
-        int newSongLimit = Math.max(1, size * 3 / 10);
-        List<Music> newSongs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+        List<Music> songs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
                 .eq(Music::getAuditStatus, 1)
                 .eq(Music::getActivation, 0)
-                .ge(Music::getCreateTime, sevenDaysAgo)
-                .orderByDesc(Music::getCreateTime)
-                .last("LIMIT " + newSongLimit));
-        Set<Integer> newSongIds = newSongs.stream()
-                .map(Music::getMusicId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        // 剩余名额按播放量降序补热门歌曲（排除上面已取的新歌避免重复）
-        int hotLimit = Math.max(0, size - newSongs.size());
-        List<Music> hotSongs = hotLimit > 0
-                ? musicMapper.selectList(new LambdaQueryWrapper<Music>()
-                    .eq(Music::getAuditStatus, 1)
-                    .eq(Music::getActivation, 0)
-                    .notIn(!newSongIds.isEmpty(), Music::getMusicId, newSongIds)
-                    .orderByDesc(Music::getListenNumb)
-                    .last("LIMIT " + hotLimit))
-                : List.of();
-        List<Music> songs = Stream.concat(newSongs.stream(), hotSongs.stream())
+                .orderByDesc(Music::getListenNumb)
+                .last("LIMIT " + size));
+
+        List<MusicVO> voList = songs.stream()
+                .map(this::toMusicVO)
                 .collect(Collectors.toList());
+
+        setCache(cacheKey, JSON.toJSONString(voList));
+        return voList;
+    }
+
+    @Override
+    public List<MusicVO> rankSongsByPlayTime(Integer limit) {
+        int size = normalizeLimit(limit);
+        String cacheKey = "music:rank:time:" + size;
+
+        List<MusicVO> cachedList = getCachedList(cacheKey, MusicVO.class);
+        if (cachedList != null) {
+            return cachedList;
+        }
+
+        List<Music> songs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getAuditStatus, 1)
+                .eq(Music::getActivation, 0)
+                .orderByDesc(Music::getCreateTime)
+                .last("LIMIT " + size));
 
         List<MusicVO> voList = songs.stream()
                 .map(this::toMusicVO)
@@ -404,6 +408,23 @@ public class RecommendServiceImpl implements RecommendService {
             vo.setSingerName(singer.getUsername());
         }
         return vo;
+    }
+
+    @Override
+    public void recordPlay(Integer musicId) {
+        if (musicId == null) {
+            return;
+        }
+        // 原子更新播放量 +1
+        int rows = musicMapper.update(null,
+                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Music>()
+                        .eq(Music::getMusicId, musicId)
+                        .setSql("listen_numb = listen_numb + 1"));
+        if (rows > 0) {
+            log.info("歌曲播放量 +1: musicId={}", musicId);
+            // 清除相关缓存
+            evictRecommendCache();
+        }
     }
 
     @Override
