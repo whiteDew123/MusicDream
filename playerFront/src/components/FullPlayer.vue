@@ -1,7 +1,7 @@
 <template>
   <div class="full-player" ref="playerRef">
-    <!-- 毛玻璃背景层 -->
-    <div class="player-bg-blur" v-if="currentSong?.imageUrl">
+    <!-- 毛玻璃背景层（使用 img 标签，与 DesktopSubtitle 一致） -->
+    <div class="player-bg-blur" v-if="currentSong?.imageUrl" :key="'bg-' + currentSong.musicId">
       <img :src="currentSong.imageUrl" alt="" />
     </div>
     <!-- 顶部栏 -->
@@ -21,6 +21,7 @@
       <div
         v-if="prevSong"
         class="song-card prev"
+        :key="'prev-' + prevSong.musicId"
         :style="prevCardStyle"
       >
         <div class="card-inner">
@@ -140,6 +141,7 @@
       <div
         v-if="nextSong"
         class="song-card next"
+        :key="'next-' + nextSong.musicId"
         :style="nextCardStyle"
       >
         <div class="card-inner">
@@ -559,7 +561,7 @@ const currentCardStyle = computed(() => {
 const prevCardStyle = computed(() => {
   let translateY = -window.innerHeight * 0.3
   let scale = 0.9
-  let opacity = 0.5
+  let opacity = 0
 
   if (dragY.value < 0) {
     const ratio = Math.min(Math.abs(dragY.value) / (window.innerHeight * 0.3), 1)
@@ -578,7 +580,7 @@ const prevCardStyle = computed(() => {
 const nextCardStyle = computed(() => {
   let translateY = window.innerHeight * 0.3
   let scale = 0.9
-  let opacity = 0.5
+  let opacity = 0
 
   if (dragY.value > 0) {
     const ratio = Math.min(dragY.value / (window.innerHeight * 0.3), 1)
@@ -893,7 +895,7 @@ onBeforeUnmount(() => {
 /* === 毛玻璃背景层 === */
 .player-bg-blur {
   position: absolute;
-  inset: -40px;
+  inset: 0;
   z-index: 0;
   overflow: hidden;
 
@@ -901,8 +903,9 @@ onBeforeUnmount(() => {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center;
     filter: blur(60px) saturate(1.5) brightness(0.6);
-    transform: scale(1.1);
+    transform: scale(1.2);
   }
 
   &::after {
@@ -910,6 +913,7 @@ onBeforeUnmount(() => {
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0.3);
+    z-index: 1;
   }
 }
 

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import { recordPlayApi } from '@/api/interaction'
 
 // 创建不经过 /api 前缀的 axios 实例，用于加载静态资源（如歌词文件）
 const resourceAxios = axios.create({
@@ -45,6 +46,9 @@ export const usePlayerStore = defineStore('player', () => {
   const currentSong = computed(() => {
     return currentIndex.value >= 0 ? playlist.value[currentIndex.value] : null
   })
+
+  // ===== 已记录播放量的歌曲 ID 集合（防止重复计数）=====
+  const playedIds = ref(new Set())
 
   // ===== 歌词解析 =====
   // 解析 LRC 格式歌词，返回 [{ time: 秒数, text: '歌词' }] 按时间升序
@@ -171,6 +175,8 @@ export const usePlayerStore = defineStore('player', () => {
       currentIndex.value =
         (currentIndex.value - 1 + playlist.value.length) % playlist.value.length
     }
+    // 切换歌曲后清除播放量记录，新歌可正常计数
+    playedIds.value.clear()
     loadAndPlay()
   }
 
@@ -183,6 +189,8 @@ export const usePlayerStore = defineStore('player', () => {
     } else {
       currentIndex.value = (currentIndex.value + 1) % playlist.value.length
     }
+    // 切换歌曲后清除播放量记录，新歌可正常计数
+    playedIds.value.clear()
     loadAndPlay()
   }
 
@@ -274,6 +282,14 @@ export const usePlayerStore = defineStore('player', () => {
     })
     audio.value.addEventListener('play', () => {
       playing.value = true
+      // 记录播放量（首次播放时计数，暂停恢复不重复）
+      const musicId = currentSong.value?.musicId
+      if (musicId && !playedIds.value.has(musicId)) {
+        playedIds.value.add(musicId)
+        recordPlayApi(musicId).catch(() => {
+          // 静默失败，不影响播放
+        })
+      }
     })
     audio.value.addEventListener('pause', () => {
       playing.value = false

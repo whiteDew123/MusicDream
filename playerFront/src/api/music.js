@@ -19,11 +19,21 @@ export function recommendSongsApi(params) {
   })
 }
 
-// 歌曲排行
+// 歌曲排行（按播放量）
 // GET /api/music/rank?limit=
 export function rankSongsApi(limit = 10) {
   return request({
     url: '/music/rank',
+    method: 'get',
+    params: { limit }
+  })
+}
+
+// 歌曲排行（按发布时间）
+// GET /api/music/rank/play-time?limit=
+export function rankSongsByTimeApi(limit = 10) {
+  return request({
+    url: '/music/rank/play-time',
     method: 'get',
     params: { limit }
   })

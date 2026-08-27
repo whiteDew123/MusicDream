@@ -7,6 +7,7 @@ import com.itheima.recommend.vo.SongDetailVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,11 +34,19 @@ public class MusicController {
     }
 
     /**
-     * 歌曲排行
+     * 歌曲排行（按播放量）
      */
     @GetMapping("/rank")
     public Result<List<MusicVO>> rankSongs(@RequestParam(defaultValue = "10") Integer limit) {
         return Result.success(recommendService.rankSongs(limit));
+    }
+
+    /**
+     * 歌曲排行（按发布时间）
+     */
+    @GetMapping("/rank/play-time")
+    public Result<List<MusicVO>> rankSongsByPlayTime(@RequestParam(defaultValue = "10") Integer limit) {
+        return Result.success(recommendService.rankSongsByPlayTime(limit));
     }
 
     /**
@@ -57,5 +66,14 @@ public class MusicController {
     public Result<SongDetailVO> songDetail(@PathVariable Integer musicId) {
         SongDetailVO detail = recommendService.songDetail(musicId);
         return detail == null ? Result.error(404, "歌曲不存在") : Result.success(detail);
+    }
+
+    /**
+     * 记录播放量（+1）
+     */
+    @PostMapping("/{musicId}/play")
+    public Result<Void> recordPlay(@PathVariable Integer musicId) {
+        recommendService.recordPlay(musicId);
+        return Result.success();
     }
 }
