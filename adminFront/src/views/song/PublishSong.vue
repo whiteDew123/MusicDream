@@ -204,8 +204,8 @@ function beforeImgUpload(file) {
 function handleMusicFileSuccess(res) {
   formData.musicFile = res?.data?.fileUrl || res?.data?.url || res?.url || ''
   // 如果后端返回了时长，优先使用
-  if (res?.data?.timelength) {
-    formData.timelength = res.data.timelength
+  if (res?.data?.duration) {
+    formData.timelength = res.data.duration
   }
 }
 

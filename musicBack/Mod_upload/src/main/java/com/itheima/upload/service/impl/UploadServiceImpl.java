@@ -115,7 +115,7 @@ public class UploadServiceImpl implements UploadService {
             extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
         }
 
-        if (extension.isEmpty() || !Arrays.asList(allowedTypes).contains(extension)) {
+        if (extension.isEmpty() || !Arrays.asList(allowedTypes).contains(file.getContentType())) {
             throw new IllegalArgumentException("不支持的文件类型，允许的类型: " + Arrays.toString(allowedTypes));
         }
 
