@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "推荐",
+  "usingComponents": {
+    "mini-player": "../../components/mini-player/mini-player",
+    "empty-state": "../../components/empty-state/empty-state"
+  }
+}

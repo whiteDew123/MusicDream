@@ -1,0 +1,16 @@
+<view class="register-page">
+  <view class="form-card">
+    <view class="input-group">
+      <input class="input" placeholder="用户名" placeholder-class="input-ph" value="{{username}}" data-field="username" bindinput="onField" />
+      <input class="input" placeholder="邮箱" placeholder-class="input-ph" value="{{email}}" data-field="email" bindinput="onField" />
+      <input class="input" type="password" placeholder="密码" placeholder-class="input-ph" value="{{password}}" data-field="password" bindinput="onField" />
+      <view class="code-row">
+        <input class="input code-input" placeholder="邮箱验证码" placeholder-class="input-ph" value="{{emailCode}}" data-field="emailCode" bindinput="onField" />
+        <button class="code-btn" binderror="noop" catchtap="onSendCode" disabled="{{countdown > 0}}">
+          {{ countdown > 0 ? countdown + 's' : (sending ? '发送中' : '获取验证码') }}
+        </button>
+      </view>
+    </view>
+    <button class="btn-primary" loading="{{loading}}" bindtap="onRegister">注 册</button>
+  </view>
+</view>

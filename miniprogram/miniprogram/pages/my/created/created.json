@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "创建的歌单",
+  "usingComponents": {
+    "empty-state": "../../../components/empty-state/empty-state",
+    "mini-player": "../../../components/mini-player/mini-player"
+  }
+}
