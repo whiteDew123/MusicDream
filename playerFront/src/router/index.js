@@ -88,6 +88,13 @@ const routes = [
         meta: { title: '歌单详情' }
       },
       {
+        // 一起听·播放室 房间列表
+        path: 'rooms',
+        name: 'RoomList',
+        component: () => import('@/views/room/RoomListPage.vue'),
+        meta: { title: '播放室', icon: 'Headset' }
+      },
+      {
         // 我的（分组，redirect 到第一个子项，无 component）
         path: 'my',
         redirect: '/my/liked',
@@ -143,6 +150,20 @@ const routes = [
         meta: { title: '搜索', public: true }
       }
     ]
+  },
+  {
+    // 播放室主界面（沉浸式全屏，独立于主布局；需登录）
+    path: '/room/:id',
+    name: 'RoomDetail',
+    component: () => import('@/views/room/RoomDetail.vue'),
+    meta: { title: '播放室' }
+  },
+  {
+    // 邀请落地页（公开，未登录也可查看房间信息）
+    path: '/invite/:code',
+    name: 'InviteLanding',
+    component: () => import('@/views/room/InviteLanding.vue'),
+    meta: { title: '邀请加入', public: true }
   },
   {
     path: '/:pathMatch(.*)*',
