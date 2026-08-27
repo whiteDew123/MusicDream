@@ -28,39 +28,61 @@
       <!-- 左：播放器区 -->
       <section class="player-panel">
         <div class="player-card">
-          <div class="album-cover" :style="{ background: coverBg }">
-            <img v-if="currentSongCover" :src="currentSongCover" :alt="currentSongName" />
-            <span v-else class="album-symbol">♪</span>
-            <div class="glow"></div>
+          <div class="player-main">
+            <div class="album-cover" :style="{ background: coverBg }">
+              <img v-if="currentSongCover" :src="currentSongCover" :alt="currentSongName" />
+              <span v-else class="album-symbol">♪</span>
+              <div class="glow"></div>
+            </div>
+            <div class="player-info">
+              <div class="now-title">{{ currentSongName }}</div>
+              <div class="now-sub">
+                {{ syncState.isPlaying === 1 ? '播放中' : '空闲' }}
+                <span class="dot">·</span>
+                <span>{{ connected ? '实时同步已连接' : '连接中…' }}</span>
+              </div>
+              <div class="player-controls">
+                <el-button v-if="isOwner" class="play-btn" round :disabled="!syncState.musicId && playlist.length === 0" @click="toggleRoomPlay">
+                  <el-icon><VideoPlay /></el-icon>
+                  {{ roomPlaying ? '暂停' : '开始播放' }}
+                </el-button>
+                <el-button class="skip-btn" round :disabled="!syncState.musicId || myVoted" @click="onInitiateSkip">
+                  <el-icon><RefreshRight /></el-icon>
+                  发起切歌
+                </el-button>
+                <el-button class="skip-btn" round :disabled="!syncState.musicId || myVoted" @click="onAgreeVote">
+                  <el-icon><Select /></el-icon>
+                  附议
+                </el-button>
+              </div>
+              <div v-if="voteState.active" class="vote-status">
+                <span class="vote-label">切歌投票</span>
+                <span class="vote-num">{{ voteState.agreeCount }}/{{ voteState.required }}</span>
+                <span class="vote-remain">剩 {{ voteState.remaining }}s</span>
+                <span v-if="myVoted" class="vote-done">已投票</span>
+              </div>
+              <p class="sync-hint">{{ isOwner ? '你正在主持播放，进度每 5s 同步一次' : '房主播放会自动同步给所有成员，误差 &lt; 2s' }}</p>
+            </div>
           </div>
-          <div class="player-info">
-            <div class="now-title">{{ currentSongName }}</div>
-            <div class="now-sub">
-              {{ syncState.isPlaying === 1 ? '播放中' : '空闲' }}
-              <span class="dot">·</span>
-              <span>{{ connected ? '实时同步已连接' : '连接中…' }}</span>
+          <!-- 歌词（对标 FullPlayer：当前行居中高亮 + 上下渐隐 + 点击定位 + 滚轮手动偏移）-->
+          <div class="lyrics-panel">
+            <div class="lyrics-head">
+              <el-icon><Document /></el-icon>
+              歌词
             </div>
-            <div class="player-controls">
-              <el-button v-if="isOwner" class="play-btn" round :disabled="!syncState.musicId && playlist.length === 0" @click="toggleRoomPlay">
-                <el-icon><VideoPlay /></el-icon>
-                {{ roomPlaying ? '暂停' : '开始播放' }}
-              </el-button>
-              <el-button class="skip-btn" round :disabled="!syncState.musicId || myVoted" @click="onInitiateSkip">
-                <el-icon><RefreshRight /></el-icon>
-                发起切歌
-              </el-button>
-              <el-button class="skip-btn" round :disabled="!syncState.musicId || myVoted" @click="onAgreeVote">
-                <el-icon><Select /></el-icon>
-                附议
-              </el-button>
+            <div class="lyrics-view" @wheel.prevent="handleLyricWheel">
+              <div
+                v-for="line in visibleRoomLyrics"
+                :key="line.index"
+                class="room-lyric-line"
+                :class="{ active: line.offset === 0 }"
+                :style="getRoomLyricStyle(line)"
+                @click="seekToRoomLyric(line)"
+              >
+                {{ line.text || '♪' }}
+              </div>
+              <div v-if="!roomLyrics.length" class="no-room-lyrics">纯音乐，请欣赏 ♪</div>
             </div>
-            <div v-if="voteState.active" class="vote-status">
-              <span class="vote-label">切歌投票</span>
-              <span class="vote-num">{{ voteState.agreeCount }}/{{ voteState.required }}</span>
-              <span class="vote-remain">剩 {{ voteState.remaining }}s</span>
-              <span v-if="myVoted" class="vote-done">已投票</span>
-            </div>
-            <p class="sync-hint">{{ isOwner ? '你正在主持播放，进度每 5s 同步一次' : '房主播放会自动同步给所有成员，误差 &lt; 2s' }}</p>
           </div>
           <div v-if="!isOwner && !audioUnlocked" class="unlock-mask" @click="unlockAudio">
             <el-icon><VideoPlay /></el-icon>
@@ -192,12 +214,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Link, UserFilled, VideoPlay, RefreshRight, ChatDotRound,
-  List, Plus, Close, Headset, User, Search, Select
+  List, Plus, Close, Headset, User, Search, Select, Document
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { getToken } from '@/utils/auth'
@@ -207,6 +229,7 @@ import {
 } from '@/api/room'
 import { searchSongsApi } from '@/api/music'
 import { createRoomSocket } from '@/utils/room-socket'
+import { parseLrc, fetchLrc } from '@/utils/lrc'
 
 const route = useRoute()
 const router = useRouter()
@@ -249,6 +272,14 @@ const audioUnlocked = ref(false)
 const voteState = reactive({ musicId: null, votes: 0, agreeCount: 0, required: 0, remaining: 0, active: false })
 const myVoted = ref(false)
 
+// ===== 歌词（对标 FullPlayer，但使用 Stripe 亮色基调）=====
+const roomLyrics = ref([])
+const currentLyricIndex = ref(-1)
+const lyricManualOffset = ref(0)
+const LYRIC_LINE_HEIGHT = 44
+const LYRIC_HALF = 8
+let lyricAutoResetTimer = null
+
 const currentSongName = computed(() => {
   const s = playlist.value.find((x) => x.musicId === syncState.musicId)
   if (s) return s.musicName
@@ -259,10 +290,27 @@ const currentSongCover = computed(() => {
   return s ? s.cover : room.value?.currentMusicCover
 })
 const roomPlaying = computed(() => syncState.isPlaying === 1)
+const currentRoomSong = computed(() => playlist.value.find((x) => x.musicId === syncState.musicId))
+
+// ===== 歌词窗口（当前行 ± LYRIC_HALF，支持滚轮手动偏移，2s 后回位）=====
+const visibleRoomLyrics = computed(() => {
+  const idx = currentLyricIndex.value
+  if (!roomLyrics.value.length || idx < 0) return []
+  const baseCenter = idx + lyricManualOffset.value
+  const start = Math.max(0, baseCenter - LYRIC_HALF)
+  const end = Math.min(roomLyrics.value.length, baseCenter + LYRIC_HALF + 1)
+  const result = []
+  for (let i = start; i < end; i++) {
+    result.push({ ...roomLyrics.value[i], index: i, offset: i - baseCenter })
+  }
+  return result
+})
 
 onMounted(async () => {
   await loadRoom()
   await loadPlaylist()
+  // 歌单就绪后补齐当前歌曲歌词（避免 watch 在歌单为空时错过初始歌曲）
+  loadRoomLyrics(currentRoomSong.value)
   initRoomAudio()
   // 成员端：应用 REST 返回的初始播放状态，不等 WS 首条推送
   if (!isOwner.value && syncState.musicId) {
@@ -284,6 +332,7 @@ onMounted(async () => {
 onUnmounted(() => {
   if (socket) socket.disconnect()
   stopVoteTicker()
+  if (lyricAutoResetTimer) clearTimeout(lyricAutoResetTimer)
   if (roomAudio) {
     roomAudio.pause()
     roomAudio.removeAttribute('src')
@@ -389,6 +438,8 @@ function initRoomAudio() {
     if (isOwner.value) publishSync({ isPlaying: 0 })
   })
   roomAudio.addEventListener('timeupdate', () => {
+    // 歌词跟随（成员也随本地校准后的 currentTime 走）
+    updateLyricIndex()
     if (isOwner.value) maybePublishProgress()
   })
   roomAudio.addEventListener('ended', () => {
@@ -399,6 +450,75 @@ function initRoomAudio() {
     ElMessage.error('歌曲加载失败，请确认音频可访问：' + (roomAudio.src || ''))
   })
 }
+
+// ===== 歌词加载与跟随（对标 FullPlayer：自动滚动 + 当前行居中高亮）=====
+async function loadRoomLyrics(song) {
+  if (!song || !song.lyric) {
+    roomLyrics.value = []
+    currentLyricIndex.value = -1
+    return
+  }
+  try {
+    const text = await fetchLrc(song.lyric)
+    roomLyrics.value = parseLrc(text)
+    currentLyricIndex.value = -1
+    lyricManualOffset.value = 0
+  } catch (e) {
+    roomLyrics.value = []
+    currentLyricIndex.value = -1
+  }
+}
+
+// 依据当前播放进度计算高亮歌词行（最后一个 time <= currentTime 的行）
+function updateLyricIndex() {
+  if (!roomLyrics.value.length || !roomAudio) return
+  const t = roomAudio.currentTime || 0
+  let idx = -1
+  for (let i = 0; i < roomLyrics.value.length; i++) {
+    if (roomLyrics.value[i].time <= t) idx = i
+    else break
+  }
+  currentLyricIndex.value = idx
+}
+
+// 点击歌词行定位
+function seekToRoomLyric(line) {
+  if (line.time == null || !roomAudio) return
+  roomAudio.currentTime = line.time
+  lyricManualOffset.value = 0
+  if (isOwner.value) publishSync({ progress: line.time })
+}
+
+// 滚轮手动偏移歌词，2s 后自动回位
+function handleLyricWheel(e) {
+  e.preventDefault()
+  const delta = e.deltaY > 0 ? 1 : -1
+  lyricManualOffset.value += delta
+  const idx = currentLyricIndex.value
+  const maxOffset = roomLyrics.value.length - 1 - idx
+  const minOffset = -idx
+  lyricManualOffset.value = Math.max(minOffset, Math.min(maxOffset, lyricManualOffset.value))
+  if (lyricAutoResetTimer) clearTimeout(lyricAutoResetTimer)
+  lyricAutoResetTimer = setTimeout(() => { lyricManualOffset.value = 0 }, 2000)
+}
+
+function getRoomLyricStyle(line) {
+  const isActive = line.offset === 0
+  return {
+    transform: `translateY(${line.offset * LYRIC_LINE_HEIGHT}px)`,
+    fontSize: isActive ? '22px' : '15px',
+    color: isActive ? 'var(--st-primary)' : 'var(--st-ink-mute)'
+  }
+}
+
+// 切歌时重新加载歌词
+watch(
+  () => syncState.musicId,
+  (id) => {
+    const song = playlist.value.find((x) => x.musicId === id)
+    loadRoomLyrics(song)
+  }
+)
 
 // 成员端：点击解锁自动播放权限（浏览器 autoplay 限制需要一次用户手势）
 function unlockAudio() {
@@ -421,6 +541,7 @@ function connectRoomSocket() {
           loadRoom()
           loadPlaylist()
           loadMessages(true) // 只补漏，避免重复
+          loadRoomLyrics(currentRoomSong.value)
         }
         hasConnectedOnce = true
       }
@@ -446,11 +567,7 @@ function connectRoomSocket() {
       scrollChat()
       // 注意：不能按"内容=被移出房间"来判定"我被踢"——该系统消息是广播给全房间的（无目标人），
       // 否则房主踢人时房主自己也会被当成被踢而跳走。被踢判定改用 onMembers（自己不在成员列表才被踢）。
-      // 房间已关闭 → 跳转大厅
-      if (msg.type === 2 && msg.content === '房间已关闭') {
-        ElMessage.info('房间已关闭')
-        router.replace('/rooms')
-      }
+      // 房间关闭的提示/跳转统一由 /closed 主题（onClosed）处理，避免与 onMessage 重复弹两条。
     },
     onVote: (payload) => handleVote(payload),
     onPlaylist: (list) => {
@@ -464,6 +581,8 @@ function connectRoomSocket() {
       }
     },
     onClosed: () => {
+      // 房主主动关闭：closeRoom() 已弹绿色"房间已关闭"并跳转，此处跳过避免重复提示
+      if (isOwner.value) return
       ElMessage.info('房间已关闭')
       router.push('/rooms')
     }
@@ -809,12 +928,36 @@ function goBack() {
   flex: 1;
   display: flex;
   gap: 32px;
-  align-items: center;
+  align-items: stretch;
   background: var(--st-canvas);
   border: 1px solid var(--st-hairline);
   border-radius: var(--rounded-xl);
   padding: 32px;
   box-shadow: var(--shadow-1);
+  overflow: hidden;
+
+  /* Stripe 标志性的氛围渐变网格（克制、浅色） */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(50% 60% at 12% 18%, rgba(245, 233, 212, 0.5), transparent 60%),
+      radial-gradient(42% 52% at 88% 12%, rgba(249, 107, 238, 0.1), transparent 60%),
+      radial-gradient(48% 56% at 78% 76%, rgba(99, 65, 255, 0.1), transparent 62%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .player-main {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 32px;
+    align-items: center;
+  }
 
   .unlock-mask {
     position: absolute;
@@ -860,9 +1003,10 @@ function goBack() {
     flex: 1;
     min-width: 0;
     .now-title {
-      font-size: 24px;
+      font-size: 26px;
       font-weight: 300;
-      letter-spacing: -0.4px;
+      letter-spacing: -0.5px;
+      line-height: 1.12;
       color: var(--st-ink);
       margin-bottom: 8px;
     }
@@ -878,10 +1022,14 @@ function goBack() {
       .play-btn {
         height: 44px;
         padding: 0 24px;
+        transition: transform 350ms cubic-bezier(0.22, 1, 0.36, 1);
+        &:active { transform: scale(0.9); }
       }
       .skip-btn {
         height: 44px;
         padding: 0 20px;
+        transition: transform 200ms ease;
+        &:active { transform: scale(0.94); }
       }
     }
     .sync-hint {
@@ -907,6 +1055,82 @@ function goBack() {
         color: var(--st-primary);
       }
     }
+  }
+}
+
+/* 播放卡右侧：歌词（对标 FullPlayer 的居中高亮 + 上下渐隐）*/
+.lyrics-panel {
+  position: relative;
+  z-index: 1;
+  width: 44%;
+  max-width: 400px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-left: 1px solid var(--st-hairline);
+  padding-left: 32px;
+
+  .lyrics-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    letter-spacing: 0.4px;
+    color: var(--st-ink-mute);
+    margin-bottom: 12px;
+    font-feature-settings: 'tnum';
+    .el-icon { font-size: 13px; }
+  }
+
+  .lyrics-view {
+    position: relative;
+    height: 356px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.4) 12%,
+      rgba(0, 0, 0, 1) 26%,
+      rgba(0, 0, 0, 1) 74%,
+      rgba(0, 0, 0, 0.4) 88%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.4) 12%,
+      rgba(0, 0, 0, 1) 26%,
+      rgba(0, 0, 0, 1) 74%,
+      rgba(0, 0, 0, 0.4) 88%,
+      transparent 100%
+    );
+  }
+
+  .room-lyric-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    text-align: center;
+    padding: 0 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.02em;
+    line-height: 44px;
+    cursor: pointer;
+    transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1),
+      font-size 300ms ease,
+      color 200ms ease;
+  }
+
+  .no-room-lyrics {
+    color: var(--st-ink-mute);
+    font-size: 14px;
   }
 }
 

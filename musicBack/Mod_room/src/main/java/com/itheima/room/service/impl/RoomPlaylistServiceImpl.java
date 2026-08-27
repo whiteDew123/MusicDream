@@ -82,6 +82,7 @@ public class RoomPlaylistServiceImpl extends ServiceImpl<RoomPlaylistMapper, Roo
                 vo.setCover(music.getImageUrl());
                 vo.setDuration(music.getTimelength());
                 vo.setMusicUrl(music.getMusicUrl());
+                vo.setLyric(music.getLyric());
             }
             if (p.getAddedBy() != null) {
                 User u = userMap.get(p.getAddedBy().intValue());

@@ -26,6 +26,9 @@ public class RoomPlaylistItemVO {
     /** 播放地址（前端播放用） */
     private String musicUrl;
 
+    /** 歌词地址（LRC 文件 URL，前端加载解析） */
+    private String lyric;
+
     /** 添加者用户ID */
     private Long addedBy;
 
