@@ -1,0 +1,8 @@
+<view class="liked-page">
+  <view class="list">
+    <song-item wx:for="{{songs}}" wx:key="musicId" song="{{item}}" show-plays="{{false}}" />
+    <empty-state wx:if="{{!loading && !songs.length}}" text="还没有收藏的歌曲" />
+  </view>
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

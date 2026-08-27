@@ -1,0 +1,26 @@
+<view wx:if="{{song}}" class="mini-player" bindtap="onOpen">
+  <view class="progress-track">
+    <view class="progress-bar" style="width: {{progress}}%"></view>
+  </view>
+  <view class="mini-body">
+    <view class="cover">
+      <image wx:if="{{cover}}" class="cover-img" src="{{cover}}" mode="aspectFill" />
+      <view wx:else class="cover-fallback">♪</view>
+    </view>
+    <view class="info">
+      <text class="name ellipsis">{{song.musicName}}</text>
+      <text class="singer ellipsis">{{song.singerName}}</text>
+    </view>
+    <view class="controls">
+      <view class="ctrl" catchtap="onPrev">
+        <text class="glyph">⏮</text>
+      </view>
+      <view class="ctrl play" catchtap="onTogglePlay">
+        <text class="glyph">{{ playing ? '⏸' : '▶' }}</text>
+      </view>
+      <view class="ctrl" catchtap="onNext">
+        <text class="glyph">⏭</text>
+      </view>
+    </view>
+  </view>
+</view>

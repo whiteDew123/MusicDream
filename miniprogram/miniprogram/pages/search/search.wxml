@@ -1,0 +1,37 @@
+<view class="search-page">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-box">
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="搜索歌曲、歌手" placeholder-class="input-ph" value="{{keyword}}" confirm-type="search" bindinput="onInput" bindconfirm="onSearch" />
+      <view wx:if="{{keyword}}" class="clear-btn" bindtap="onClearInput">×</view>
+    </view>
+    <view class="search-btn" bindtap="onSearch">搜索</view>
+  </view>
+
+  <!-- 搜索历史 -->
+  <block wx:if="{{!searched && history.length}}">
+    <view class="history-header">
+      <text class="history-title">搜索历史</text>
+      <text class="history-clear" bindtap="clearHistory">清空</text>
+    </view>
+    <view class="history-wrap">
+      <view wx:for="{{history}}" wx:key="*this" class="history-chip" data-kw="{{item}}" bindtap="onHistory">{{item}}</view>
+    </view>
+  </block>
+
+  <!-- 搜索结果 -->
+  <block wx:if="{{searched}}">
+    <view class="result-header" wx:if="{{!loading}}">
+      <text class="result-title">搜索结果 ({{results.length}})</text>
+    </view>
+    <view class="skeleton result-skeleton" wx:if="{{loading}}"></view>
+    <view wx:else class="result-list">
+      <song-item wx:for="{{results}}" wx:key="musicId" song="{{item}}" />
+      <empty-state wx:if="{{!results.length}}" text="未找到相关歌曲" />
+    </view>
+  </block>
+
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

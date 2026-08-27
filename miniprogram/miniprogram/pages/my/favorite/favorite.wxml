@@ -1,0 +1,13 @@
+<view class="favorite-page">
+  <view class="grid">
+    <view wx:for="{{lists}}" wx:key="listId" class="playlist-card" data-id="{{item.listId}}" bindtap="onPlaylistTap">
+      <image wx:if="{{item.listPic}}" class="playlist-cover" src="{{item.listPic}}" mode="aspectFill" lazy-load />
+      <view wx:else class="playlist-cover fallback">♪</view>
+      <view class="playlist-name clamp-2">{{item.listName}}</view>
+      <view class="playlist-author">{{item.username}}</view>
+    </view>
+    <empty-state wx:if="{{!loading && !lists.length}}" text="还没有收藏的歌单" />
+  </view>
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

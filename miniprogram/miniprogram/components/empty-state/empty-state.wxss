@@ -1,0 +1,16 @@
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 32rpx;
+  color: var(--text-muted);
+}
+.empty-icon {
+  font-size: 96rpx;
+  margin-bottom: 20rpx;
+  opacity: 0.5;
+}
+.empty-text {
+  font-size: 26rpx;
+}

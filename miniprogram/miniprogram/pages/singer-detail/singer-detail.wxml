@@ -1,0 +1,23 @@
+<view class="singer-detail" wx:if="{{artist}}">
+  <!-- 歌手头部 -->
+  <view class="artist-head">
+    <image wx:if="{{artist.imageUrl}}" class="artist-avatar" src="{{artist.imageUrl}}" mode="aspectFill" />
+    <view wx:else class="artist-avatar fallback">🎤</view>
+    <view class="artist-head-info">
+      <view class="artist-name">{{artist.username}}</view>
+      <view class="artist-stats">{{artist.songCount || 0}} 首歌曲 · {{artist.totalListen || 0}} 次播放</view>
+    </view>
+  </view>
+
+  <view wx:if="{{artist.about}}" class="about-card">{{artist.about}}</view>
+
+  <!-- 歌曲列表 -->
+  <view class="section-title">歌曲</view>
+  <view class="list">
+    <song-item wx:for="{{songs}}" wx:key="musicId" song="{{item}}" show-plays="{{true}}" />
+    <empty-state wx:if="{{!songs.length}}" text="暂无歌曲" />
+  </view>
+
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>
