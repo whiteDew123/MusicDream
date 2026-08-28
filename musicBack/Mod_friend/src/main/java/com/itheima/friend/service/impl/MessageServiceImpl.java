@@ -54,8 +54,15 @@ public class MessageServiceImpl implements MessageService {
         // 确保双向会话存在（顺便校验好友关系）
         conversationService.ensureConversations(senderId, receiverId);
 
+        // 拿发送方方向的会话ID关联消息（A→B 会话）
+        FriendConversation senderConv = conversationMapper.selectByUserAndFriend(senderId, receiverId);
+        if (senderConv == null) {
+            throw new RuntimeException("会话创建失败");
+        }
+
         // 写消息
         FriendMessage msg = new FriendMessage();
+        msg.setConversationId(senderConv.getId());
         msg.setSenderId(senderId);
         msg.setReceiverId(receiverId);
         msg.setContent(content);
@@ -80,17 +87,13 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public List<FriendMessage> getHistory(Integer userId, Integer friendId, Long before, Integer size) {
-        // 确保会话存在
+        // 确保会话存在（顺带校验好友关系）
         conversationService.ensureConversations(userId, friendId);
-
-        FriendConversation conv = conversationMapper.selectByUserAndFriend(userId, friendId);
-        if (conv == null) {
-            throw new RuntimeException("会话不存在");
-        }
 
         int pageSize = (size == null || size <= 0) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
 
-        List<FriendMessage> list = messageMapper.selectMessageHistory(conv.getId(), before, pageSize);
+        // 按用户对双向查询（不依赖 conversation_id，避免方向匹配问题）
+        List<FriendMessage> list = messageMapper.selectMessageHistory(userId, friendId, before, pageSize);
 
         // 倒序翻正：游标分页按 id DESC 拉取（最新在前），前端展示需要时间正序
         java.util.Collections.reverse(list);

@@ -18,36 +18,42 @@ import java.util.List;
 public interface FriendMessageMapper extends BaseMapper<FriendMessage> {
 
     /**
-     * 拉取历史消息（游标分页）
+     * 拉取历史消息（游标分页，按用户对双向查询）
      * <p>
-     * before 为 null 时拉最新一页；否则拉 id < before 的更早消息。
+     * 不再依赖 conversation_id，直接用 (sender_id, receiver_id) 双向匹配。
+     * 这样无论消息存的是哪个方向的会话 id，都能正确拉取。
      *
-     * @param conversationId 会话ID
-     * @param before        游标消息ID（null 表示第一页）
-     * @param size          每页数量
+     * @param userId   当前用户ID
+     * @param friendId 对方用户ID
+     * @param before   游标消息ID（null 表示第一页）
+     * @param size     每页数量
      */
     @Select("<script>" +
             "SELECT m.*, u.username AS sender_name, u.image_url AS sender_avatar " +
             "FROM friend_message m " +
             "LEFT JOIN user u ON m.sender_id = u.id " +
-            "WHERE m.conversation_id = #{conversationId} " +
+            "WHERE ((m.sender_id = #{userId} AND m.receiver_id = #{friendId}) " +
+            "   OR (m.sender_id = #{friendId} AND m.receiver_id = #{userId})) " +
             "<if test='before != null'>AND m.id &lt; #{before} </if>" +
             "ORDER BY m.id DESC " +
             "LIMIT #{size}" +
             "</script>")
-    List<FriendMessage> selectMessageHistory(@Param("conversationId") Long conversationId,
+    List<FriendMessage> selectMessageHistory(@Param("userId") Integer userId,
+                                             @Param("friendId") Integer friendId,
                                              @Param("before") Long before,
                                              @Param("size") Integer size);
 
     /**
-     * 简单按会话拉最新 N 条（用于 WebSocket 重连后补偿）
+     * 简单按用户对拉最新 N 条（用于 WebSocket 重连后补偿）
      */
     @Select("SELECT m.*, u.username AS sender_name, u.image_url AS sender_avatar " +
             "FROM friend_message m " +
             "LEFT JOIN user u ON m.sender_id = u.id " +
-            "WHERE m.conversation_id = #{conversationId} " +
+            "WHERE ((m.sender_id = #{userId} AND m.receiver_id = #{friendId}) " +
+            "   OR (m.sender_id = #{friendId} AND m.receiver_id = #{userId})) " +
             "ORDER BY m.id DESC LIMIT #{size}")
-    List<FriendMessage> selectLatestMessages(@Param("conversationId") Long conversationId,
+    List<FriendMessage> selectLatestMessages(@Param("userId") Integer userId,
+                                             @Param("friendId") Integer friendId,
                                              @Param("size") Integer size);
 
     /**
