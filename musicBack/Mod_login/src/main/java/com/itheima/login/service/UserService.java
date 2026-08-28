@@ -37,4 +37,9 @@ public interface UserService {
      * 根据 ID 查询用户（密码字段置空）。
      */
     User getById(Integer userId);
+
+    /**
+     * 更新用户资料（选择性更新 email / phone / about / imageUrl 字段）。
+     */
+    void updateUser(User user);
 }

@@ -48,6 +48,15 @@ export function songDetailApi(musicId) {
   })
 }
 
+// 播放量递增（前端在真正开始播放时调用）
+// POST /api/music/play/{musicId}
+export function incrementPlayApi(musicId) {
+  return request({
+    url: `/music/play/${musicId}`,
+    method: 'post'
+  })
+}
+
 // ===== 歌手相关 =====
 
 // 推荐歌手

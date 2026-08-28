@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import { incrementPlayApi } from '@/api/music'
 
 // 创建不经过 /api 前缀的 axios 实例，用于加载静态资源（如歌词文件）
 const resourceAxios = axios.create({
@@ -17,6 +18,9 @@ export const usePlayerStore = defineStore('player', () => {
   if (audio.value) {
     audio.value.preload = 'auto'
   }
+
+  // ===== 播放量上报防抖：同一首歌只上报一次 =====
+  let lastPlayReportedId = null
 
   // ===== 播放列表 =====
   const playlist = ref([])
@@ -274,6 +278,12 @@ export const usePlayerStore = defineStore('player', () => {
     })
     audio.value.addEventListener('play', () => {
       playing.value = true
+      // 播放量递增：同一首歌在当前会话内只上报一次（防 pause/play 反复触发）
+      const songId = currentSong.value?.musicId
+      if (songId && lastPlayReportedId !== songId) {
+        lastPlayReportedId = songId
+        incrementPlayApi(songId).catch(() => {})
+      }
     })
     audio.value.addEventListener('pause', () => {
       playing.value = false

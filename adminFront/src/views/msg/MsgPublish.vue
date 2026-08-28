@@ -37,6 +37,25 @@
           />
         </el-form-item>
 
+        <el-form-item label="发送范围">
+          <div class="scope-switch">
+            <el-switch
+              v-model="formData.broadcast"
+              active-text="全体用户（广播）"
+              inactive-text="指定用户（点对点）"
+              inline-prompt
+            />
+            <el-input
+              v-if="!formData.broadcast"
+              v-model.number="formData.userId"
+              type="number"
+              placeholder="输入接收用户 ID"
+              style="width: 200px; margin-left: 16px"
+              clearable
+            />
+          </div>
+        </el-form-item>
+
         <el-form-item>
           <el-button type="primary" :loading="submitting" @click="handleSubmit">
             {{ submitting ? '发布中…' : '发布消息' }}
@@ -60,7 +79,9 @@ const submitting = ref(false)
 
 const formData = reactive({
   title: '',
-  msg: ''
+  msg: '',
+  broadcast: true,
+  userId: null
 })
 
 const formRules = {
@@ -78,14 +99,22 @@ async function handleSubmit() {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
     if (!valid) return
+    if (!formData.broadcast && !formData.userId) {
+      ElMessage.warning('点对点消息必须指定接收用户 ID')
+      return
+    }
     submitting.value = true
     try {
-      await publishMsg({
+      const payload = {
         title: formData.title,
-        userId: userStore.userInfo.userId,
-        msg: formData.msg
-      })
-      ElMessage.success('消息发布成功')
+        msg: formData.msg,
+        broadcast: formData.broadcast
+      }
+      if (!formData.broadcast) {
+        payload.userId = formData.userId
+      }
+      await publishMsg(payload)
+      ElMessage.success(formData.broadcast ? '广播发布成功' : '消息已发送')
       handleReset()
     } catch {
       ElMessage.error('消息发布失败，请重试')

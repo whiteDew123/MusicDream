@@ -86,13 +86,16 @@ public class UserServiceImpl implements UserService {
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
 
-        return new LoginResponse(
-                token,
-                user.getId(),
-                user.getUsername(),
-                user.getRole(),
-                user.getImageUrl()
-        );
+        LoginResponse resp = new LoginResponse();
+        resp.setToken(token);
+        resp.setUserId(user.getId());
+        resp.setUsername(user.getUsername());
+        resp.setRole(user.getRole());
+        resp.setImageUrl(user.getImageUrl());
+        resp.setEmail(user.getEmail());
+        resp.setPhone(user.getPhone());
+        resp.setAbout(user.getAbout());
+        return resp;
     }
 
     @Override
@@ -177,6 +180,11 @@ public class UserServiceImpl implements UserService {
             user.setPassword(null);
         }
         return user;
+    }
+
+    @Override
+    public void updateUser(User user) {
+        userMapper.updateById(user);
     }
 
     private void sendMail(String to, String code) {

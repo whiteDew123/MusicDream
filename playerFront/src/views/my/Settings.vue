@@ -16,18 +16,18 @@
       </div>
 
       <div class="avatar-row">
-        <div class="avatar-preview" @click="triggerAvatarSelect" title="点击更换头像">
+        <div class="avatar-preview" @click="avatarLoading || triggerAvatarSelect()" title="点击更换头像">
           <img v-if="avatarPreview" :src="avatarPreview" alt="头像" />
           <el-icon v-else class="avatar-fallback"><User /></el-icon>
           <div class="avatar-mask">
-            <el-icon><Camera /></el-icon>
+            <el-icon v-if="!avatarLoading"><Camera /></el-icon>
+            <el-icon v-else class="is-loading"><Loading /></el-icon>
           </div>
         </div>
         <div class="avatar-tip">
           <p class="tip-main">点击头像可重新选择</p>
-          <p class="tip-sub">头像上传功能将在后续版本支持</p>
+          <p class="tip-sub">支持 JPG / PNG，最大 2MB</p>
         </div>
-        <!-- 头像文件选择：仅本地预览，暂不上传 -->
         <input
           ref="avatarInputRef"
           type="file"
@@ -150,7 +150,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Setting,
@@ -158,14 +158,16 @@ import {
   Message,
   Phone,
   Lock,
-  Camera
+  Camera,
+  Loading
 } from '@element-plus/icons-vue'
-import { updateUserInfoApi, updatePasswordApi } from '@/api/setting'
+import { updatePasswordApi } from '@/api/setting'
+import { uploadImageApi } from '@/api/auth'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
 
-// 基本信息表单（从 userStore 初始化，字段不存在时兜底为空）
+// 基本信息表单（从 userStore 初始化，onMounted 时从后端拉完整数据回填）
 const baseFormRef = ref()
 const baseLoading = ref(false)
 const baseForm = reactive({
@@ -186,8 +188,8 @@ const baseRules = {
   ]
 }
 
-// 头像本地预览（按需求简化处理：暂不做文件上传）
 const avatarInputRef = ref(null)
+const avatarLoading = ref(false)
 const avatarPreview = ref(
   userStore.userInfo?.imageUrl || userStore.userInfo?.avatar || ''
 )
@@ -196,14 +198,41 @@ function triggerAvatarSelect() {
   avatarInputRef.value?.click()
 }
 
-function handleAvatarChange(e) {
+async function handleAvatarChange(e) {
   const file = e.target.files?.[0]
   if (!file) return
-  // 仅本地预览，不调用上传接口
-  avatarPreview.value = URL.createObjectURL(file)
-  ElMessage.info('头像修改将在后续版本支持上传')
-  // 清空 input，便于重复选择同一文件
-  e.target.value = ''
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning('请选择图片文件')
+    e.target.value = ''
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.warning('图片不能超过 2MB')
+    e.target.value = ''
+    return
+  }
+
+  const blobUrl = URL.createObjectURL(file)
+  avatarLoading.value = true
+  avatarPreview.value = blobUrl
+  try {
+    const res = await uploadImageApi(file)
+    const fileUrl = (res.data?.fileUrl || res.data || '').toString().trim()
+    if (!fileUrl) throw new Error('上传响应缺少 fileUrl')
+
+    await userStore.updateProfile({ imageUrl: fileUrl })
+
+    URL.revokeObjectURL(blobUrl)
+    avatarPreview.value = fileUrl
+    ElMessage.success('头像更新成功')
+  } catch (err) {
+    URL.revokeObjectURL(blobUrl)
+    avatarPreview.value = userStore.userInfo?.imageUrl || ''
+    ElMessage.error('头像上传失败，请重试')
+  } finally {
+    avatarLoading.value = false
+    e.target.value = ''
+  }
 }
 
 // 保存基本信息
@@ -218,20 +247,11 @@ async function handleSaveBase() {
     }
     baseLoading.value = true
     try {
-      await updateUserInfoApi(userId, {
-        username: baseForm.username,
+      await userStore.updateProfile({
         email: baseForm.email,
         phone: baseForm.phone,
         about: baseForm.about
       })
-      // 同步更新 userStore
-      userStore.userInfo = {
-        ...userStore.userInfo,
-        username: baseForm.username,
-        email: baseForm.email,
-        phone: baseForm.phone,
-        about: baseForm.about
-      }
       ElMessage.success('保存成功')
     } catch (e) {
       // 错误提示已由请求拦截器统一处理
@@ -298,6 +318,20 @@ async function handleChangePassword() {
     }
   })
 }
+
+// 组件挂载时从后端拉取完整用户资料回填表单（登录态可能只有部分字段）
+onMounted(async () => {
+  try {
+    const full = await userStore.fetchCurrentUser()
+    baseForm.username = full.username || ''
+    baseForm.email = full.email || ''
+    baseForm.phone = full.phone || ''
+    baseForm.about = full.about || ''
+    avatarPreview.value = full.imageUrl || ''
+  } catch (e) {
+    // 401 等会被拦截器处理
+  }
+})
 </script>
 
 <style scoped lang="scss">

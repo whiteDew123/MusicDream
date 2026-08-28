@@ -28,37 +28,49 @@ public class UploadServiceImpl implements UploadService {
 
     private static final Logger log = LoggerFactory.getLogger(UploadServiceImpl.class);
 
-    @Value("${upload.image.allowed-types}")
-    private String[] imageAllowedTypes;
+    @Value("${upload.image.allowed-extensions}")
+    private String[] imageAllowedExtensions;
+
+    @Value("${upload.image.allowed-mime-types}")
+    private String[] imageAllowedMimeTypes;
 
     @Value("${upload.image.max-size}")
     private long imageMaxSize;
 
-    @Value("${upload.lrc.allowed-types}")
-    private String[] lrcAllowedTypes;
+    @Value("${upload.lrc.allowed-extensions}")
+    private String[] lrcAllowedExtensions;
+
+    @Value("${upload.lrc.allowed-mime-types}")
+    private String[] lrcAllowedMimeTypes;
 
     @Value("${upload.lrc.max-size}")
     private long lrcMaxSize;
 
-    @Value("${upload.music.allowed-types}")
-    private String[] musicAllowedTypes;
+    @Value("${upload.music.allowed-extensions}")
+    private String[] musicAllowedExtensions;
+
+    @Value("${upload.music.allowed-mime-types}")
+    private String[] musicAllowedMimeTypes;
 
     @Value("${upload.music.max-size}")
     private long musicMaxSize;
 
     @Override
     public UploadResult uploadImage(MultipartFile file) {
-        return uploadFile(file, ResourcePathResolver.resolveDir(ResourcePathResolver.IMAGE), imageAllowedTypes, imageMaxSize, "image");
+        return uploadFile(file, ResourcePathResolver.resolveDir(ResourcePathResolver.IMAGE),
+                imageAllowedExtensions, imageAllowedMimeTypes, imageMaxSize, "image");
     }
 
     @Override
     public UploadResult uploadLrc(MultipartFile file) {
-        return uploadFile(file, ResourcePathResolver.resolveDir(ResourcePathResolver.LRC), lrcAllowedTypes, lrcMaxSize, "lrc");
+        return uploadFile(file, ResourcePathResolver.resolveDir(ResourcePathResolver.LRC),
+                lrcAllowedExtensions, lrcAllowedMimeTypes, lrcMaxSize, "lrc");
     }
 
     @Override
     public UploadResult uploadMusic(MultipartFile file) {
-        return uploadFile(file, ResourcePathResolver.resolveDir(ResourcePathResolver.MUSIC), musicAllowedTypes, musicMaxSize, "music");
+        return uploadFile(file, ResourcePathResolver.resolveDir(ResourcePathResolver.MUSIC),
+                musicAllowedExtensions, musicAllowedMimeTypes, musicMaxSize, "music");
     }
 
     @Override
@@ -94,7 +106,9 @@ public class UploadServiceImpl implements UploadService {
         }
     }
 
-    private UploadResult uploadFile(MultipartFile file, String basePath, String[] allowedTypes, long maxSize, String fileType) {
+    private UploadResult uploadFile(MultipartFile file, String basePath,
+                                     String[] allowedExtensions, String[] allowedMimeTypes,
+                                     long maxSize, String fileType) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("上传文件不能为空");
         }
@@ -115,8 +129,16 @@ public class UploadServiceImpl implements UploadService {
             extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
         }
 
-        if (extension.isEmpty() || !Arrays.asList(allowedTypes).contains(extension)) {
-            throw new IllegalArgumentException("不支持的文件类型，允许的类型: " + Arrays.toString(allowedTypes));
+        String contentType = file.getContentType() != null ? file.getContentType().toLowerCase() : "";
+
+        // 双保险校验：扩展名白名单 OR MIME type 白名单，任一命中即通过
+        boolean extOk = !extension.isEmpty() && Arrays.asList(allowedExtensions).contains(extension);
+        boolean mimeOk = !contentType.isEmpty() && Arrays.asList(allowedMimeTypes).contains(contentType);
+
+        if (!extOk && !mimeOk) {
+            throw new IllegalArgumentException("不支持的文件类型，允许扩展名: "
+                    + Arrays.toString(allowedExtensions)
+                    + "，允许MIME: " + Arrays.toString(allowedMimeTypes));
         }
 
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));

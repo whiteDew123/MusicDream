@@ -36,3 +36,37 @@ export function sendEmailCodeApi(email) {
     params: { email }
   })
 }
+
+// 获取当前登录用户完整资料
+// GET /api/login/current
+// 从 X-User-Id 头解析身份
+export function getCurrentUserApi() {
+  return request({
+    url: '/login/current',
+    method: 'get'
+  })
+}
+
+// 更新当前用户资料（email / phone / about / imageUrl）
+// PUT /api/login/update
+export function updateUserApi(data) {
+  return request({
+    url: '/login/update',
+    method: 'put',
+    data
+  })
+}
+
+// 上传用户头像
+// POST /api/upload/image
+// body: FormData { file }
+export function uploadImageApi(file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return request({
+    url: '/upload/image',
+    method: 'post',
+    data: fd,
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}

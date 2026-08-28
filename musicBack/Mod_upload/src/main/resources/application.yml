@@ -5,7 +5,7 @@
 # ============================================================
 
 server:
-  port: 8012
+  port: 8005
 
 spring:
   application:
@@ -16,7 +16,7 @@ spring:
         server-addr: localhost:8848
         namespace: public
         username: nacos
-        password: ${NACOS_PASSWORD:8ECJshugKVQP}
+        password: nacos
   servlet:
     multipart:
       max-file-size: 50MB
@@ -25,15 +25,18 @@ spring:
 upload:
   image:
     path: ../resource/image/
-    allowed-types: image/jpeg,image/png,image/gif,image/webp
+    allowed-extensions: jpg,jpeg,png,gif,webp
+    allowed-mime-types: image/jpeg,image/png,image/gif,image/webp
     max-size: 5242880
   lrc:
     path: ../resource/lrc/
-    allowed-types: text/plain,application/octet-stream
+    allowed-extensions: lrc,txt
+    allowed-mime-types: text/plain,application/octet-stream
     max-size: 1048576
   music:
     path: ../resource/music/
-    allowed-types: audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/x-m4a
+    allowed-extensions: mp3,wav,flac,m4a,aac,ogg,wma,mp4
+    allowed-mime-types: audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/x-ms-wma
     max-size: 52428800
 
 logging:

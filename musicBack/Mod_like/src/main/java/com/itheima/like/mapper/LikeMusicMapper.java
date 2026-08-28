@@ -35,18 +35,18 @@ public interface LikeMusicMapper extends BaseMapper<LikeMusic> {
     /**
      * 检查是否已收藏
      */
-    @Select("SELECT COUNT(*) FROM mylike WHERE user = #{userId} AND music = #{musicId}")
+    @Select("SELECT COUNT(*) FROM like_music WHERE user_id = #{userId} AND music_id = #{musicId}")
     int countByUserAndMusic(@Param("userId") Integer userId, @Param("musicId") Integer musicId);
 
     /**
-     * 新增收藏（显式 SQL，复合主键）
+     * 新增收藏（显式 SQL，自增 id 不入库）
      */
-    @Insert("INSERT INTO mylike (user, music, create_date) VALUES (#{userId}, #{musicId}, NOW())")
+    @Insert("INSERT INTO like_music (user_id, music_id, create_date) VALUES (#{userId}, #{musicId}, CURDATE())")
     int insertLike(@Param("userId") Integer userId, @Param("musicId") Integer musicId);
 
     /**
-     * 移除收藏（显式 SQL，复合主键）
+     * 移除收藏（显式 SQL）
      */
-    @Delete("DELETE FROM mylike WHERE user = #{userId} AND music = #{musicId}")
+    @Delete("DELETE FROM like_music WHERE user_id = #{userId} AND music_id = #{musicId}")
     int deleteLike(@Param("userId") Integer userId, @Param("musicId") Integer musicId);
 }

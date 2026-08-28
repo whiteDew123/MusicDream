@@ -51,6 +51,14 @@
             <span>播放全部</span>
           </button>
           <button
+            class="add-music-btn"
+            :disabled="!detail"
+            @click="openAddMusicDialog = true"
+          >
+            <el-icon><Plus /></el-icon>
+            <span>管理歌曲</span>
+          </button>
+          <button
             class="like-btn"
             :class="{ liked: isLiked }"
             :disabled="likeLoading"
@@ -78,6 +86,10 @@
     <div v-else-if="songs.length === 0" class="empty-state">
       <el-icon class="empty-icon"><Headset /></el-icon>
       <p>该歌单暂无歌曲</p>
+      <el-button type="primary" class="empty-add-btn" @click="openAddMusicDialog = true">
+        <el-icon><Plus /></el-icon>
+        添加歌曲到歌单
+      </el-button>
     </div>
 
     <!-- 歌曲表格 -->
@@ -123,11 +135,75 @@
         </span>
       </div>
     </div>
+
+    <!-- 添加歌曲到歌单 弹窗 -->
+    <el-dialog
+      v-model="openAddMusicDialog"
+      title="添加歌曲到歌单"
+      width="680px"
+      :close-on-click-modal="false"
+      destroy-on-close
+      append-to-body
+    >
+      <!-- 搜索框 -->
+      <div class="add-music-search">
+        <el-input
+          v-model="searchKeyword"
+          placeholder="输入歌曲名、歌手名搜索…"
+          clearable
+          :prefix-icon="Search"
+          @keyup.enter="doSearchSongs"
+          @clear="doLoadRecommendSongs"
+        >
+          <template #append>
+            <el-button :loading="searchLoading" @click="doSearchSongs">搜索</el-button>
+          </template>
+        </el-input>
+        <el-button class="recommend-btn" :disabled="!searchKeyword" @click="doLoadRecommendSongs">
+          推荐歌曲
+        </el-button>
+      </div>
+
+      <!-- 歌曲列表 -->
+      <div class="add-music-list">
+        <div v-if="searchLoading" class="add-music-loading">加载中…</div>
+        <div v-else-if="dialogSongs.length === 0" class="add-music-empty">
+          {{ searchKeyword ? '没有找到相关歌曲' : '暂无推荐歌曲' }}
+        </div>
+        <div v-else class="add-music-items">
+          <div
+            v-for="song in dialogSongs"
+            :key="song.musicId"
+            class="add-music-item"
+          >
+            <div class="item-cover">
+              <img v-if="song.imageUrl" :src="song.imageUrl" alt="" />
+              <el-icon v-else><Headset /></el-icon>
+            </div>
+            <div class="item-info">
+              <div class="item-name" :title="song.musicName">{{ song.musicName }}</div>
+              <div class="item-singer" :title="song.singerName">{{ song.singerName || '未知歌手' }}</div>
+            </div>
+            <el-button
+              v-if="!isSongInList(song.musicId)"
+              type="primary"
+              size="small"
+              :loading="addingSongId === song.musicId"
+              @click="handleAddSong(song)"
+            >
+              <el-icon><Plus /></el-icon>
+              添加
+            </el-button>
+            <el-tag v-else type="success" size="small" effect="light">已在歌单</el-tag>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -138,13 +214,17 @@ import {
   Plus,
   Star,
   StarFilled,
-  Headset
+  Headset,
+  Search
 } from '@element-plus/icons-vue'
 import {
   songListDetailApi,
   songListSongsApi,
-  toggleLikeSongListApi
+  toggleLikeSongListApi,
+  addMusicToSongListApi,
+  removeMusicFromSongListApi
 } from '@/api/songList'
+import { recommendSongsApi, searchSongsApi } from '@/api/music'
 import { usePlayerStore } from '@/store/player'
 
 const route = useRoute()
@@ -166,6 +246,76 @@ const songs = ref([])
 // 收藏状态
 const isLiked = ref(false)
 const likeLoading = ref(false)
+
+// 添加歌曲弹窗
+const openAddMusicDialog = ref(false)
+const searchKeyword = ref('')
+const searchLoading = ref(false)
+const dialogSongs = ref([])
+const addingSongId = ref(null)
+
+// 弹窗打开时加载推荐歌曲
+watch(openAddMusicDialog, (val) => {
+  if (val) {
+    searchKeyword.value = ''
+    doLoadRecommendSongs()
+  }
+})
+
+function doLoadRecommendSongs() {
+  searchLoading.value = true
+  recommendSongsApi({ userId: playerStore.userId || 0, limit: 30 })
+    .then((res) => {
+      dialogSongs.value = res.data || []
+    })
+    .catch((e) => {
+      console.error('加载推荐歌曲失败:', e)
+      dialogSongs.value = []
+    })
+    .finally(() => {
+      searchLoading.value = false
+    })
+}
+
+function doSearchSongs() {
+  if (!searchKeyword.value.trim()) {
+    doLoadRecommendSongs()
+    return
+  }
+  searchLoading.value = true
+  searchSongsApi({ keyword: searchKeyword.value.trim(), page: 1, size: 30 })
+    .then((res) => {
+      const data = res.data
+      dialogSongs.value = Array.isArray(data) ? data : (data?.records || data?.list || [])
+    })
+    .catch((e) => {
+      console.error('搜索歌曲失败:', e)
+      dialogSongs.value = []
+    })
+    .finally(() => {
+      searchLoading.value = false
+    })
+}
+
+function isSongInList(musicId) {
+  return songs.value.some((s) => s.musicId === musicId)
+}
+
+async function handleAddSong(song) {
+  if (!listId) return
+  if (isSongInList(song.musicId)) return
+  addingSongId.value = song.musicId
+  try {
+    await addMusicToSongListApi({ listId, musicId: song.musicId })
+    ElMessage.success(`已添加「${song.musicName}」`)
+    await loadSongs()
+  } catch (e) {
+    console.error('添加歌曲失败:', e)
+    ElMessage.error('添加失败')
+  } finally {
+    addingSongId.value = null
+  }
+}
 
 // 返回歌单广场
 function goBack() {
@@ -692,6 +842,127 @@ onMounted(() => {
     &:hover {
       color: var(--st-primary);
       background: rgba(94, 92, 230, 0.1);
+    }
+  }
+}
+
+/* === 管理歌曲按钮 === */
+.add-music-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 22px;
+  border-radius: var(--rounded-pill);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  border: 1px solid var(--st-border-strong);
+  background: transparent;
+  color: var(--st-ink);
+
+  &:hover:not(:disabled) {
+    border-color: var(--st-primary);
+    color: var(--st-primary);
+    background: rgba(94, 92, 230, 0.06);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.empty-add-btn {
+  margin-top: 12px;
+}
+
+/* === 添加歌曲弹窗 === */
+.add-music-search {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.recommend-btn {
+  flex-shrink: 0;
+}
+
+.add-music-list {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+}
+
+.add-music-loading,
+.add-music-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+}
+
+.add-music-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.add-music-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  transition: background 150ms ease;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--el-fill-color-light);
+  }
+
+  .item-cover {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--el-fill-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--el-text-color-placeholder);
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .item-info {
+    flex: 1;
+    min-width: 0;
+
+    .item-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--el-text-color-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-singer {
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-top: 2px;
     }
   }
 }

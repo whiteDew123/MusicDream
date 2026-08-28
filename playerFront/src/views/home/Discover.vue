@@ -149,7 +149,9 @@
                 :alt="artist.username"
                 @error="handleImgError"
               />
-              <el-icon v-else><Microphone /></el-icon>
+              <div v-else class="fallback-avatar" :style="getAvatarFallbackStyle(artist.username)">
+                <span class="avatar-initial">{{ getAvatarInitial(artist.username) }}</span>
+              </div>
             </div>
             <div class="artist-name" :title="artist.username">{{ artist.username }}</div>
             <div class="artist-stat">{{ artist.songCount || 0 }} 首歌曲</div>
@@ -161,7 +163,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { VideoPlay, Headset, Files, Microphone } from '@element-plus/icons-vue'
@@ -208,6 +210,37 @@ function formatPlays(num) {
   return num.toString()
 }
 
+const SINGER_GRADIENTS = [
+  'linear-gradient(135deg, #5e5ce6, #9b8cff)',
+  'linear-gradient(135deg, #ff6b6b, #ff8e53)',
+  'linear-gradient(135deg, #11998e, #38ef7d)',
+  'linear-gradient(135deg, #f093fb, #f5576c)',
+  'linear-gradient(135deg, #4facfe, #00f2fe)',
+  'linear-gradient(135deg, #fa709a, #fee140)',
+  'linear-gradient(135deg, #30cfd0, #330867)',
+  'linear-gradient(135deg, #a8edea, #fed6e3)'
+]
+
+function hashColor(name) {
+  let h = 0
+  for (let i = 0; i < (name?.length || 0); i++) {
+    h = (h * 31 + name.charCodeAt(i)) >>> 0
+  }
+  return SINGER_GRADIENTS[h % SINGER_GRADIENTS.length]
+}
+
+function getAvatarFallbackStyle(name) {
+  return { background: hashColor(name) }
+}
+
+function getAvatarInitial(name) {
+  if (!name) return '♪'
+  const trimmed = name.trim()
+  const enMatch = trimmed.match(/^([A-Za-z])/)
+  if (enMatch) return enMatch[1].toUpperCase()
+  return trimmed[0] || '♪'
+}
+
 // 图片加载失败
 function handleImgError(e) {
   e.target.style.display = 'none'
@@ -236,6 +269,10 @@ async function loadData() {
 }
 
 onMounted(() => {
+  loadData()
+})
+
+onActivated(() => {
   loadData()
 })
 </script>
@@ -676,9 +713,19 @@ onMounted(() => {
       object-fit: cover;
     }
 
-    .el-icon {
-      font-size: 36px;
-      color: var(--st-ink-mute);
+    .fallback-avatar {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+
+      .avatar-initial {
+        font-size: 36px;
+        font-weight: 700;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      }
     }
   }
 

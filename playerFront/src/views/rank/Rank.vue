@@ -70,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { TrophyBase, Headset, VideoPlay, Plus } from '@element-plus/icons-vue'
 import { rankSongsApi } from '@/api/music'
 import { usePlayerStore } from '@/store/player'
@@ -118,6 +118,10 @@ async function loadData() {
 }
 
 onMounted(() => {
+  loadData()
+})
+
+onActivated(() => {
   loadData()
 })
 </script>

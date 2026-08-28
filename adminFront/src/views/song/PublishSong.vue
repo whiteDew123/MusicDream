@@ -44,7 +44,7 @@
             :on-success="handleImgUploadSuccess"
             :on-error="handleImgUploadError"
             :before-upload="beforeImgUpload"
-            accept=".jpg,.jpeg,.png,.gif,.webp"
+            :accept="IMAGE_ACCEPT"
           >
             <img v-if="formData.imgUrl" :src="formData.imgUrl" class="cover-img" />
             <el-icon v-else class="uploader-icon"><plus /></el-icon>
@@ -61,6 +61,7 @@
             :on-error="handleMusicFileError"
             :before-upload="beforeMusicUpload"
             :on-change="changeMusicUpload"
+            :accept="MUSIC_ACCEPT"
           >
             <el-button type="primary" :icon="upload">上传音频</el-button>
           </el-upload>
@@ -76,6 +77,7 @@
             :on-error="handleLrcUploadError"
             :before-upload="beforeLrcUpload"
             :on-change="changeLrcUpload"
+            :accept="LRC_ACCEPT"
           >
             <el-button type="primary" :icon="upload">上传歌词</el-button>
           </el-upload>
@@ -124,6 +126,19 @@ import { Upload, Plus, Operation } from '@element-plus/icons-vue'
 import { getToken } from '@/utils/auth'
 import { useUserStore } from '@/store/user'
 import { useManageStore } from '@/store/manage'
+import {
+  MUSIC_EXTENSIONS,
+  MUSIC_ACCEPT,
+  MUSIC_MAX_SIZE_MB,
+  IMAGE_EXTENSIONS,
+  IMAGE_ACCEPT,
+  IMAGE_MAX_SIZE_MB,
+  LRC_EXTENSIONS,
+  LRC_ACCEPT,
+  LRC_MAX_SIZE_MB,
+  isExtensionAllowed,
+  isSizeAllowed
+} from '@/constants/allowedTypes'
 
 const userStore = useUserStore()
 const manageStore = useManageStore()
@@ -185,16 +200,12 @@ function handleImgUploadError() {
 
 // 封面上传前校验（基于扩展名）
 function beforeImgUpload(file) {
-  const ext = file.name.split('.').pop().toLowerCase()
-  const allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp']
-  const isAllowed = allowed.includes(ext)
-  const isLt2M = file.size / 1024 / 1024 < 2
-  if (!isAllowed) {
-    ElMessage.warning('图片格式必须为 JPG/PNG/GIF/WEBP')
+  if (!isExtensionAllowed(file.name, IMAGE_EXTENSIONS)) {
+    ElMessage.warning(`图片格式必须为 ${IMAGE_EXTENSIONS.join('/').toUpperCase()}`)
     return false
   }
-  if (!isLt2M) {
-    ElMessage.warning('图片大小必须小于 2MB')
+  if (!isSizeAllowed(file, IMAGE_MAX_SIZE_MB)) {
+    ElMessage.warning(`图片大小必须小于 ${IMAGE_MAX_SIZE_MB}MB`)
     return false
   }
   return true
@@ -216,16 +227,12 @@ function handleMusicFileError() {
 
 // 音频上传前校验 + 自动获取时长（基于扩展名）
 function beforeMusicUpload(file) {
-  const ext = file.name.split('.').pop().toLowerCase()
-  const allowed = ['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg', 'wma']
-  const isAllowed = allowed.includes(ext)
-  const isLt50M = file.size / 1024 / 1024 < 50
-  if (!isAllowed) {
-    ElMessage.warning('音频格式不支持，支持 MP3/WAV/FLAC/M4A/AAC/OGG/WMA')
+  if (!isExtensionAllowed(file.name, MUSIC_EXTENSIONS)) {
+    ElMessage.warning(`音频格式不支持，支持 ${MUSIC_EXTENSIONS.join('/').toUpperCase()}`)
     return false
   }
-  if (!isLt50M) {
-    ElMessage.warning('音频大小必须小于 50MB')
+  if (!isSizeAllowed(file, MUSIC_MAX_SIZE_MB)) {
+    ElMessage.warning(`音频大小必须小于 ${MUSIC_MAX_SIZE_MB}MB`)
     return false
   }
   // 使用 HTML5 Audio API 获取时长
@@ -269,15 +276,12 @@ function handleLrcUploadError() {
 
 // 歌词上传前校验（基于扩展名）
 function beforeLrcUpload(file) {
-  const ext = file.name.split('.').pop().toLowerCase()
-  const isLrc = ext === 'lrc'
-  const isLt1M = file.size / 1024 / 1024 < 1
-  if (!isLrc) {
-    ElMessage.warning('歌词文件必须为 .lrc 格式')
+  if (!isExtensionAllowed(file.name, LRC_EXTENSIONS)) {
+    ElMessage.warning(`歌词文件必须为 ${LRC_EXTENSIONS.join('/').toUpperCase()} 格式`)
     return false
   }
-  if (!isLt1M) {
-    ElMessage.warning('歌词文件大小必须小于 1MB')
+  if (!isSizeAllowed(file, LRC_MAX_SIZE_MB)) {
+    ElMessage.warning(`歌词文件大小必须小于 ${LRC_MAX_SIZE_MB}MB`)
     return false
   }
   return true

@@ -6,6 +6,10 @@
         <el-icon class="title-icon"><Files /></el-icon>
         <h2>我创建的歌单</h2>
       </div>
+      <el-button type="primary" class="create-btn" @click="createDialogVisible = true">
+        <el-icon><Plus /></el-icon>
+        <span>创建歌单</span>
+      </el-button>
     </header>
 
     <!-- 骨架屏 -->
@@ -24,7 +28,10 @@
         <el-icon class="empty-icon"><Files /></el-icon>
         <p class="empty-text">还没有创建歌单</p>
         <p class="empty-sub">去歌单广场创建你的第一个歌单，收纳喜欢的歌曲</p>
-        <router-link to="/songlist" class="empty-btn">去创建歌单</router-link>
+        <el-button type="primary" class="empty-btn" @click="createDialogVisible = true">
+          <el-icon><Plus /></el-icon>
+          <span class="empty-btn-text">创建歌单</span>
+        </el-button>
       </div>
 
       <!-- 歌单卡片网格 -->
@@ -61,6 +68,57 @@
         </div>
       </div>
     </template>
+
+    <!-- 创建歌单弹窗 -->
+    <el-dialog
+      v-model="createDialogVisible"
+      title="创建新歌单"
+      width="480px"
+      :close-on-click-modal="false"
+      destroy-on-close
+      append-to-body
+    >
+      <el-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        label-position="top"
+      >
+        <el-form-item label="歌单名称" prop="name">
+          <el-input
+            v-model="createForm.name"
+            placeholder="给你的歌单取个响亮的名字"
+            maxlength="30"
+            show-word-limit
+            clearable
+          />
+        </el-form-item>
+        <el-form-item label="简介">
+          <el-input
+            v-model="createForm.introduction"
+            type="textarea"
+            :rows="3"
+            placeholder="介绍一下这个歌单（选填）"
+            maxlength="200"
+            show-word-limit
+            resize="none"
+          />
+        </el-form-item>
+        <el-form-item label="风格标签">
+          <el-input
+            v-model="createForm.style"
+            placeholder="如：流行 / 摇滚 / 轻音乐（选填）"
+            clearable
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="createLoading" @click="handleCreate">
+          确定创建
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -68,8 +126,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Files, Delete } from '@element-plus/icons-vue'
-import { myCreatedSongListApi, deleteSongListApi } from '@/api/songList'
+import { Files, Delete, Plus } from '@element-plus/icons-vue'
+import { myCreatedSongListApi, deleteSongListApi, createSongListApi } from '@/api/songList'
 
 const router = useRouter()
 
@@ -77,6 +135,40 @@ const loading = ref(true)
 const lists = ref([])
 // 封面加载失败的歌单 id 集合
 const errorCovers = reactive(new Set())
+
+// ===== 创建歌单弹窗 =====
+const createDialogVisible = ref(false)
+const createLoading = ref(false)
+const createFormRef = ref()
+const createForm = reactive({
+  name: '',
+  introduction: '',
+  style: ''
+})
+const createRules = {
+  name: [{ required: true, message: '歌单名称不能为空', trigger: 'blur' }]
+}
+
+async function handleCreate() {
+  if (!createFormRef.value) return
+  await createFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    createLoading.value = true
+    try {
+      await createSongListApi({
+        name: createForm.name,
+        introduction: createForm.introduction,
+        style: createForm.style
+      })
+      ElMessage.success('歌单创建成功')
+      createDialogVisible.value = false
+      createFormRef.value.resetFields()
+      await loadData()
+    } finally {
+      createLoading.value = false
+    }
+  })
+}
 
 // 加载我创建的歌单
 // 注：响应拦截器在 code !== 200 时已自动提示并 reject，故此处成功即 code 200
@@ -144,6 +236,9 @@ onMounted(() => {
 
 /* === 页头 === */
 .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 24px;
 
   .header-title {
@@ -162,6 +257,15 @@ onMounted(() => {
       color: var(--st-ink);
       letter-spacing: -0.2px;
     }
+  }
+
+  .create-btn {
+    height: 40px;
+    padding: 0 20px;
+    border-radius: var(--rounded-md);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
   }
 }
 
@@ -228,15 +332,18 @@ onMounted(() => {
   }
 
   .empty-btn {
-    padding: 8px 20px;
+    padding: 0 28px;
+    height: 40px;
     border-radius: var(--rounded-pill);
     background: var(--st-primary);
     color: #fff;
     font-size: 14px;
-    transition: background 200ms ease;
+    font-weight: 500;
+    transition: background 200ms ease, transform 150ms ease;
 
     &:hover {
       background: var(--st-primary-hover);
+      transform: translateY(-1px);
     }
   }
 }

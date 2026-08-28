@@ -1,5 +1,6 @@
 package com.itheima.login.util;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,5 +46,38 @@ public class JwtUtil {
                 .expiration(new Date(now + expirationMillis))
                 .signWith(key)
                 .compact();
+    }
+
+    /**
+     * 从 token 中解析 userId。
+     * <p>
+     * 网关 AuthGlobalFilter 将 /api/login/** 整体纳入白名单，
+     * 导致 /login/current 与 /login/update 不会被网关解析 JWT 并透传 X-User-Id 头，
+     * 因此这两个接口需要自行从 Authorization 头解析身份。
+     *
+     * @param token 原始 JWT token（不含 Bearer 前缀）
+     * @return 用户ID；解析失败或过期返回 null
+     */
+    public Integer parseUserId(String token) {
+        if (token == null || token.isBlank()) return null;
+        try {
+            SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+            Claims claims = Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            return Integer.valueOf(claims.getSubject());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 从 Authorization 头（形如 "Bearer xxx"）中解析 userId。
+     */
+    public Integer parseUserIdFromAuthHeader(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
+        return parseUserId(authHeader.substring(7));
     }
 }

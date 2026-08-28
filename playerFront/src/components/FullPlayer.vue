@@ -254,6 +254,13 @@
               <span class="item-index">{{ idx + 1 }}</span>
               <span class="item-name">{{ song.musicName }}</span>
               <span class="item-singer">{{ song.singerName }}</span>
+              <button
+                class="item-add-songlist"
+                title="加入歌单"
+                @click.stop="openAddSonglistDialog(song)"
+              >
+                <el-icon><FolderAdd /></el-icon>
+              </button>
               <button class="item-remove" @click.stop="playerStore.removeFromPlaylist(idx)">
                 <el-icon><Close /></el-icon>
               </button>
@@ -262,6 +269,38 @@
           </div>
         </div>
       </transition>
+
+      <!-- 加入歌单弹窗（播放器内） -->
+      <el-dialog
+        v-model="openAddSonglistDialogVisible"
+        title="选择要加入的歌单"
+        width="420px"
+        destroy-on-close
+        append-to-body
+      >
+        <div v-if="userSongListsLoading" class="add-songlist-loading">加载中…</div>
+        <div v-else-if="userSongLists.length === 0" class="add-songlist-empty">
+          你还没有创建歌单
+        </div>
+        <div v-else class="add-songlist-list">
+          <div
+            v-for="sl in userSongLists"
+            :key="sl.id"
+            class="add-songlist-item"
+            @click="addToTargetSongList(sl)"
+          >
+            <div class="sl-cover">
+              <img v-if="sl.pic || sl.imageUrl" :src="sl.pic || sl.imageUrl" alt="" />
+              <el-icon v-else><Headset /></el-icon>
+            </div>
+            <div class="sl-info">
+              <div class="sl-name">{{ sl.name || sl.songListName }}</div>
+              <div class="sl-count">{{ sl.songCount ?? sl.musicNum ?? 0 }} 首歌曲</div>
+            </div>
+            <el-icon class="sl-arrow"><Plus /></el-icon>
+          </div>
+        </div>
+      </el-dialog>
     </div>
 
     <!-- 移动端底部播放控件 -->
@@ -406,12 +445,15 @@ import {
   Close,
   Tickets,
   MuteNotification,
-  Microphone
+  Microphone,
+  Plus,
+  FolderAdd
 } from '@element-plus/icons-vue'
 import ShareModal from '@/components/ShareModal.vue'
 import { usePlayerStore } from '@/store/player'
 import { getMusicStatsApi, toggleLikeApi, shareSongApi, commentListApi, createCommentApi } from '@/api/interaction'
 import { addLikedMusicApi, removeLikedMusicApi, likedMusicApi } from '@/api/like'
+import { myCreatedSongListApi, addMusicToSongListApi } from '@/api/songList'
 
 const props = defineProps({
   visible: Boolean
@@ -471,6 +513,40 @@ let lyricAutoResetTimer = null
 
 // 收藏歌曲 ID 集合
 const favoriteIds = ref(new Set())
+
+// 加入歌单弹窗
+const openAddSonglistDialogVisible = ref(false)
+const userSongLists = ref([])
+const userSongListsLoading = ref(false)
+const pendingAddSong = ref(null)
+
+async function openAddSonglistDialog(song) {
+  if (!song) return
+  pendingAddSong.value = song
+  openAddSonglistDialogVisible.value = true
+  userSongListsLoading.value = true
+  try {
+    const res = await myCreatedSongListApi()
+    userSongLists.value = res.data || []
+  } catch (e) {
+    console.error('加载歌单列表失败:', e)
+    userSongLists.value = []
+  } finally {
+    userSongListsLoading.value = false
+  }
+}
+
+async function addToTargetSongList(sl) {
+  if (!pendingAddSong.value || !sl?.id) return
+  try {
+    await addMusicToSongListApi({ listId: sl.id, musicId: pendingAddSong.value.musicId })
+    ElMessage.success(`已加入歌单「${sl.name || sl.songListName}」`)
+    openAddSonglistDialogVisible.value = false
+  } catch (e) {
+    console.error('加入歌单失败:', e)
+    ElMessage.error('加入失败')
+  }
+}
 
 // ===== 计算属性 =====
 const currentSong = computed(() => playerStore.currentSong)
@@ -552,20 +628,21 @@ const currentCardStyle = computed(() => {
 
   return {
     transform: `translateY(${translateY}px) scale(${scale})`,
-    opacity
+    opacity,
+    zIndex: 2
   }
 })
 
 const prevCardStyle = computed(() => {
   let translateY = -window.innerHeight * 0.3
   let scale = 0.9
-  let opacity = 0.5
+  let opacity = 0
 
   if (dragY.value < 0) {
     const ratio = Math.min(Math.abs(dragY.value) / (window.innerHeight * 0.3), 1)
     translateY = -window.innerHeight * 0.3 + ratio * window.innerHeight * 0.5
     scale = 0.9 + ratio * 0.1
-    opacity = 0.5 + ratio * 0.5
+    opacity = ratio
   }
 
   return {
@@ -578,13 +655,13 @@ const prevCardStyle = computed(() => {
 const nextCardStyle = computed(() => {
   let translateY = window.innerHeight * 0.3
   let scale = 0.9
-  let opacity = 0.5
+  let opacity = 0
 
   if (dragY.value > 0) {
     const ratio = Math.min(dragY.value / (window.innerHeight * 0.3), 1)
     translateY = window.innerHeight * 0.3 - ratio * window.innerHeight * 0.5
     scale = 0.9 + ratio * 0.1
-    opacity = 0.5 + ratio * 0.5
+    opacity = ratio
   }
 
   return {
@@ -1856,7 +1933,8 @@ onBeforeUnmount(() => {
     &:hover {
       background: rgba(255, 255, 255, 0.08);
 
-      .item-remove {
+      .item-remove,
+      .item-add-songlist {
         opacity: 1;
       }
     }
@@ -1896,6 +1974,23 @@ onBeforeUnmount(() => {
       white-space: nowrap;
     }
 
+    .item-add-songlist {
+      opacity: 0;
+      border: none;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.4);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      border-radius: 4px;
+      transition: opacity 200ms ease, color 150ms ease, background 150ms ease;
+
+      &:hover {
+        color: #fff;
+        background: rgba(94, 92, 230, 0.4);
+      }
+    }
+
     .item-remove {
       opacity: 0;
       border: none;
@@ -1906,7 +2001,7 @@ onBeforeUnmount(() => {
       transition: opacity 200ms ease, color 150ms ease;
 
       &:hover {
-        color: var(--st-primary);
+        color: #ff5c7a;
       }
     }
   }
@@ -2170,6 +2265,79 @@ onBeforeUnmount(() => {
 
   .lyrics-container {
     height: 280px;
+  }
+}
+
+/* === 加入歌单弹窗 === */
+.add-songlist-loading,
+.add-songlist-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+}
+
+.add-songlist-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.add-songlist-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 150ms ease;
+
+  &:hover {
+    background: var(--el-fill-color-light);
+  }
+
+  .sl-cover {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--el-fill-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--el-text-color-placeholder);
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .sl-info {
+    flex: 1;
+    min-width: 0;
+
+    .sl-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--el-text-color-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sl-count {
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
+      margin-top: 2px;
+    }
+  }
+
+  .sl-arrow {
+    color: var(--el-text-color-placeholder);
   }
 }
 </style>

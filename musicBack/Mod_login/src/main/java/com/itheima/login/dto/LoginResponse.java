@@ -32,4 +32,13 @@ public class LoginResponse implements Serializable {
 
     /** 头像地址 */
     private String imageUrl;
+
+    /** 邮箱 */
+    private String email;
+
+    /** 手机号 */
+    private String phone;
+
+    /** 个人简介 */
+    private String about;
 }

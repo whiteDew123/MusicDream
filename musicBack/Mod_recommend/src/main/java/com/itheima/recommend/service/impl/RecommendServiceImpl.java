@@ -40,7 +40,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class RecommendServiceImpl implements RecommendService {
 
-    private static final Duration CACHE_TTL = Duration.ofMinutes(30);
+    private static final Duration CACHE_TTL = Duration.ofMinutes(2);
 
     private final MusicMapper musicMapper;
     private final UserMapper userMapper;
@@ -337,6 +337,14 @@ public class RecommendServiceImpl implements RecommendService {
         }
 
         List<Music> likedSongs = musicMapper.selectBatchIds(likedMusicIds);
+
+        // 收集收藏歌曲的歌手 → 用于同歌手扩展推荐
+        Set<Integer> favoriteSingers = likedSongs.stream()
+                .map(Music::getFromSinger)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // 收集收藏歌曲的标签 → 用于基于标签推荐
         Set<String> tags = new LinkedHashSet<>();
         for (Music song : likedSongs) {
             if (StringUtils.hasText(song.getTags())) {
@@ -349,32 +357,66 @@ public class RecommendServiceImpl implements RecommendService {
             }
         }
 
-        if (tags.isEmpty()) {
-            return musicMapper.selectList(new LambdaQueryWrapper<Music>()
+        // Step 1: 同歌手扩展推荐（加权，放在前面）
+        List<Music> sameSingerSongs = List.of();
+        if (!favoriteSingers.isEmpty()) {
+            sameSingerSongs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
                     .eq(Music::getAuditStatus, 1)
                     .eq(Music::getActivation, 0)
+                    .in(Music::getFromSinger, favoriteSingers)
                     .notIn(!likedMusicIds.isEmpty(), Music::getMusicId, likedMusicIds)
                     .orderByDesc(Music::getListenNumb)
                     .last("LIMIT " + size));
         }
 
-        LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
-                .eq(Music::getAuditStatus, 1)
-                .eq(Music::getActivation, 0)
-                .notIn(!likedMusicIds.isEmpty(), Music::getMusicId, likedMusicIds);
-        wrapper.and(w -> {
-            boolean first = true;
-            for (String tag : tags) {
-                if (first) {
-                    w.like(Music::getTags, tag);
-                    first = false;
-                } else {
-                    w.or().like(Music::getTags, tag);
+        // Step 2: 基于标签的推荐（排除已收藏 & 同歌手已取的，避免重复）
+        Set<Integer> sameSingerIds = sameSingerSongs.stream()
+                .map(Music::getMusicId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<Integer> excludeIds = new LinkedHashSet<>(likedMusicIds);
+        excludeIds.addAll(sameSingerIds);
+
+        List<Music> tagOrHotSongs;
+        if (!tags.isEmpty()) {
+            LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
+                    .eq(Music::getAuditStatus, 1)
+                    .eq(Music::getActivation, 0)
+                    .notIn(!excludeIds.isEmpty(), Music::getMusicId, excludeIds);
+            wrapper.and(w -> {
+                boolean first = true;
+                for (String tag : tags) {
+                    if (first) {
+                        w.like(Music::getTags, tag);
+                        first = false;
+                    } else {
+                        w.or().like(Music::getTags, tag);
+                    }
                 }
-            }
-        });
-        wrapper.orderByDesc(Music::getListenNumb).last("LIMIT " + size);
-        return musicMapper.selectList(wrapper);
+            });
+            wrapper.orderByDesc(Music::getListenNumb).last("LIMIT " + size);
+            tagOrHotSongs = musicMapper.selectList(wrapper);
+        } else {
+            tagOrHotSongs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                    .eq(Music::getAuditStatus, 1)
+                    .eq(Music::getActivation, 0)
+                    .notIn(!excludeIds.isEmpty(), Music::getMusicId, excludeIds)
+                    .orderByDesc(Music::getListenNumb)
+                    .last("LIMIT " + size));
+        }
+
+        // Step 3: 合并结果 —— 同歌手排前面，标签/热门补位，总共取 size 条
+        List<Music> merged = new ArrayList<>(sameSingerSongs);
+        int remaining = size - merged.size();
+        if (remaining > 0) {
+            merged.addAll(tagOrHotSongs.stream().limit(remaining).collect(Collectors.toList()));
+        }
+        // 兜底：所有候选都被排除（如用户收藏了全部可用歌曲），降级为热门歌单
+        if (merged.isEmpty()) {
+            log.warn("推荐结果为空，降级为热门歌曲兜底, userId={}", userId);
+            merged = topSongs(size);
+        }
+        return merged;
     }
 
     private List<Music> topSongs(int size) {

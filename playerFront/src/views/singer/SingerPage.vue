@@ -39,7 +39,9 @@
             class="singer-avatar"
             @error="handleAvatarError(artist.id)"
           />
-          <el-icon v-else class="avatar-placeholder"><Microphone /></el-icon>
+          <div v-else class="avatar-placeholder fallback-avatar" :style="getAvatarFallbackStyle(artist.username)">
+            <span class="avatar-initial">{{ getAvatarInitial(artist.username) }}</span>
+          </div>
         </div>
         <div class="singer-name" :title="artist.username">{{ artist.username }}</div>
         <div class="singer-count">歌曲 {{ artist.songCount || 0 }}</div>
@@ -60,6 +62,37 @@ const loading = ref(true)
 const artists = ref([])
 // 头像加载失败标记，按 artistId 记录
 const avatarErrors = reactive({})
+
+const SINGER_GRADIENTS = [
+  'linear-gradient(135deg, #5e5ce6, #9b8cff)',
+  'linear-gradient(135deg, #ff6b6b, #ff8e53)',
+  'linear-gradient(135deg, #11998e, #38ef7d)',
+  'linear-gradient(135deg, #f093fb, #f5576c)',
+  'linear-gradient(135deg, #4facfe, #00f2fe)',
+  'linear-gradient(135deg, #fa709a, #fee140)',
+  'linear-gradient(135deg, #30cfd0, #330867)',
+  'linear-gradient(135deg, #a8edea, #fed6e3)'
+]
+
+function hashColor(name) {
+  let h = 0
+  for (let i = 0; i < (name?.length || 0); i++) {
+    h = (h * 31 + name.charCodeAt(i)) >>> 0
+  }
+  return SINGER_GRADIENTS[h % SINGER_GRADIENTS.length]
+}
+
+function getAvatarFallbackStyle(name) {
+  return { background: hashColor(name) }
+}
+
+function getAvatarInitial(name) {
+  if (!name) return '♪'
+  const trimmed = name.trim()
+  const enMatch = trimmed.match(/^([A-Za-z])/)
+  if (enMatch) return enMatch[1].toUpperCase()
+  return trimmed[0] || '♪'
+}
 
 // 跳转歌手详情
 function goDetail(artistId) {
@@ -217,9 +250,20 @@ onMounted(() => {
       object-fit: cover;
     }
 
-    .avatar-placeholder {
-      font-size: 44px;
-      color: var(--st-primary-subdued);
+    .fallback-avatar {
+      border-radius: 50%;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+
+      .avatar-initial {
+        font-size: 32px;
+        font-weight: 700;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      }
     }
   }
 

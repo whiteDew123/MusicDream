@@ -29,7 +29,8 @@
           <el-upload
             :show-file-list="false"
             :http-request="(options) => handleUpload(options, 'music')"
-            accept="audio/*"
+            :accept="MUSIC_ACCEPT"
+            :before-upload="beforeMusicUpload"
             :disabled="store.uploading"
           >
             <el-button type="primary" :loading="store.uploading && uploadType === 'music'">
@@ -43,7 +44,8 @@
           <el-upload
             :show-file-list="false"
             :http-request="(options) => handleUpload(options, 'image')"
-            accept="image/*"
+            :accept="IMAGE_ACCEPT"
+            :before-upload="beforeImageUpload"
             :disabled="store.uploading"
           >
             <el-button :loading="store.uploading && uploadType === 'image'">
@@ -57,7 +59,8 @@
           <el-upload
             :show-file-list="false"
             :http-request="(options) => handleUpload(options, 'lrc')"
-            accept=".lrc,.txt"
+            :accept="LRC_ACCEPT"
+            :before-upload="beforeLrcUpload"
             :disabled="store.uploading"
           >
             <el-button :loading="store.uploading && uploadType === 'lrc'">
@@ -83,10 +86,74 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useSingerUploadStore } from '@/store/singerUpload'
+import {
+  MUSIC_EXTENSIONS,
+  MUSIC_ACCEPT,
+  MUSIC_MAX_SIZE_MB,
+  IMAGE_EXTENSIONS,
+  IMAGE_ACCEPT,
+  IMAGE_MAX_SIZE_MB,
+  LRC_EXTENSIONS,
+  LRC_ACCEPT,
+  LRC_MAX_SIZE_MB,
+  isExtensionAllowed,
+  isSizeAllowed
+} from '@/constants/allowedTypes'
 
 const store = useSingerUploadStore()
 const formRef = ref()
 const uploadType = ref('')
+
+// 音乐上传前：扩展名/大小校验 + 预填时长
+function beforeMusicUpload(file) {
+  if (!isExtensionAllowed(file.name, MUSIC_EXTENSIONS)) {
+    ElMessage.warning(`音频格式不支持，支持：${MUSIC_EXTENSIONS.join('/').toUpperCase()}`)
+    return false
+  }
+  if (!isSizeAllowed(file, MUSIC_MAX_SIZE_MB)) {
+    ElMessage.warning(`音频大小必须小于 ${MUSIC_MAX_SIZE_MB}MB`)
+    return false
+  }
+  // 预填时长
+  const url = URL.createObjectURL(file)
+  const audio = new Audio()
+  audio.preload = 'metadata'
+  audio.onloadedmetadata = () => {
+    if (audio.duration && !isNaN(audio.duration)) {
+      store.form.timelength = Math.round(audio.duration)
+    }
+    URL.revokeObjectURL(url)
+  }
+  audio.onerror = () => URL.revokeObjectURL(url)
+  audio.src = url
+  return true
+}
+
+// 封面上传前：扩展名/大小校验
+function beforeImageUpload(file) {
+  if (!isExtensionAllowed(file.name, IMAGE_EXTENSIONS)) {
+    ElMessage.warning(`图片格式不支持，支持：${IMAGE_EXTENSIONS.join('/').toUpperCase()}`)
+    return false
+  }
+  if (!isSizeAllowed(file, IMAGE_MAX_SIZE_MB)) {
+    ElMessage.warning(`图片大小必须小于 ${IMAGE_MAX_SIZE_MB}MB`)
+    return false
+  }
+  return true
+}
+
+// 歌词上传前：扩展名/大小校验
+function beforeLrcUpload(file) {
+  if (!isExtensionAllowed(file.name, LRC_EXTENSIONS)) {
+    ElMessage.warning(`歌词格式不支持，支持：${LRC_EXTENSIONS.join('/').toUpperCase()}`)
+    return false
+  }
+  if (!isSizeAllowed(file, LRC_MAX_SIZE_MB)) {
+    ElMessage.warning(`歌词大小必须小于 ${LRC_MAX_SIZE_MB}MB`)
+    return false
+  }
+  return true
+}
 
 async function handleUpload(options, type) {
   uploadType.value = type

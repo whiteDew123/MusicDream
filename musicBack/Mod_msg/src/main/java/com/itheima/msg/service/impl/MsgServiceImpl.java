@@ -4,6 +4,7 @@ import com.itheima.msg.dto.MsgVO;
 import com.itheima.msg.dto.PublishMsgRequest;
 import com.itheima.msg.entity.Msg;
 import com.itheima.msg.mapper.MsgMapper;
+import com.itheima.msg.mapper.UserMapper;
 import com.itheima.msg.service.MsgService;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -19,10 +20,12 @@ public class MsgServiceImpl implements MsgService {
     private static final String UNREAD_COUNT_KEY_PREFIX = "msg:unread:";
 
     private final MsgMapper msgMapper;
+    private final UserMapper userMapper;
     private final StringRedisTemplate redisTemplate;
 
-    public MsgServiceImpl(MsgMapper msgMapper, StringRedisTemplate redisTemplate) {
+    public MsgServiceImpl(MsgMapper msgMapper, UserMapper userMapper, StringRedisTemplate redisTemplate) {
         this.msgMapper = msgMapper;
+        this.userMapper = userMapper;
         this.redisTemplate = redisTemplate;
     }
 
@@ -31,27 +34,43 @@ public class MsgServiceImpl implements MsgService {
         if (!StringUtils.hasText(request.getTitle())) {
             throw new IllegalArgumentException("消息标题不能为空");
         }
-        if (request.getUserId() == null) {
-            throw new IllegalArgumentException("接收用户ID不能为空");
-        }
         if (!StringUtils.hasText(request.getMsg())) {
             throw new IllegalArgumentException("消息内容不能为空");
         }
 
-        Msg msg = new Msg();
-        msg.setTitle(request.getTitle());
-        msg.setUserId(request.getUserId());
-        msg.setMsg(request.getMsg());
-        msg.setCreateTime(LocalDate.now());
-        msg.setIsread(1);
+        boolean broadcast = request.getBroadcast() == null || request.getBroadcast();
 
-        msgMapper.insert(msg);
+        int affected;
+        if (broadcast) {
+            // 广播给所有激活用户
+            List<Integer> userIds = userMapper.findAllActiveUserIds();
+            affected = msgMapper.batchInsertForUsers(request.getTitle(), request.getMsg(), LocalDate.now(), 0, userIds);
 
-        // 同步 Redis 未读数 +1
-        String key = UNREAD_COUNT_KEY_PREFIX + request.getUserId();
-        redisTemplate.opsForValue().increment(key);
+            // Redis 每个用户未读数 +1
+            for (Integer uid : userIds) {
+                String key = UNREAD_COUNT_KEY_PREFIX + uid;
+                redisTemplate.opsForValue().increment(key);
+            }
+        } else {
+            if (request.getUserId() == null) {
+                throw new IllegalArgumentException("点对点消息必须指定接收用户ID");
+            }
 
-        return msg;
+            Msg msg = new Msg();
+            msg.setTitle(request.getTitle());
+            msg.setUserId(request.getUserId());
+            msg.setMsg(request.getMsg());
+            msg.setCreateTime(LocalDate.now());
+            msg.setIsread(0); // 未读
+
+            affected = msgMapper.insert(msg);
+
+            // 同步 Redis 未读数 +1
+            String key = UNREAD_COUNT_KEY_PREFIX + request.getUserId();
+            redisTemplate.opsForValue().increment(key);
+        }
+
+        return affected > 0 ? new Msg() : null;
     }
 
     @Override
