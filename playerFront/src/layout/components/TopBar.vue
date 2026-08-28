@@ -22,7 +22,7 @@
       />
     </div>
 
-    <!-- 右侧：用户区 -->
+    <!-- 右侧：好友 + 用户区 -->
     <div class="topbar-right">
       <!-- 主题切换：亮↔暗（首次跟随系统，选择持久化）
            图标左右滚动切换：变暗时太阳向左滚出、月亮从右滚入；变亮则反向 -->
@@ -39,6 +39,13 @@
           </el-icon>
         </Transition>
       </button>
+
+      <!-- 好友入口 -->
+      <div class="friend-entry" @click="friendDrawerVisible = true">
+        <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+          <el-icon><User /></el-icon>
+        </el-badge>
+      </div>
 
       <el-dropdown trigger="click" @command="handleCommand">
         <div class="user-trigger">
@@ -65,10 +72,16 @@
       </el-dropdown>
     </div>
   </header>
+
+  <!-- 好友抽屉面板 -->
+  <FriendDrawer
+    v-model="friendDrawerVisible"
+    @close="loadUnreadCount"
+  />
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import {
@@ -85,11 +98,15 @@ import {
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { useTheme } from '@/utils/theme'
+import { getReceivedRequestsApi } from '@/api/friend'
+import FriendDrawer from '@/components/FriendDrawer.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
 const { theme, toggleTheme } = useTheme()
 const keyword = ref('')
+const unreadCount = ref(0)
+const friendDrawerVisible = ref(false)
 
 // 图标滚动方向：变暗（light→dark）向左滚；变亮（dark→light）向右滚
 const slideDir = ref('slide-left')
@@ -127,6 +144,20 @@ function handleCommand(command) {
       break
   }
 }
+
+// 加载未读好友请求数
+async function loadUnreadCount() {
+  try {
+    const res = await getReceivedRequestsApi()
+    unreadCount.value = (res.data || []).length
+  } catch (error) {
+    // 静默失败
+  }
+}
+
+onMounted(() => {
+  loadUnreadCount()
+})
 </script>
 
 <style scoped lang="scss">
@@ -209,6 +240,35 @@ function handleCommand(command) {
   align-items: center;
   gap: var(--spacing-sm);
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 好友入口 */
+.friend-entry {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--st-canvas-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease;
+  position: relative;
+
+  .el-icon {
+    font-size: 18px;
+    color: var(--st-ink-secondary);
+  }
+
+  &:hover {
+    background: var(--st-primary-subdued);
+    .el-icon {
+      color: var(--st-primary);
+    }
+  }
 }
 
 /* 主题切换按钮：圆形 32px（与 nav-btn 同几何语言） */
