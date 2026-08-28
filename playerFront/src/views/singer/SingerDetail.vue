@@ -214,7 +214,7 @@ onMounted(() => {
   width: 160px;
   height: 160px;
   border-radius: 50%;
-  background: #e8ecf0;
+  background: var(--st-skeleton);
   animation: skeletonPulse 1.2s infinite ease-in-out;
   flex-shrink: 0;
 }
@@ -224,7 +224,7 @@ onMounted(() => {
 .skeleton-line {
   height: 16px;
   border-radius: var(--rounded-sm);
-  background: #e8ecf0;
+  background: var(--st-skeleton);
   animation: skeletonPulse 1.2s infinite ease-in-out;
   margin-bottom: 12px;
 
@@ -239,7 +239,7 @@ onMounted(() => {
 .skeleton-item {
   height: 56px;
   border-radius: var(--rounded-md);
-  background: #e8ecf0;
+  background: var(--st-skeleton);
   animation: skeletonPulse 1.2s infinite ease-in-out;
 }
 @keyframes skeletonPulse {

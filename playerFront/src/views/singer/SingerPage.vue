@@ -139,7 +139,7 @@ onMounted(() => {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: #e8ecf0;
+  background: var(--st-skeleton);
   animation: skeletonPulse 1.2s infinite ease-in-out;
 }
 .skeleton-line {
@@ -147,7 +147,7 @@ onMounted(() => {
   height: 14px;
   margin-top: 12px;
   border-radius: var(--rounded-sm);
-  background: #e8ecf0;
+  background: var(--st-skeleton);
   animation: skeletonPulse 1.2s infinite ease-in-out;
 
   &.short {

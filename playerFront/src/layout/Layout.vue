@@ -1,5 +1,7 @@
 <template>
-  <div class="app-layout">
+  <!-- data-theme 绑定在根元素上：暗色 token 仅作用于登录后的主界面，
+       登录/注册门面（无 app-layout）保持亮色 -->
+  <div class="app-layout" :data-theme="theme">
     <!-- 左侧导航 -->
     <Sidebar />
 
@@ -28,9 +30,12 @@ import { onMounted } from 'vue'
 import Sidebar from './components/Sidebar.vue'
 import TopBar from './components/TopBar.vue'
 import PlayerBar from './components/PlayerBar.vue'
+import { useTheme } from '@/utils/theme'
 import { usePlayerStore } from '@/store/player'
 
 const playerStore = usePlayerStore()
+// 主题已在 main.js 全局初始化，这里只需响应式绑定
+const { theme } = useTheme()
 
 onMounted(() => {
   playerStore.initAudioEvents()
@@ -43,6 +48,9 @@ onMounted(() => {
   width: 100%;
   height: 100vh;
   overflow: hidden;
+  /* 关键：让 .app-layout 自身承载页面底色（而非透出 #app 的亮色）
+     data-theme 绑定在本元素上，此处读到的 --st-canvas-soft 随主题切换 */
+  background: var(--st-canvas-soft);
 }
 
 .main-section {

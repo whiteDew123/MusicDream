@@ -306,7 +306,7 @@ onMounted(() => {
     width: 100%;
     aspect-ratio: 1;
     border-radius: var(--rounded-md);
-    background: #e8ecf0;
+    background: var(--st-skeleton);
     animation: skeletonPulse 1.2s infinite ease-in-out;
   }
 
@@ -314,7 +314,7 @@ onMounted(() => {
     height: 16px;
     margin-top: 12px;
     border-radius: var(--rounded-sm);
-    background: #e8ecf0;
+    background: var(--st-skeleton);
     animation: skeletonPulse 1.2s infinite ease-in-out;
 
     &.lg {
@@ -333,7 +333,7 @@ onMounted(() => {
     width: 140px;
     margin-top: 20px;
     border-radius: var(--rounded-pill);
-    background: #e8ecf0;
+    background: var(--st-skeleton);
     animation: skeletonPulse 1.2s infinite ease-in-out;
   }
 
@@ -341,7 +341,7 @@ onMounted(() => {
     height: 100%;
     min-height: 200px;
     border-radius: var(--rounded-md);
-    background: #e8ecf0;
+    background: var(--st-skeleton);
     animation: skeletonPulse 1.2s infinite ease-in-out;
   }
 }

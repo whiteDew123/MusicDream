@@ -1,5 +1,5 @@
 <template>
-  <div class="room-page">
+  <div class="room-page" :data-theme="theme">
     <!-- 顶部栏 -->
     <header class="room-header">
       <button class="back-btn" @click="goBack">
@@ -223,6 +223,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { getToken } from '@/utils/auth'
+import { useTheme } from '@/utils/theme'
 import {
   roomDetailApi, roomPlaylistApi, addRoomPlaylistApi, removeRoomPlaylistApi,
   leaveRoomApi, closeRoomApi, roomMessagesApi, kickRoomApi, transferRoomApi
@@ -234,6 +235,7 @@ import { parseLrc, fetchLrc } from '@/utils/lrc'
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const { theme } = useTheme()
 
 const roomId = route.params.id
 const room = ref(null)
