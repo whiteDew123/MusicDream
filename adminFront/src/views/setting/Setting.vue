@@ -127,7 +127,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UserFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
-import { updateUserInfo, updatePassword, updateAvatar } from '@/api/setting'
+import { getUserInfo, updateUserInfo, updatePassword, updateAvatar } from '@/api/setting'
 import { uploadFileApi } from '@/api/music'
 
 const userStore = useUserStore()
@@ -192,13 +192,23 @@ onMounted(() => {
   loadUserInfo()
 })
 
-function loadUserInfo() {
-  const info = userStore.userInfo
-  if (info) {
-    infoForm.username = info.username || ''
-    infoForm.email = ''
-    infoForm.phone = ''
-    infoForm.about = ''
+async function loadUserInfo() {
+  try {
+    const res = await getUserInfo()
+    const data = res.data
+    if (data) {
+      infoForm.username = data.username || ''
+      infoForm.email = data.email || ''
+      infoForm.phone = data.phone || ''
+      infoForm.about = data.about || ''
+      avatarUrl.value = data.imageUrl || ''
+    }
+  } catch (e) {
+    // 接口失败时回退到 store 里已有的残缺数据
+    const info = userStore.userInfo
+    if (info) {
+      infoForm.username = info.username || ''
+    }
   }
 }
 
@@ -218,6 +228,10 @@ async function handleSaveInfo() {
       about: infoForm.about || undefined
     })
     ElMessage.success('个人信息修改成功')
+    // 同步 store（改了 username 顶栏名字也会更新）
+    if (userStore.userInfo) {
+      userStore.userInfo.username = infoForm.username
+    }
   } catch (e) {
     // 失败由拦截器处理
   } finally {
@@ -259,6 +273,10 @@ async function handleAvatarUpload(options) {
       const userId = userStore.userInfo?.userId
       await updateAvatar(userId, { imageUrl })
       avatarUrl.value = imageUrl
+      // 同步 store
+      if (userStore.userInfo) {
+        userStore.userInfo.imageUrl = imageUrl
+      }
       ElMessage.success('头像修改成功')
     }
   } catch (e) {
