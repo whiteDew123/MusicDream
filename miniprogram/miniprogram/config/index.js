@@ -9,8 +9,8 @@ module.exports = {
   BASE_URL: 'http://localhost:9000/api',
 
   // 静态资源服务地址（音乐/封面/歌词，由 Mod_upload 提供，相对路径 /uploads、/music、/img、/lyric 前缀到此处）
-  // 开发：本机 8012；生产：公开的静态资源域名（需加入 downloadFile/request 合法域名）
-  ASSET_BASE_URL: 'http://localhost:8012',
+  // 开发：本机 8005；生产：公开的静态资源域名（需加入 downloadFile/request 合法域名）
+  ASSET_BASE_URL: 'http://localhost:8005',
 
   // 登录态 storage 键
   TOKEN_KEY: 'MD_TOKEN',
