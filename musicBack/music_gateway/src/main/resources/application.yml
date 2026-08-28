@@ -115,6 +115,13 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: mod-friend
+          uri: lb://mod-friend
+          predicates:
+            - Path=/api/friend/**
+          filters:
+            - StripPrefix=1
+
         - id: mod-room-ws
           uri: lb:ws://mod-room
           predicates:

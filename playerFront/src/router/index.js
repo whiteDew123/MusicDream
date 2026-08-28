@@ -95,6 +95,12 @@ const routes = [
         meta: { title: '播放室', icon: 'Headset' }
       },
       {
+        // 好友（重定向到发现页，实际通过 TopBar 抽屉交互）
+        path: 'friend',
+        redirect: '/discover',
+        meta: { title: '好友', icon: 'User' }
+      },
+      {
         // 我的（分组，redirect 到第一个子项，无 component）
         path: 'my',
         redirect: '/my/liked',
