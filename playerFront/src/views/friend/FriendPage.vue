@@ -255,10 +255,11 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, UserFilled, Bell, MoreFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
+import { createFriendSocket } from '@/utils/friend-socket'
 import {
   searchUsersApi,
   getFriendListApi,
@@ -346,6 +347,78 @@ const messageList = ref([])
 const inputContent = ref('')
 const sending = ref(false)
 const msgListRef = ref(null)
+
+// ========== WebSocket ==========
+let friendSocket = null
+const wsConnected = ref(false)
+
+// 收到新消息（从 WS 推送）
+function onNewMessage(data) {
+  // data 是 Result<FriendMessage> 结构
+  const msg = data?.data || data
+  if (!msg || !msg.id) return
+
+  // 如果当前正在和这个好友聊天，直接追加到消息列表
+  if (currentFriendId.value &&
+      (msg.senderId === currentFriendId.value || msg.receiverId === currentFriendId.value)) {
+    messageList.value.push(msg)
+    scrollToBottom()
+    // 如果是对方发来的，自动标记已读
+    if (msg.senderId === currentFriendId.value) {
+      markMessageReadApi(currentFriendId.value).catch(() => {})
+    }
+  }
+  // 刷新会话列表（更新最后消息 + 未读数）
+  loadConversations()
+}
+
+// 发送消息：优先用 WebSocket，失败回退 HTTP
+async function handleSend() {
+  const content = inputContent.value.trim()
+  if (!content || !currentFriendId.value || sending.value) return
+  sending.value = true
+
+  // 乐观渲染：先把消息加到列表
+  const optimisticMsg = {
+    id: Date.now(), // 临时 ID，WS 成功后会被覆盖
+    senderId: currentUserId.value,
+    receiverId: currentFriendId.value,
+    content,
+    createTime: new Date().toISOString()
+  }
+  messageList.value.push(optimisticMsg)
+  inputContent.value = ''
+  scrollToBottom()
+
+  // 优先 WebSocket
+  if (friendSocket && friendSocket.connected) {
+    const ok = friendSocket.sendMessage({ friendId: currentFriendId.value, content, msgType: 0 })
+    if (ok) {
+      // WS 发送成功后，会通过 /user/queue/friend/new 收到自己的消息推送
+      // 删掉乐观渲染的临时消息，等服务端回推
+      messageList.value = messageList.value.filter(m => m.id !== optimisticMsg.id)
+      sending.value = false
+      return
+    }
+  }
+
+  // 回退 HTTP
+  try {
+    const res = await sendMessageApi({ friendId: currentFriendId.value, content, msgType: 0 })
+    // 替换乐观渲染的临时消息为服务端返回的真实消息
+    const idx = messageList.value.findIndex(m => m.id === optimisticMsg.id)
+    if (idx >= 0) {
+      messageList.value.splice(idx, 1, res.data || optimisticMsg)
+    }
+    loadConversations()
+  } catch (e) {
+    // 删除失败的乐观消息
+    messageList.value = messageList.value.filter(m => m.id !== optimisticMsg.id)
+    ElMessage.error(e.message || '发送失败')
+  } finally {
+    sending.value = false
+  }
+}
 
 // 打开聊天（从会话列表点击）
 async function openChat(conv) {
@@ -494,6 +567,25 @@ onMounted(() => {
   loadConversations()
   loadFriendList()
   loadFriendRequests()
+
+  // 初始化 WebSocket（登录态才有意义）
+  if (currentUserId.value) {
+    try {
+      friendSocket = createFriendSocket({
+        onNewMessage,
+        onStatus: (connected) => { wsConnected.value = connected }
+      })
+    } catch (e) {
+      console.warn('[FriendWS] 初始化失败，将使用 HTTP 模式:', e)
+    }
+  }
+})
+
+onUnmounted(() => {
+  if (friendSocket) {
+    friendSocket.disconnect()
+    friendSocket = null
+  }
 })
 </script>
 

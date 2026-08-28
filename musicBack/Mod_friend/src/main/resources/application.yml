@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 #  好友服务 配置文件
 # ============================================================
 server:
@@ -31,6 +31,10 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: auto
+
+# JWT 密钥（与网关、Mod_room 共享）
+jwt:
+  secret: MusicDreamerSecretKey2024ForJwtTokenSigning!!
 
 logging:
   level:
