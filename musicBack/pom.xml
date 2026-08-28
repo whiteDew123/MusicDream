@@ -30,6 +30,7 @@
         <module>Mod_capsule</module>
         <module>Mod_recognize</module>
         <module>Mod_room</module>
+        <module>Mod_friend</module>
     </modules>
 
     <properties>

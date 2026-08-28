@@ -23,7 +23,7 @@ spring:
       max-request-size: 100MB
 
 audio:
-  ffprobe-path: ${FFPROBE_PATH}
+  ffprobe-path: ${FFPROBE_PATH:ffprobe}
 
 upload:
   image:
