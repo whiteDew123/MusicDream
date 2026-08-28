@@ -1,5 +1,5 @@
 <template>
-  <div class="swipe-player" ref="playerRef">
+  <div class="swipe-player" ref="playerRef" :data-theme="theme">
     <!-- 返回按钮 -->
     <div class="top-bar">
       <button class="back-btn" @click="goBack">
@@ -129,10 +129,12 @@ import ShareModal from '@/components/ShareModal.vue'
 import { usePlayerStore } from '@/store/player'
 import { recommendSongsApi } from '@/api/music'
 import { useUserStore } from '@/store/user'
+import { useTheme } from '@/utils/theme'
 
 const router = useRouter()
 const playerStore = usePlayerStore()
 const userStore = useUserStore()
+const { theme } = useTheme()
 
 const playerRef = ref(null)
 const stackRef = ref(null)

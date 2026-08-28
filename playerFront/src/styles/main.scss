@@ -71,6 +71,59 @@
   --sidebar-collapsed: 64px;
   --topbar-height: 60px;
   --playerbar-height: 72px;
+
+  /* === 主题增强 token（亮色默认值）=== */
+  --st-skeleton: #e8ecf0;        /* 骨架屏底色：页面底与卡片底的中间色 */
+  --st-input-hover: #e9edf3;     /* 输入框/次级面 hover */
+}
+
+/* ================================================================
+ * 暗色模式 token 覆盖层（Spotify 暗色源 · design-spotify.md）
+ * 依据 frontend-design-standards-dark/Design-standards-dark.md：
+ *   - [data-theme="dark"] 上重定义全部 --st-* 变量
+ *   - 品牌色切换为 Spotify Green #1ed760（唯一强调色）
+ *   - 基底 #121212/#181818/#1f1f1f + 阴影加重（暗色下轻阴影不可见）
+ * 作用域说明：data-theme 绑定在 .app-layout 根元素上（Layout.vue），
+ *   因此仅登录后的主界面被覆盖，登录/注册门面保持亮色（规范：保持现状）
+ * ================================================================ */
+[data-theme="dark"] {
+  /* === 品牌色：Spotify Green（design-spotify.md §1 唯一强调色）=== */
+  --brand-primary: #1ed760;
+  --brand-primary-hover: #1fdf64;
+  --brand-accent: #1ed760;
+
+  --st-primary: #1ed760;             /* 品牌主色：CTA、链接、播放态 */
+  --st-primary-hover: #1fdf64;       /* 悬停加深 */
+  --st-primary-soft: #3be477;        /* 浅绿高光 */
+  --st-primary-subdued: rgba(30, 215, 96, 0.16); /* 绿低透明，标签/悬停底 */
+  --st-brand-dark: #1c1e54;          /* 保留原值（登录舞台用，不受暗色影响）*/
+
+  /* === 文字：近黑环境下的白/银 层级 === */
+  --st-ink: #ffffff;
+  --st-ink-secondary: #b3b3b3;
+  --st-ink-mute: #6b7280;
+
+  /* === 基底：content-first darkness === */
+  --st-canvas: #181818;              /* 卡片画布 */
+  --st-canvas-soft: #121212;         /* 页面底色 */
+  --st-canvas-hover: #1f1f1f;        /* 列表项 hover */
+  --st-hairline: #333333;
+  --st-hairline-input: #4d4d4d;
+
+  --st-input-bg: #1f1f1f;
+  --st-bg-from: #121212;
+  --st-bg-to: #181818;
+
+  /* === 主题增强 token（暗色值）=== */
+  --st-skeleton: #2a2a2a;
+  --st-input-hover: #2a2a2a;
+
+  /* === 阴影加重：暗色下 0.3~0.5 透明度才有浮起感 === */
+  --shadow-1: rgba(0, 0, 0, 0.3) 0 1px 3px;
+  --shadow-2: rgba(0, 0, 0, 0.5) 0 8px 24px, rgba(0, 0, 0, 0.3) 0 2px 6px;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
 /* ===== 全局重置 ===== */

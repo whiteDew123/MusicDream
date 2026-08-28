@@ -240,7 +240,7 @@ onMounted(() => {
 
 .skeleton-line {
   border-radius: var(--rounded-sm);
-  background: #e8ecf0;
+  background: var(--st-skeleton);
   animation: skeletonPulse 1.2s infinite ease-in-out;
 }
 

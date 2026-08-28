@@ -164,6 +164,34 @@
                 </div>
               </div>
             </el-tab-pane>
+
+            <el-tab-pane label="盲盒交友" name="box">
+              <div v-if="boxRequests.length === 0" class="empty-tip">
+                暂无盲盒交友请求
+              </div>
+              <div
+                v-for="req in boxRequests"
+                :key="req.id"
+                class="request-item"
+              >
+                <el-avatar :size="36" :src="req.senderAvatar">
+                  <el-icon><UserFilled /></el-icon>
+                </el-avatar>
+                <div class="request-info">
+                  <span class="request-name">{{ req.senderName }}</span>
+                  <span class="request-msg">{{ req.message || '通过盲盒想认识你' }}</span>
+                  <span class="request-time">{{ formatTime(req.createTime) }}</span>
+                </div>
+                <div class="request-actions">
+                  <el-button size="small" type="primary" @click="handleAcceptBoxRequest(req.id)">
+                    接受
+                  </el-button>
+                  <el-button size="small" @click="handleRejectBoxRequest(req.id)">
+                    拒绝
+                  </el-button>
+                </div>
+              </div>
+            </el-tab-pane>
           </el-tabs>
         </div>
 
@@ -258,6 +286,11 @@ import {
   deleteFriendApi,
   getConversationsApi
 } from '@/api/friend'
+import {
+  getReceivedBoxRequestsApi,
+  acceptBoxRequestApi,
+  rejectBoxRequestApi
+} from '@/api/musicbox'
 
 const router = useRouter()
 
@@ -318,6 +351,7 @@ const showRequestSection = ref(false)
 const receivedRequests = ref([])
 const sentRequests = ref([])
 const requestUnread = ref(0)
+const boxRequests = ref([])
 
 // 添加好友
 const showAddDialog = ref(false)
@@ -418,6 +452,36 @@ async function handleReject(requestId) {
   }
 }
 
+// ========== 盲盒交友 ==========
+async function loadBoxRequests() {
+  try {
+    const res = await getReceivedBoxRequestsApi()
+    boxRequests.value = res.data || []
+  } catch (error) {
+    // 盲盒模块可能未启用，静默忽略
+  }
+}
+
+async function handleAcceptBoxRequest(requestId) {
+  try {
+    await acceptBoxRequestApi(requestId)
+    ElMessage.success('已接受盲盒交友请求')
+    boxRequests.value = boxRequests.value.filter(r => r.id !== requestId)
+  } catch (error) {
+    ElMessage.error(error.message || '操作失败')
+  }
+}
+
+async function handleRejectBoxRequest(requestId) {
+  try {
+    await rejectBoxRequestApi(requestId)
+    ElMessage.success('已拒绝盲盒交友请求')
+    boxRequests.value = boxRequests.value.filter(r => r.id !== requestId)
+  } catch (error) {
+    ElMessage.error(error.message || '操作失败')
+  }
+}
+
 // 删除好友
 function handleDeleteFriend(friend) {
   ElMessageBox.confirm(
@@ -456,6 +520,7 @@ onMounted(() => {
   loadConversations()
   loadFriendList()
   loadFriendRequests()
+  loadBoxRequests()
 })
 </script>
 
