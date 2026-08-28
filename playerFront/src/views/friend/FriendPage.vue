@@ -256,6 +256,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, UserFilled, Bell, MoreFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
@@ -277,6 +278,7 @@ import {
 } from '@/api/friend'
 
 const userStore = useUserStore()
+const route = useRoute()
 const currentUserId = computed(() => userStore.userInfo?.id)
 
 // ========== 列表切换 ==========
@@ -462,32 +464,6 @@ async function loadHistory() {
   }
 }
 
-// 发送消息
-async function handleSend() {
-  const content = inputContent.value.trim()
-  if (!content || !currentFriendId.value || sending.value) return
-  sending.value = true
-  try {
-    const res = await sendMessageApi({ friendId: currentFriendId.value, content, msgType: 0 })
-    // 本地乐观渲染
-    const newMsg = res.data || {
-      id: Date.now(),
-      senderId: currentUserId.value,
-      receiverId: currentFriendId.value,
-      content,
-      createTime: new Date().toISOString()
-    }
-    messageList.value.push(newMsg)
-    inputContent.value = ''
-    scrollToBottom()
-    loadConversations()
-  } catch (e) {
-    ElMessage.error(e.message || '发送失败')
-  } finally {
-    sending.value = false
-  }
-}
-
 // 滚动到底部
 function scrollToBottom() {
   nextTick(() => {
@@ -563,10 +539,23 @@ function formatTime(timeStr) {
 }
 
 // ========== 生命周期 ==========
-onMounted(() => {
-  loadConversations()
-  loadFriendList()
-  loadFriendRequests()
+onMounted(async () => {
+  await Promise.all([loadConversations(), loadFriendList(), loadFriendRequests()])
+
+  // 从 FriendDrawer 跳转过来时，URL 带 ?friendId=xxx，自动打开聊天
+  const friendIdParam = route.query.friendId
+  if (friendIdParam) {
+    const fid = Number(friendIdParam)
+    // 先在会话列表里找
+    let conv = conversationList.value.find(c => c.friendId === fid)
+    if (conv) {
+      openChat(conv)
+    } else {
+      // 会话列表没有（可能还没聊过），从好友列表找
+      const friend = friendList.value.find(f => f.friendId === fid)
+      if (friend) openChatWithFriend(friend)
+    }
+  }
 
   // 初始化 WebSocket（登录态才有意义）
   if (currentUserId.value) {

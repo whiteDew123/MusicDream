@@ -3,7 +3,7 @@
     v-model="visible"
     title="好友"
     direction="rtl"
-    size="360px"
+    size="380px"
     :with-header="false"
     @close="handleClose"
   >
@@ -12,6 +12,25 @@
       <div class="drawer-header">
         <span class="drawer-title">好友</span>
         <el-icon class="close-btn" @click="handleClose"><Close /></el-icon>
+      </div>
+
+      <!-- Tab 切换 -->
+      <div class="drawer-tabs">
+        <div
+          :class="['drawer-tab', activeTab === 'conversations' && 'active']"
+          @click="switchTab('conversations')"
+        >
+          <el-icon><ChatDotRound /></el-icon>
+          消息
+          <el-badge v-if="totalUnread > 0" :value="totalUnread" class="tab-badge" />
+        </div>
+        <div
+          :class="['drawer-tab', activeTab === 'friends' && 'active']"
+          @click="switchTab('friends')"
+        >
+          <el-icon><UserFilled /></el-icon>
+          好友
+        </div>
       </div>
 
       <!-- 搜索框 -->
@@ -23,9 +42,6 @@
           clearable
           @keyup.enter="handleSearch"
         />
-        <el-button type="primary" class="search-btn" @click="handleSearch">
-          搜索
-        </el-button>
       </div>
 
       <!-- 搜索结果 -->
@@ -46,106 +62,141 @@
             </div>
           </div>
           <el-button size="small" type="primary" @click="showAddFriendDialog(user)">
-            添加好友
+            添加
           </el-button>
         </div>
       </div>
 
-      <!-- 好友请求入口 -->
-      <div class="request-entry" @click="activeTab = 'received'; showRequestSection = !showRequestSection">
-        <el-icon><Bell /></el-icon>
-        <span>好友请求</span>
-        <el-badge v-if="unreadCount > 0" :value="unreadCount" class="unread-badge" />
-        <el-icon class="arrow-icon"><ArrowRight /></el-icon>
-      </div>
-
-      <!-- 好友请求区域（Tab切换） -->
-      <div v-if="showRequestSection" class="request-section">
-        <el-tabs v-model="activeTab" class="request-tabs">
-          <el-tab-pane label="收到的" name="received">
-            <div v-if="receivedRequests.length === 0" class="empty-tip">
-              暂无收到的请求
-            </div>
-            <div
-              v-for="req in receivedRequests"
-              :key="req.id"
-              class="request-item"
-            >
-              <el-avatar :size="36" :src="req.senderAvatar">
-                <el-icon><UserFilled /></el-icon>
-              </el-avatar>
-              <div class="request-info">
-                <span class="request-name">{{ req.senderName }}</span>
-                <span class="request-msg">{{ req.message || '想添加你为好友' }}</span>
-                <span class="request-time">{{ formatTime(req.createTime) }}</span>
-              </div>
-              <div class="request-actions">
-                <el-button size="small" type="primary" @click="handleAccept(req.id)">
-                  接受
-                </el-button>
-                <el-button size="small" @click="handleReject(req.id)">
-                  拒绝
-                </el-button>
-              </div>
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="我发送的" name="sent">
-            <div v-if="sentRequests.length === 0" class="empty-tip">
-              暂无发送的请求
-            </div>
-            <div
-              v-for="req in sentRequests"
-              :key="req.id"
-              class="request-item"
-            >
-              <el-avatar :size="36" :src="req.receiverAvatar">
-                <el-icon><UserFilled /></el-icon>
-              </el-avatar>
-              <div class="request-info">
-                <span class="request-name">{{ req.receiverName }}</span>
-                <span class="request-msg">{{ req.message || '想添加对方为好友' }}</span>
-                <span class="request-time">{{ formatTime(req.createTime) }}</span>
-                <el-tag
-                  :type="req.status === 0 ? 'warning' : req.status === 1 ? 'success' : 'info'"
-                  size="small"
-                >
-                  {{ req.status === 0 ? '待处理' : req.status === 1 ? '已接受' : '已拒绝' }}
-                </el-tag>
-              </div>
-            </div>
-          </el-tab-pane>
-        </el-tabs>
-      </div>
-
-      <!-- 好友列表 -->
-      <div class="friend-list">
-        <div class="section-title">我的好友 ({{ friendList.length }}/300)</div>
-        <div v-if="friendList.length === 0" class="empty-tip">
-          还没有好友，快去搜索添加吧
+      <!-- 消息 Tab：会话列表 -->
+      <div v-else-if="activeTab === 'conversations'" class="conversation-list">
+        <div v-if="conversationList.length === 0" class="empty-tip">
+          暂无消息，<span class="empty-link" @click="switchTab('friends')">去添加好友</span>
         </div>
         <div
-          v-for="friend in friendList"
-          :key="friend.id"
-          class="friend-item"
+          v-for="conv in conversationList"
+          :key="conv.id"
+          class="conv-item"
+          @click="goChat(conv.friendId)"
         >
-          <el-avatar :size="40" :src="friend.friendAvatar">
+          <el-avatar :size="44" :src="conv.friendAvatar">
             <el-icon><UserFilled /></el-icon>
           </el-avatar>
-          <div class="friend-info">
-            <span class="friend-name">{{ friend.friendName }}</span>
-            <span class="friend-time">{{ formatTime(friend.createTime) }}</span>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">{{ conv.friendName }}</span>
+              <span class="conv-time">{{ formatTime(conv.lastMsgTime) }}</span>
+            </div>
+            <div class="conv-preview">
+              <span class="preview-text">{{ conv.lastMessage || '暂无消息' }}</span>
+              <el-badge
+                v-if="conv.unreadCount > 0"
+                :value="conv.unreadCount"
+                class="unread-badge"
+              />
+            </div>
           </div>
-          <el-dropdown trigger="click" class="friend-actions">
-            <el-icon class="more-icon"><MoreFilled /></el-icon>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="handleDeleteFriend(friend)">
-                  删除好友
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+        </div>
+      </div>
+
+      <!-- 好友 Tab -->
+      <div v-else>
+        <!-- 好友请求入口 -->
+        <div class="request-entry" @click="showRequestSection = !showRequestSection">
+          <el-icon><Bell /></el-icon>
+          <span>好友请求</span>
+          <el-badge v-if="requestUnread > 0" :value="requestUnread" class="unread-badge" />
+          <el-icon class="arrow-icon" :class="{ expanded: showRequestSection }"><ArrowRight /></el-icon>
+        </div>
+
+        <!-- 好友请求区域（Tab切换） -->
+        <div v-if="showRequestSection" class="request-section">
+          <el-tabs v-model="requestTab" class="request-tabs">
+            <el-tab-pane label="收到的" name="received">
+              <div v-if="receivedRequests.length === 0" class="empty-tip">
+                暂无收到的请求
+              </div>
+              <div
+                v-for="req in receivedRequests"
+                :key="req.id"
+                class="request-item"
+              >
+                <el-avatar :size="36" :src="req.senderAvatar">
+                  <el-icon><UserFilled /></el-icon>
+                </el-avatar>
+                <div class="request-info">
+                  <span class="request-name">{{ req.senderName }}</span>
+                  <span class="request-msg">{{ req.message || '想添加你为好友' }}</span>
+                  <span class="request-time">{{ formatTime(req.createTime) }}</span>
+                </div>
+                <div class="request-actions">
+                  <el-button size="small" type="primary" @click="handleAccept(req.id)">
+                    接受
+                  </el-button>
+                  <el-button size="small" @click="handleReject(req.id)">
+                    拒绝
+                  </el-button>
+                </div>
+              </div>
+            </el-tab-pane>
+
+            <el-tab-pane label="我发送的" name="sent">
+              <div v-if="sentRequests.length === 0" class="empty-tip">
+                暂无发送的请求
+              </div>
+              <div
+                v-for="req in sentRequests"
+                :key="req.id"
+                class="request-item"
+              >
+                <el-avatar :size="36" :src="req.receiverAvatar">
+                  <el-icon><UserFilled /></el-icon>
+                </el-avatar>
+                <div class="request-info">
+                  <span class="request-name">{{ req.receiverName }}</span>
+                  <span class="request-msg">{{ req.message || '想添加对方为好友' }}</span>
+                  <span class="request-time">{{ formatTime(req.createTime) }}</span>
+                  <el-tag
+                    :type="req.status === 0 ? 'warning' : req.status === 1 ? 'success' : 'info'"
+                    size="small"
+                  >
+                    {{ req.status === 0 ? '待处理' : req.status === 1 ? '已接受' : '已拒绝' }}
+                  </el-tag>
+                </div>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+
+        <!-- 好友列表 -->
+        <div class="friend-list">
+          <div class="section-title">我的好友 ({{ friendList.length }}/300)</div>
+          <div v-if="friendList.length === 0" class="empty-tip">
+            还没有好友，快去搜索添加吧
+          </div>
+          <div
+            v-for="friend in friendList"
+            :key="friend.id"
+            class="friend-item clickable"
+            @click="goChat(friend.friendId)"
+          >
+            <el-avatar :size="40" :src="friend.friendAvatar">
+              <el-icon><UserFilled /></el-icon>
+            </el-avatar>
+            <div class="friend-info">
+              <span class="friend-name">{{ friend.friendName }}</span>
+              <span class="friend-time">{{ formatTime(friend.createTime) }}</span>
+            </div>
+            <el-dropdown trigger="click" class="friend-actions" @click.stop>
+              <el-icon class="more-icon"><MoreFilled /></el-icon>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="handleDeleteFriend(friend)">
+                    删除好友
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
       </div>
     </div>
@@ -185,6 +236,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Search,
@@ -192,7 +244,8 @@ import {
   Bell,
   MoreFilled,
   Close,
-  ArrowRight
+  ArrowRight,
+  ChatDotRound
 } from '@element-plus/icons-vue'
 import {
   searchUsersApi,
@@ -202,8 +255,11 @@ import {
   sendFriendRequestApi,
   acceptFriendRequestApi,
   rejectFriendRequestApi,
-  deleteFriendApi
+  deleteFriendApi,
+  getConversationsApi
 } from '@/api/friend'
+
+const router = useRouter()
 
 const props = defineProps({
   modelValue: {
@@ -224,6 +280,31 @@ function handleClose() {
   emit('close')
 }
 
+// Tab 切换
+const activeTab = ref('conversations')
+function switchTab(tab) {
+  activeTab.value = tab
+  if (tab === 'conversations') loadConversations()
+  if (tab === 'friends') loadFriendList()
+}
+
+// 会话列表（消息 Tab）
+const conversationList = ref([])
+const totalUnread = ref(0)
+async function loadConversations() {
+  try {
+    const res = await getConversationsApi()
+    conversationList.value = res.data || []
+    totalUnread.value = conversationList.value.reduce((s, c) => s + (c.unreadCount || 0), 0)
+  } catch (e) {}
+}
+
+// 跳转聊天页面
+function goChat(friendId) {
+  router.push(`/friend?friendId=${friendId}`)
+  handleClose()
+}
+
 // 搜索相关
 const searchKeyword = ref('')
 const searchResults = ref([])
@@ -232,11 +313,11 @@ const searchResults = ref([])
 const friendList = ref([])
 
 // 好友请求
-const activeTab = ref('received')
+const requestTab = ref('received')
 const showRequestSection = ref(false)
 const receivedRequests = ref([])
 const sentRequests = ref([])
-const unreadCount = ref(0)
+const requestUnread = ref(0)
 
 // 添加好友
 const showAddDialog = ref(false)
@@ -280,7 +361,7 @@ async function loadFriendRequests() {
     ])
     receivedRequests.value = receivedRes.data || []
     sentRequests.value = sentRes.data || []
-    unreadCount.value = receivedRequests.value.length
+    requestUnread.value = receivedRequests.value.filter(r => r.status === 0).length
   } catch (error) {
     ElMessage.error(error.message || '加载好友请求失败')
   }
@@ -318,7 +399,7 @@ async function handleAccept(requestId) {
     await acceptFriendRequestApi(requestId)
     ElMessage.success('已接受好友请求')
     receivedRequests.value = receivedRequests.value.filter(r => r.id !== requestId)
-    unreadCount.value = receivedRequests.value.length
+    requestUnread.value = receivedRequests.value.filter(r => r.status === 0).length
     loadFriendList()
   } catch (error) {
     ElMessage.error(error.message || '操作失败')
@@ -331,7 +412,7 @@ async function handleReject(requestId) {
     await rejectFriendRequestApi(requestId)
     ElMessage.success('已拒绝好友请求')
     receivedRequests.value = receivedRequests.value.filter(r => r.id !== requestId)
-    unreadCount.value = receivedRequests.value.length
+    requestUnread.value = receivedRequests.value.filter(r => r.status === 0).length
   } catch (error) {
     ElMessage.error(error.message || '操作失败')
   }
@@ -372,6 +453,7 @@ function formatTime(timeStr) {
 
 // 页面加载时获取数据
 onMounted(() => {
+  loadConversations()
   loadFriendList()
   loadFriendRequests()
 })
@@ -617,5 +699,125 @@ onMounted(() => {
       color: var(--st-ink);
     }
   }
+}
+
+/* Tab 切换 */
+.drawer-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--st-hairline);
+
+  .drawer-tab {
+    flex: 1;
+    padding: 12px 0;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--st-ink-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: color 150ms;
+    position: relative;
+
+    &.active {
+      color: var(--st-primary);
+    }
+
+    &.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 30%;
+      right: 30%;
+      height: 2px;
+      background: var(--st-primary);
+      border-radius: 2px;
+    }
+
+    .tab-badge {
+      :deep(.el-badge__content) {
+        background-color: var(--st-primary);
+      }
+    }
+  }
+}
+
+/* 会话列表 */
+.conversation-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.conv-item {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--st-hairline);
+  transition: background 150ms;
+
+  &:hover {
+    background: var(--st-primary-subdued);
+  }
+
+  .conv-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .conv-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .conv-name { font-size: 14px; font-weight: 500; color: var(--st-ink); }
+    .conv-time { font-size: 11px; color: var(--st-ink-secondary); }
+  }
+
+  .conv-preview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+
+    .preview-text {
+      font-size: 12px;
+      color: var(--st-ink-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .unread-badge {
+      flex-shrink: 0;
+      :deep(.el-badge__content) {
+        background-color: #f56c6c;
+        border: none;
+      }
+    }
+  }
+}
+
+.friend-item.clickable {
+  cursor: pointer;
+}
+
+.empty-link {
+  color: var(--st-primary);
+  cursor: pointer;
+
+  &:hover { text-decoration: underline; }
+}
+
+.arrow-icon.expanded {
+  transform: rotate(90deg);
+  transition: transform 150ms;
 }
 </style>

@@ -95,9 +95,10 @@ const routes = [
         meta: { title: '播放室', icon: 'Headset' }
       },
       {
-        // 好友（重定向到发现页，实际通过 TopBar 抽屉交互）
+        // 好友（消息 + 聊天完整页面）
         path: 'friend',
-        redirect: '/discover',
+        name: 'Friend',
+        component: () => import('@/views/friend/FriendPage.vue'),
         meta: { title: '好友', icon: 'User' }
       },
       {
