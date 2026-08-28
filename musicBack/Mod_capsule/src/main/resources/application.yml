@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  共享配置文件 - 已提交 Git，请勿直接修改密码
 #  需要自定义请设置环境变量，例如 NACOS_PASSWORD=xxx
 #  默认值与本机开发环境一致，直接启动即可
@@ -20,7 +20,7 @@ spring:
       discovery:
         server-addr: localhost:8848
         username: nacos
-        password: ${NACOS_PASSWORD:8ECJshugKVQP}
+        password: ${NACOS_PASSWORD:nacos}
         namespace: public
 
 mybatis-plus:
