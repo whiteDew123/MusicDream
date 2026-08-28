@@ -72,13 +72,15 @@ const menuItems = [
   { path: '/rank', label: '排行', icon: 'TrophyBase' },
   { path: '/songlist', label: '歌单', icon: 'Files' },
   { path: '/rooms', label: '播放室', icon: 'Headset' },
-  { path: '/capsule/plaza', label: '时空胶囊', icon: 'MagicStick' }
+  { path: '/capsule/plaza', label: '时空胶囊', icon: 'MagicStick' },
+  { path: '/Musicbox/plaza', label: '盲盒广场', icon: 'Present' }
 ]
 
 // 我的子项
 const myItems = [
   { path: '/my/liked', label: '我喜欢的音乐', icon: 'Star' },
   { path: '/my/capsules', label: '我的胶囊', icon: 'MagicStick' },
+  { path: '/Musicbox/my', label: '我的盲盒', icon: 'Present' },
   { path: '/my/favorite', label: '收藏歌单', icon: 'Collection' },
   { path: '/my/created', label: '创建歌单', icon: 'FolderAdd' },
   { path: '/my/notify', label: '消息通知', icon: 'Bell' },

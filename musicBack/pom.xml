@@ -31,6 +31,7 @@
         <module>Mod_recognize</module>
         <module>Mod_room</module>
         <module>Mod_friend</module>
+        <module>Mod_musicbox</module>
     </modules>
 
     <properties>
