@@ -1,8 +1,7 @@
 <template>
   <div class="register-container">
-    <!-- 装饰性柔光（Stripe 亮色） -->
-    <div class="bg-glow bg-glow-1"></div>
-    <div class="bg-glow bg-glow-2"></div>
+    <!-- ===== Stripe 渐变 mesh 背景层（与登录页同款，保持两端门面统一）===== -->
+    <div class="mesh-bg" aria-hidden="true"></div>
 
     <div class="register-card">
       <!-- Logo + Slogan（Design-standards.md §48：顶部居中） -->
@@ -73,7 +72,9 @@
             @click="handleRegister"
           >
             <span v-if="!loading" class="btn-text">注 册</span>
-            <span v-else class="btn-text">注册中…</span>
+            <span v-else class="btn-text">
+              <span class="spinner"></span>注册中…
+            </span>
             <span class="ripple"></span>
           </button>
         </el-form-item>
@@ -180,7 +181,11 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-/* ===== 注册页 · 同登录页极浅蓝灰渐变（Design-standards.md §44）===== */
+/* ================================================================
+ * 注册页 V2 · 与登录页共享门面语言（mesh + 白卡表单）
+ * 依据：Design-standards.md §44-47 登录页微调规则
+ * ================================================================ */
+
 .register-container {
   position: relative;
   width: 100%;
@@ -189,30 +194,20 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: linear-gradient(180deg, var(--st-bg-from) 0%, var(--st-bg-to) 100%);
 }
 
-.bg-glow {
+/* ===== Stripe mesh 背景（与登录页.mesh-bg 同款，保证门面统一）===== */
+.mesh-bg {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.35;
-  pointer-events: none;
+  inset: 0;
   z-index: 0;
-}
-.bg-glow-1 {
-  width: 480px;
-  height: 480px;
-  background: #8ab4f8;
-  top: -180px;
-  right: -100px;
-}
-.bg-glow-2 {
-  width: 560px;
-  height: 560px;
-  background: var(--st-primary);
-  bottom: -220px;
-  left: -160px;
+  background:
+    radial-gradient(720px 420px at 12% 6%, rgba(245, 233, 212, 0.95), transparent 62%),
+    radial-gradient(640px 400px at 90% 10%, rgba(185, 185, 249, 0.72), transparent 64%),
+    radial-gradient(600px 380px at 44% 16%, rgba(99, 65, 255, 0.10), transparent 62%),
+    radial-gradient(560px 360px at 74% 84%, rgba(234, 34, 97, 0.16), transparent 60%),
+    radial-gradient(680px 460px at 6% 88%, rgba(249, 107, 238, 0.14), transparent 62%),
+    linear-gradient(180deg, #f6f9fc 0%, #eef2f8 100%);
 }
 
 /* ===== 纯白卡片 + 轻微阴影（Design-standards.md §45）===== */
@@ -253,7 +248,7 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 16px rgba(94, 92, 230, 0.25);
+    box-shadow: 0 4px 16px rgba(99, 65, 255, 0.28);
   }
   .logo-icon {
     font-size: 28px;
@@ -295,7 +290,7 @@ onBeforeUnmount(() => {
   :deep(.el-input__wrapper.is-focus) {
     border-color: var(--st-primary);
     background: var(--st-canvas);
-    box-shadow: 0 0 0 3px rgba(94, 92, 230, 0.12);
+    box-shadow: 0 0 0 3px rgba(99, 65, 255, 0.14);
   }
   :deep(.el-input__inner) {
     color: var(--st-ink);
@@ -330,9 +325,9 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   width: 120px;
   height: 42px;
-  border-radius: var(--rounded-md);
-  border: 1px solid rgba(94, 92, 230, 0.4);
-  background: rgba(94, 92, 230, 0.08);
+  border-radius: var(--rounded-pill);
+  border: 1px solid rgba(99, 65, 255, 0.4);
+  background: rgba(99, 65, 255, 0.08);
   color: var(--st-primary);
   font-size: 13px;
   font-weight: 500;
@@ -340,7 +335,7 @@ onBeforeUnmount(() => {
   transition: all 200ms ease;
 }
 .code-btn:hover:not(:disabled) {
-  background: rgba(94, 92, 230, 0.16);
+  background: rgba(99, 65, 255, 0.16);
   border-color: var(--st-primary);
 }
 .code-btn:disabled {
@@ -348,13 +343,13 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-/* ===== 紫色主提交按钮 + 音浪波纹（Design-standards.md §47）===== */
+/* ===== 紫色主提交按钮（pill）+ 音浪波纹（Design-standards.md §47）===== */
 .submit-btn {
   position: relative;
   width: 100%;
   height: 48px;
   border: none;
-  border-radius: var(--rounded-md);
+  border-radius: var(--rounded-pill);
   background: var(--st-primary);
   color: var(--st-canvas);
   font-size: 15px;
@@ -366,7 +361,7 @@ onBeforeUnmount(() => {
 }
 .submit-btn:hover:not(:disabled) {
   background: var(--st-primary-hover);
-  box-shadow: 0 6px 24px rgba(94, 92, 230, 0.3);
+  box-shadow: 0 6px 24px rgba(99, 65, 255, 0.32);
   transform: translateY(-1px);
 }
 .submit-btn:active:not(:disabled) {
@@ -401,6 +396,23 @@ onBeforeUnmount(() => {
     opacity: 0;
     transform: scale(1.4);
   }
+}
+
+/* 加载圆环（animation.md §76） */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: -3px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ===== 底部链接 ===== */

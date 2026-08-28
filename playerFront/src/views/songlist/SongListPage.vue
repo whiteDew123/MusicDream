@@ -138,7 +138,7 @@ onMounted(() => {
     width: 100%;
     aspect-ratio: 1;
     border-radius: var(--rounded-md);
-    background: #e8ecf0;
+    background: var(--st-skeleton);
     animation: skeletonPulse 1.2s infinite ease-in-out;
   }
 
@@ -146,7 +146,7 @@ onMounted(() => {
     height: 14px;
     margin-top: 10px;
     border-radius: var(--rounded-sm);
-    background: #e8ecf0;
+    background: var(--st-skeleton);
     animation: skeletonPulse 1.2s infinite ease-in-out;
 
     &.short {

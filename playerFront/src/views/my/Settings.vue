@@ -464,7 +464,7 @@ async function handleChangePassword() {
     transition: border-color 200ms ease, background 200ms ease;
   }
   :deep(.el-input__wrapper:hover) {
-    background: #e9edf3;
+    background: var(--st-input-hover);
   }
   :deep(.el-input__wrapper.is-focus) {
     border-color: var(--st-primary);
@@ -487,7 +487,7 @@ async function handleChangePassword() {
     transition: border-color 200ms ease, background 200ms ease;
   }
   :deep(.el-textarea__inner:hover) {
-    background: #e9edf3;
+    background: var(--st-input-hover);
   }
   :deep(.el-textarea__inner:focus) {
     border-color: var(--st-primary);
