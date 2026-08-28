@@ -58,3 +58,39 @@ export function getFriendListApi() {
 export function deleteFriendApi(friendId) {
   return request({ url: `/friend/${friendId}`, method: 'delete' })
 }
+
+// ===== 消息 =====
+
+// 获取会话列表（含最后消息+未读数，用于左栏渲染）
+// GET /api/friend/conversations
+export function getConversationsApi() {
+  return request({ url: '/friend/conversations', method: 'get' })
+}
+
+// 发送消息
+// POST /api/friend/message/send  body: { friendId, content, msgType }
+export function sendMessageApi(data) {
+  return request({ url: '/friend/message/send', method: 'post', data })
+}
+
+// 拉取历史消息（游标分页）
+// GET /api/friend/message/history/{friendId}?before=&size=20
+export function getMessageHistoryApi(friendId, before = null, size = 20) {
+  return request({
+    url: `/friend/message/history/${friendId}`,
+    method: 'get',
+    params: { before, size }
+  })
+}
+
+// 标记某会话已读（清零未读）
+// POST /api/friend/message/read/{friendId}
+export function markMessageReadApi(friendId) {
+  return request({ url: `/friend/message/read/${friendId}`, method: 'post' })
+}
+
+// 获取未读数（顶部 Badge）
+// GET /api/friend/message/unread-count
+export function getUnreadCountApi() {
+  return request({ url: '/friend/message/unread-count', method: 'get' })
+}
