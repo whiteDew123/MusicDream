@@ -45,6 +45,12 @@ export default defineConfig({
       '/img': { target: 'http://localhost:8012', changeOrigin: true },
       '/lyric': { target: 'http://localhost:8012', changeOrigin: true },
       '/uploads': { target: 'http://localhost:8012', changeOrigin: true }
+    },
+    // History 模式刷新页面支持：所有非 API/静态资源 请求返回 index.html
+    historyApiFallback: {
+      rewrites: [
+        { from: /.*/, to: '/index.html' }
+      ]
     }
   }
 })

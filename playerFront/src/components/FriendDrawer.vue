@@ -115,6 +115,34 @@
               </div>
             </div>
           </el-tab-pane>
+
+          <el-tab-pane label="盲盒交友" name="box">
+            <div v-if="boxRequests.length === 0" class="empty-tip">
+              暂无盲盒交友请求
+            </div>
+            <div
+              v-for="req in boxRequests"
+              :key="req.id"
+              class="request-item"
+            >
+              <el-avatar :size="36" :src="req.senderAvatar">
+                <el-icon><UserFilled /></el-icon>
+              </el-avatar>
+              <div class="request-info">
+                <span class="request-name">{{ req.senderName }}</span>
+                <span class="request-msg">{{ req.message || '通过盲盒想认识你' }}</span>
+                <span class="request-time">{{ formatTime(req.createTime) }}</span>
+              </div>
+              <div class="request-actions">
+                <el-button size="small" type="primary" @click="handleAcceptBoxRequest(req.id)">
+                  接受
+                </el-button>
+                <el-button size="small" @click="handleRejectBoxRequest(req.id)">
+                  拒绝
+                </el-button>
+              </div>
+            </div>
+          </el-tab-pane>
         </el-tabs>
       </div>
 
@@ -204,6 +232,11 @@ import {
   rejectFriendRequestApi,
   deleteFriendApi
 } from '@/api/friend'
+import {
+  getReceivedBoxRequestsApi,
+  acceptBoxRequestApi,
+  rejectBoxRequestApi
+} from '@/api/musicbox'
 
 const props = defineProps({
   modelValue: {
@@ -236,6 +269,7 @@ const activeTab = ref('received')
 const showRequestSection = ref(false)
 const receivedRequests = ref([])
 const sentRequests = ref([])
+const boxRequests = ref([])
 const unreadCount = ref(0)
 
 // 添加好友
@@ -283,6 +317,39 @@ async function loadFriendRequests() {
     unreadCount.value = receivedRequests.value.length
   } catch (error) {
     ElMessage.error(error.message || '加载好友请求失败')
+  }
+}
+
+// 加载盲盒交友请求
+async function loadBoxRequests() {
+  try {
+    const res = await getReceivedBoxRequestsApi()
+    boxRequests.value = res.data || []
+  } catch (error) {
+    ElMessage.error(error.message || '加载盲盒交友请求失败')
+  }
+}
+
+// 接受盲盒交友请求
+async function handleAcceptBoxRequest(requestId) {
+  try {
+    await acceptBoxRequestApi(requestId)
+    ElMessage.success('已接受盲盒交友请求')
+    boxRequests.value = boxRequests.value.filter(r => r.id !== requestId)
+    loadFriendList()
+  } catch (error) {
+    ElMessage.error(error.message || '操作失败')
+  }
+}
+
+// 拒绝盲盒交友请求
+async function handleRejectBoxRequest(requestId) {
+  try {
+    await rejectBoxRequestApi(requestId)
+    ElMessage.success('已拒绝盲盒交友请求')
+    boxRequests.value = boxRequests.value.filter(r => r.id !== requestId)
+  } catch (error) {
+    ElMessage.error(error.message || '操作失败')
   }
 }
 
@@ -374,6 +441,7 @@ function formatTime(timeStr) {
 onMounted(() => {
   loadFriendList()
   loadFriendRequests()
+  loadBoxRequests()
 })
 </script>
 

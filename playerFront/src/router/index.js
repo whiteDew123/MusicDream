@@ -101,6 +101,34 @@ const routes = [
         meta: { title: '好友', icon: 'User' }
       },
       {
+        // 盲盒广场
+        path: 'Musicbox/plaza',
+        name: 'MusicBoxPlaza',
+        component: () => import('@/views/musicbox/BoxPlaza.vue'),
+        meta: { title: '盲盒广场', icon: 'Present' }
+      },
+      {
+        // 创建盲盒
+        path: 'Musicbox/create',
+        name: 'CreateMusicBox',
+        component: () => import('@/views/musicbox/CreateBox.vue'),
+        meta: { title: '创建盲盒' }
+      },
+      {
+        // 盲盒详情
+        path: 'Musicbox/:id',
+        name: 'BoxDetail',
+        component: () => import('@/views/musicbox/BoxDetail.vue'),
+        meta: { title: '盲盒详情' }
+      },
+      {
+        // 我的盲盒
+        path: 'Musicbox/my',
+        name: 'MyMusicBox',
+        component: () => import('@/views/musicbox/MyBox.vue'),
+        meta: { title: '我的盲盒' }
+      },
+      {
         // 我的（分组，redirect 到第一个子项，无 component）
         path: 'my',
         redirect: '/my/liked',

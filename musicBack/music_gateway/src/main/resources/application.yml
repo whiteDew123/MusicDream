@@ -122,6 +122,13 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: mod-musicbox
+          uri: lb://mod-musicbox
+          predicates:
+            - Path=/api/musicbox/**
+          filters:
+            - StripPrefix=1
+
         - id: mod-room-ws
           uri: lb:ws://mod-room
           predicates:
