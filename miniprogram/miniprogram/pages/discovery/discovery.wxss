@@ -1,0 +1,143 @@
+.discover-page {
+  padding: 24rpx 24rpx 0;
+}
+
+/* 骨架屏 */
+.skeleton-section { padding: 8rpx; }
+.banner-skeleton { height: 240rpx; border-radius: var(--radius-lg); }
+.title-skeleton { width: 160rpx; height: 32rpx; margin: 32rpx 0 16rpx; }
+.skeleton-card-row { display: flex; gap: 16rpx; }
+.card-skeleton { flex: 1; height: 220rpx; border-radius: var(--radius-lg); }
+
+/* Banner */
+.banner-card {
+  height: 240rpx;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-soft) 100%);
+  padding: 0 40rpx;
+  display: flex;
+  align-items: center;
+  margin-bottom: 40rpx;
+  position: relative;
+  overflow: hidden;
+}
+.banner-tag {
+  display: inline-block;
+  padding: 6rpx 20rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-pill);
+  font-size: 20rpx;
+  color: #fff;
+}
+.banner-title {
+  font-size: 48rpx;
+  font-weight: 300;
+  color: #fff;
+  letter-spacing: 1rpx;
+  margin-top: 12rpx;
+}
+.banner-desc { font-size: 24rpx; color: rgba(255, 255, 255, 0.8); margin-top: 8rpx; }
+.banner-btn {
+  margin-top: 24rpx;
+  display: inline-flex;
+  align-items: center;
+  padding: 16rpx 32rpx;
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: var(--brand-primary);
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+/* 分区头部 */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 32rpx 0 20rpx;
+}
+.section-title { font-size: 32rpx; font-weight: 600; color: var(--text-primary); }
+.section-more { font-size: 24rpx; color: var(--text-secondary); }
+
+/* 推荐歌曲网格 */
+.song-grid { display: flex; flex-wrap: wrap; gap: 20rpx; }
+.song-card { width: calc(33.33% - 14rpx); }
+.song-cover {
+  width: 100%;
+  height: 200rpx;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+.song-cover.fallback, .rank-cover.fallback, .playlist-cover.fallback, .artist-avatar.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56rpx;
+  color: var(--text-muted);
+}
+.song-name { font-size: 26rpx; color: var(--text-primary); margin-top: 10rpx; }
+.song-singer { font-size: 22rpx; color: var(--text-secondary); margin-top: 4rpx; }
+
+/* 排行列表 */
+.rank-list {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.rank-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+}
+.rank-item:active { background: var(--bg-subtle); }
+.rank-num {
+  width: 44rpx;
+  text-align: center;
+  font-size: 30rpx;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rank-item.top .rank-num { color: var(--brand-primary); font-weight: 600; }
+.rank-cover {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-subtle);
+  margin: 0 20rpx 0 8rpx;
+  flex-shrink: 0;
+}
+.rank-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rank-name { font-size: 28rpx; color: var(--text-primary); }
+.rank-singer { font-size: 22rpx; color: var(--text-secondary); margin-top: 4rpx; }
+.rank-plays { font-size: 22rpx; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* 歌单网格 */
+.playlist-grid { display: flex; flex-wrap: wrap; gap: 20rpx; }
+.playlist-card { width: calc(33.33% - 14rpx); }
+.playlist-cover {
+  width: 100%;
+  height: 200rpx;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+.playlist-name { font-size: 26rpx; color: var(--text-primary); margin-top: 10rpx; line-height: 1.4; }
+
+/* 歌手网格 */
+.artist-grid { display: flex; flex-wrap: wrap; gap: 20rpx; }
+.artist-card { width: calc(25% - 15rpx); text-align: center; }
+.artist-avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-subtle);
+  margin: 0 auto;
+}
+.artist-name { font-size: 24rpx; color: var(--text-primary); margin-top: 8rpx; }
+.artist-stat { font-size: 20rpx; color: var(--text-muted); margin-top: 2rpx; }
+
+.bottom-space { height: 120rpx; }

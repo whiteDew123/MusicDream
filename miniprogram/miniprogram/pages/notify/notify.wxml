@@ -1,0 +1,21 @@
+<view class="notify-page">
+  <view class="top-row">
+    <view class="page-title">消息通知</view>
+    <view class="btn-readall" bindtap="onReadAll">全部已读</view>
+  </view>
+
+  <view class="list">
+    <view wx:for="{{msgs}}" wx:key="id" class="msg-item">
+      <view class="msg-dot {{ item.isread ? '' : 'unread' }}"></view>
+      <view class="msg-body">
+        <view class="msg-title">{{item.title}}</view>
+        <view class="msg-text">{{item.msg}}</view>
+        <view class="msg-time">{{item.createTime}}</view>
+      </view>
+    </view>
+    <empty-state wx:if="{{!loading && !msgs.length}}" text="暂无消息" />
+  </view>
+
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

@@ -22,9 +22,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.net.URI;
 
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -33,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -205,9 +207,9 @@ public class SingerServiceImpl implements SingerService {
         musicMapper.insert(music);
         evictRecommendCache();
 
-        // 自动审核通过后，同步触发听歌识曲指纹注册（失败不影响发布）
+        // 自动审核通过后，异步触发听歌识曲指纹注册（不阻塞发布响应）
         if (review.isPass() && StringUtils.hasText(music.getMusicUrl())) {
-            triggerFingerprintRegister(music);
+            CompletableFuture.runAsync(() -> triggerFingerprintRegister(music));
         }
         return toMusicVO(music);
     }
@@ -388,11 +390,14 @@ public class SingerServiceImpl implements SingerService {
      */
     private void triggerFingerprintRegister(Music music) {
         try {
-            String encodedUrl = URLEncoder.encode(music.getMusicUrl(), StandardCharsets.UTF_8);
-            String url = recognizeServiceUrl + "/recognize/registerByUrl?musicId=" + music.getMusicId()
-                    + "&musicUrl=" + encodedUrl;
-            restTemplate.postForEntity(url, null, String.class);
-            log.info("歌曲发布自动通过，指纹注册任务已触发: musicId={}", music.getMusicId());
+            URI uri = UriComponentsBuilder
+                    .fromHttpUrl(recognizeServiceUrl + "/recognize/registerByUrl")
+                    .queryParam("musicId", music.getMusicId())
+                    .queryParam("musicUrl", music.getMusicUrl())
+                    .build()
+                    .toUri();
+            ResponseEntity<String> resp = restTemplate.postForEntity(uri, null, String.class);
+            log.info("歌曲发布自动通过，指纹注册任务已触发: musicId={}, 响应={}", music.getMusicId(), resp.getBody());
         } catch (Exception e) {
             log.error("歌曲指纹注册失败: musicId={}", music.getMusicId(), e);
         }

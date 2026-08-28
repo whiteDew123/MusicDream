@@ -1,0 +1,23 @@
+<view class="songlist-detail" wx:if="{{list}}">
+  <view class="head">
+    <image wx:if="{{list.pic}}" class="cover" src="{{list.pic}}" mode="aspectFill" />
+    <view wx:else class="cover fallback">♪</view>
+    <view class="head-info">
+      <view class="name">{{list.name}}</view>
+      <view class="meta">by {{list.username || 'MusicDreamer'}}</view>
+      <view class="desc clamp-2" wx:if="{{list.introduction}}">{{list.introduction}}</view>
+      <view class="btn-row">
+        <view class="btn-play" bindtap="onPlayAll">▶ 播放全部</view>
+        <view class="btn-like {{ liked ? 'liked' : '' }}" bindtap="onToggleLike">{{ liked ? '♥ 已收藏' : '♡ 收藏' }}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="list">
+    <song-item wx:for="{{songs}}" wx:key="musicId" song="{{item}}" show-plays="{{true}}" />
+    <empty-state wx:if="{{!songs.length}}" text="歌单暂无歌曲" />
+  </view>
+
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

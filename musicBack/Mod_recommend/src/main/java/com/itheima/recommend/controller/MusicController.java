@@ -36,11 +36,19 @@ public class MusicController {
     }
 
     /**
-     * 歌曲排行
+     * 歌曲排行（按播放量）
      */
     @GetMapping("/rank")
     public Result<List<MusicVO>> rankSongs(@RequestParam(defaultValue = "10") Integer limit) {
         return Result.success(recommendService.rankSongs(limit));
+    }
+
+    /**
+     * 歌曲排行（按发布时间）
+     */
+    @GetMapping("/rank/play-time")
+    public Result<List<MusicVO>> rankSongsByPlayTime(@RequestParam(defaultValue = "10") Integer limit) {
+        return Result.success(recommendService.rankSongsByPlayTime(limit));
     }
 
     /**

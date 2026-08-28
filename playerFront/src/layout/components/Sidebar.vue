@@ -71,6 +71,7 @@ const menuItems = [
   { path: '/recognize', label: '听歌识曲', icon: 'Microphone' },
   { path: '/rank', label: '排行', icon: 'TrophyBase' },
   { path: '/songlist', label: '歌单', icon: 'Files' },
+  { path: '/rooms', label: '播放室', icon: 'Headset' },
   { path: '/capsule/plaza', label: '时空胶囊', icon: 'MagicStick' }
 ]
 

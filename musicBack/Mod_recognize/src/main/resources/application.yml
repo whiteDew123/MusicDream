@@ -1,0 +1,47 @@
+# ============================================================
+#  共享配置文件 - 已提交 Git，请勿直接修改密码
+#  需要自定义请设置环境变量，例如 NACOS_PASSWORD=xxx
+#  默认值与本机开发环境一致，直接启动即可
+# ============================================================
+server:
+  port: 8011
+
+spring:
+  application:
+    name: mod-recognize
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: public
+        username: nacos
+        password: ${NACOS_PASSWORD:8ECJshugKVQP}
+    servlet:
+      multipart:
+        max-file-size: 50MB
+        max-request-size: 50MB
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:musicdreamer}?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:123456}
+    type: com.alibaba.druid.pool.DruidDataSource
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+recognize:
+  # 上传服务基础地址，用于按 music_url 下载音频生成指纹
+  upload-base-url: ${UPLOAD_BASE_URL:http://localhost:8012}
+
+logging:
+  level:
+    com.itheima.recognize: debug

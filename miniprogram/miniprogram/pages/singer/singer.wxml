@@ -1,0 +1,20 @@
+<view class="singer-page">
+  <view class="page-title">全部歌手</view>
+
+  <view wx:if="{{loading}}" class="grid">
+    <view wx:for="{{[1,2,3,4,5,6,7,8]}}" wx:key="*this" class="skeleton artist-skeleton"></view>
+  </view>
+
+  <view wx:else class="grid">
+    <view wx:for="{{artists}}" wx:key="id" class="artist-card" data-id="{{item.id}}" bindtap="onArtistTap">
+      <image wx:if="{{item.imageUrl}}" class="artist-avatar" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+      <view wx:else class="artist-avatar fallback">🎤</view>
+      <view class="artist-name ellipsis">{{item.username}}</view>
+      <view class="artist-stat">{{item.songCount || 0}} 首</view>
+    </view>
+    <empty-state wx:if="{{!artists.length}}" text="暂无歌手" />
+  </view>
+
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

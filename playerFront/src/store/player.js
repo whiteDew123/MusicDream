@@ -50,6 +50,9 @@ export const usePlayerStore = defineStore('player', () => {
     return currentIndex.value >= 0 ? playlist.value[currentIndex.value] : null
   })
 
+  // ===== 已记录播放量的歌曲 ID 集合（防止重复计数）=====
+  const playedIds = ref(new Set())
+
   // ===== 歌词解析 =====
   // 解析 LRC 格式歌词，返回 [{ time: 秒数, text: '歌词' }] 按时间升序
   function parseLyrics(lrcString) {
@@ -175,6 +178,8 @@ export const usePlayerStore = defineStore('player', () => {
       currentIndex.value =
         (currentIndex.value - 1 + playlist.value.length) % playlist.value.length
     }
+    // 切换歌曲后清除播放量记录，新歌可正常计数
+    playedIds.value.clear()
     loadAndPlay()
   }
 
@@ -187,6 +192,8 @@ export const usePlayerStore = defineStore('player', () => {
     } else {
       currentIndex.value = (currentIndex.value + 1) % playlist.value.length
     }
+    // 切换歌曲后清除播放量记录，新歌可正常计数
+    playedIds.value.clear()
     loadAndPlay()
   }
 

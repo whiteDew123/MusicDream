@@ -18,9 +18,14 @@ public interface RecommendService {
     List<MusicVO> recommendSongs(Integer userId, Integer limit);
 
     /**
-     * 歌曲排行
+     * 歌曲排行（按播放量）
      */
     List<MusicVO> rankSongs(Integer limit);
+
+    /**
+     * 歌曲排行（按发布时间）
+     */
+    List<MusicVO> rankSongsByPlayTime(Integer limit);
 
     /**
      * 歌曲搜索
@@ -46,4 +51,9 @@ public interface RecommendService {
      * 清理推荐模块相关缓存（歌曲发布、审核通过、删除后调用）
      */
     void evictRecommendCache();
+
+    /**
+     * 记录歌曲播放量（+1）
+     */
+    void recordPlay(Integer musicId);
 }

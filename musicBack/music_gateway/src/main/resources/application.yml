@@ -1,0 +1,149 @@
+# ============================================================
+#  共享配置文件 - 已提交 Git，请勿直接修改密码
+#  需要自定义请设置环境变量，例如 NACOS_PASSWORD=xxx
+#  默认值与本机开发环境一致，直接启动即可
+# ============================================================
+server:
+  port: 9000
+
+spring:
+  application:
+    name: music-gateway
+    codec:
+      max-in-memory-size: 50MB
+    webflux:
+      multipart:
+        max-file-size: 50MB
+        max-request-size: 50MB
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: public
+        username: nacos
+        password: ${NACOS_PASSWORD:8ECJshugKVQP}
+    gateway:
+      routes:
+        - id: mod-login
+          uri: lb://mod-login
+          predicates:
+            - Path=/api/login/**,/api/register/**,/api/email/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-admin
+          uri: lb://mod-admin
+          predicates:
+            - Path=/api/admin/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-setting
+          uri: lb://mod-setting
+          predicates:
+            - Path=/api/setting/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-msg
+          uri: lb://mod-msg
+          predicates:
+            - Path=/api/msg/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-like
+          uri: lb://mod-like
+          predicates:
+            - Path=/api/like/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-music
+          uri: lb://mod-recommend
+          predicates:
+            - Path=/api/music/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-singer-recommend
+          uri: lb://mod-recommend
+          predicates:
+            - Path=/api/singer/recommend/**,/api/singer/detail/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-singer
+          uri: lb://mod-singer
+          predicates:
+            - Path=/api/singer/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-songList
+          uri: lb://mod-songList
+          predicates:
+            - Path=/api/songList/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-upload
+          uri: lb://mod-upload
+          predicates:
+            - Path=/api/upload/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-capsule
+          uri: lb://music-capsule-service
+          predicates:
+            - Path=/api/capsule/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-recognize
+          uri: lb://mod-recognize
+          predicates:
+            - Path=/api/recognize/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-room
+          uri: lb://mod-room
+          predicates:
+            - Path=/api/room/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-room-ws
+          uri: lb:ws://mod-room
+          predicates:
+            - Path=/ws/**
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      discovery:
+        locator:
+          enabled: false
+
+jwt:
+  secret: MusicDreamerSecretKey2024ForJwtTokenSigning!!
+  expiration: 24
+
+logging:
+  level:
+    com.itheima.gateway: debug
+    org.springframework.cloud.gateway: debug

@@ -1,0 +1,19 @@
+<view class="song-item {{ active ? 'is-active' : '' }}" bindtap="onTap">
+  <view wx:if="{{showRank}}" class="rank-num {{ index < 3 ? 'top' : '' }}">{{ index + 1 }}</view>
+  <view class="cover">
+    <image wx:if="{{cover}}" class="cover-img" src="{{cover}}" mode="aspectFill" lazy-load />
+    <view wx:else class="cover-fallback">♪</view>
+    <view wx:if="{{active}}" class="playing-badge"></view>
+  </view>
+  <view class="info">
+    <text class="name ellipsis">{{song.musicName}}</text>
+    <text class="singer ellipsis">{{song.singerName}}</text>
+  </view>
+  <view wx:if="{{showPlays && playsText}}" class="plays">{{playsText}}</view>
+  <view class="duration">{{durationText}}</view>
+  <view class="more" catchtap="onMore">
+    <view class="more-dot"></view>
+    <view class="more-dot"></view>
+    <view class="more-dot"></view>
+  </view>
+</view>
