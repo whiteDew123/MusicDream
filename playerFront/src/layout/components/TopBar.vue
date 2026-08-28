@@ -22,8 +22,15 @@
       />
     </div>
 
-    <!-- 右侧：用户区 -->
+    <!-- 右侧：好友 + 用户区 -->
     <div class="topbar-right">
+      <!-- 好友入口 -->
+      <div class="friend-entry" @click="friendDrawerVisible = true">
+        <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+          <el-icon><User /></el-icon>
+        </el-badge>
+      </div>
+
       <el-dropdown trigger="click" @command="handleCommand">
         <div class="user-trigger">
           <div class="avatar">
@@ -49,10 +56,16 @@
       </el-dropdown>
     </div>
   </header>
+
+  <!-- 好友抽屉面板 -->
+  <FriendDrawer
+    v-model="friendDrawerVisible"
+    @close="loadUnreadCount"
+  />
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import {
@@ -66,10 +79,14 @@ import {
   SwitchButton
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
+import { getReceivedRequestsApi } from '@/api/friend'
+import FriendDrawer from '@/components/FriendDrawer.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
 const keyword = ref('')
+const unreadCount = ref(0)
+const friendDrawerVisible = ref(false)
 
 const userInfo = userStore.userInfo
 
@@ -98,6 +115,20 @@ function handleCommand(command) {
       break
   }
 }
+
+// 加载未读好友请求数
+async function loadUnreadCount() {
+  try {
+    const res = await getReceivedRequestsApi()
+    unreadCount.value = (res.data || []).length
+  } catch (error) {
+    // 静默失败
+  }
+}
+
+onMounted(() => {
+  loadUnreadCount()
+})
 </script>
 
 <style scoped lang="scss">
@@ -177,6 +208,35 @@ function handleCommand(command) {
 /* 右侧用户区 */
 .topbar-right {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 好友入口 */
+.friend-entry {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--st-canvas-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease;
+  position: relative;
+
+  .el-icon {
+    font-size: 18px;
+    color: var(--st-ink-secondary);
+  }
+
+  &:hover {
+    background: var(--st-primary-subdued);
+    .el-icon {
+      color: var(--st-primary);
+    }
+  }
 }
 
 .user-trigger {
