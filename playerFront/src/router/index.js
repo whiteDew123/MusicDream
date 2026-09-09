@@ -170,6 +170,12 @@ const routes = [
             meta: { title: '消息通知', icon: 'Bell' }
           },
           {
+            path: 'achievement',
+            name: 'MyAchievement',
+            component: () => import('@/views/my/Achievement.vue'),
+            meta: { title: '听歌成就', icon: 'Trophy' }
+          },
+          {
             path: 'settings',
             name: 'MySettings',
             component: () => import('@/views/my/Settings.vue'),

@@ -414,6 +414,7 @@ import ShareModal from '@/components/ShareModal.vue'
 import { usePlayerStore } from '@/store/player'
 import { getMusicStatsApi, toggleLikeApi, shareSongApi, commentListApi, createCommentApi } from '@/api/interaction'
 import { addLikedMusicApi, removeLikedMusicApi, likedMusicApi } from '@/api/like'
+import { triggerAchievementApi } from '@/api/achievement'
 
 const props = defineProps({
   visible: Boolean
@@ -694,6 +695,8 @@ async function handleFavorite() {
       favorited.value = true
       favoriteIds.value.add(currentSong.value.musicId)
       ElMessage.success('收藏成功')
+      // 触发听歌成就判定（收藏数量类）
+      triggerAchievementApi('LIKE', currentSong.value.musicId).catch(() => {})
     }
   } catch (e) {
     // 静默
