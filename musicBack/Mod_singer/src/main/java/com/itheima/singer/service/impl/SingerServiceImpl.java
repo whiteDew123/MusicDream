@@ -5,9 +5,13 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.itheima.domain.common.PageResult;
 import com.itheima.domain.entity.Music;
+import com.itheima.domain.entity.MusicTag;
+import com.itheima.domain.entity.Tag;
 import com.itheima.domain.entity.User;
 import com.itheima.singer.dto.MusicDTO;
 import com.itheima.singer.mapper.MusicMapper;
+import com.itheima.singer.mapper.MusicTagMapper;
+import com.itheima.singer.mapper.TagMapper;
 import com.itheima.singer.mapper.UserMapper;
 import com.itheima.singer.service.SingerService;
 import com.itheima.singer.util.ReviewResult;
@@ -47,6 +51,8 @@ public class SingerServiceImpl implements SingerService {
     private final MusicMapper musicMapper;
     private final UserMapper userMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final TagMapper tagMapper;
+    private final MusicTagMapper musicTagMapper;
 
     /**
      * 清理推荐模块 Redis 缓存；不可用时跳过，等待 TTL 自动过期
@@ -205,6 +211,7 @@ public class SingerServiceImpl implements SingerService {
         music.setCreateTime(LocalDate.now());
 
         musicMapper.insert(music);
+        syncMusicTags(music.getMusicId(), music.getTags());
         evictRecommendCache();
 
         // 自动审核通过后，异步触发听歌识曲指纹注册（不阻塞发布响应）
@@ -247,6 +254,7 @@ public class SingerServiceImpl implements SingerService {
         }
 
         musicMapper.insert(music);
+        syncMusicTags(music.getMusicId(), music.getTags());
         return toMusicVO(music);
     }
 
@@ -275,7 +283,8 @@ public class SingerServiceImpl implements SingerService {
         if (dto.getTimelength() != null) {
             wrapper.set(Music::getTimelength, dto.getTimelength());
         }
-        if (StringUtils.hasText(dto.getTags())) {
+        boolean tagsChanged = StringUtils.hasText(dto.getTags());
+        if (tagsChanged) {
             wrapper.set(Music::getTags, dto.getTags());
         }
         if (StringUtils.hasText(dto.getLyric())) {
@@ -283,6 +292,9 @@ public class SingerServiceImpl implements SingerService {
         }
 
         musicMapper.update(null, wrapper);
+        if (tagsChanged) {
+            syncMusicTags(musicId, dto.getTags());
+        }
         return toMusicVO(musicMapper.selectById(musicId));
     }
 
@@ -305,6 +317,13 @@ public class SingerServiceImpl implements SingerService {
     public boolean deleteSong(Integer musicId) {
         try {
             musicMapper.deleteById(musicId);
+            // 硬删除成功后清理歌曲-标签关联，避免孤儿数据；失败仅记日志
+            try {
+                musicTagMapper.delete(new LambdaQueryWrapper<MusicTag>()
+                        .eq(MusicTag::getMusicId, musicId));
+            } catch (Exception e) {
+                log.warn("清理 music_tag 失败（不影响主流程）: musicId={}", musicId, e);
+            }
             return true;
         } catch (Exception e) {
             LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
@@ -358,6 +377,52 @@ public class SingerServiceImpl implements SingerService {
         vo.setCreateTime(singer.getCreateTime());
         vo.setSongCount(songCount == null ? 0 : songCount.intValue());
         return vo;
+    }
+
+    /**
+     * 同步歌曲标签关联（music_tag）。
+     * 解析 tags 字符串（"code:name" 逗号分隔），字典命中的建立关联，未命中的 token 跳过并告警。
+     * 任何异常仅记日志，不影响发布/编辑主流程（music_tag 为冗余数据，可随时用迁移脚本重建）。
+     */
+    private void syncMusicTags(Integer musicId, String tags) {
+        if (musicId == null || !StringUtils.hasText(tags)) {
+            return;
+        }
+        try {
+            // 先清空旧关联，再按当前 tags 重建
+            musicTagMapper.delete(new LambdaQueryWrapper<MusicTag>()
+                    .eq(MusicTag::getMusicId, musicId));
+
+            for (String token : tags.split(",")) {
+                String t = token.trim();
+                if (t.isEmpty()) {
+                    continue;
+                }
+                String code = null;
+                String name = t;
+                int idx = t.indexOf(':');
+                if (idx > 0) {
+                    code = t.substring(0, idx);
+                    name = t.substring(idx + 1).trim();
+                }
+
+                Tag tag = tagMapper.selectOne(new LambdaQueryWrapper<Tag>()
+                        .eq(code != null, Tag::getCode, code)
+                        .eq(Tag::getName, name)
+                        .last("LIMIT 1"));
+                if (tag == null) {
+                    log.warn("标签未在字典中，跳过 music_tag 同步: musicId={}, token={}", musicId, t);
+                    continue;
+                }
+
+                MusicTag mt = new MusicTag();
+                mt.setMusicId(musicId);
+                mt.setTagId(tag.getTagId());
+                musicTagMapper.insert(mt);
+            }
+        } catch (Exception e) {
+            log.warn("同步 music_tag 失败（不影响主流程）: musicId={}", musicId, e);
+        }
     }
 
     private MusicVO toMusicVO(Music music) {

@@ -1,12 +1,15 @@
 package com.itheima.admin.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.itheima.admin.mapper.MusicMapper;
+import com.itheima.admin.mapper.MusicTagMapper;
 import com.itheima.admin.service.MusicService;
 import com.itheima.domain.common.Result;
 import com.itheima.domain.entity.Music;
+import com.itheima.domain.entity.MusicTag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,9 @@ public class MusicServiceImpl implements MusicService {
 
     @Autowired
     private MusicMapper musicMapper;
+
+    @Autowired
+    private MusicTagMapper musicTagMapper;
 
     @Autowired(required = false)
     private StringRedisTemplate stringRedisTemplate;
@@ -154,6 +160,13 @@ public class MusicServiceImpl implements MusicService {
     @Override
     public Result deleteMusic(Integer id) {
         musicMapper.deleteById(id);
+        // 硬删除歌曲后清理歌曲-标签关联，避免孤儿数据；失败仅记日志
+        try {
+            musicTagMapper.delete(new LambdaQueryWrapper<MusicTag>()
+                    .eq(MusicTag::getMusicId, id));
+        } catch (Exception e) {
+            log.warn("清理 music_tag 失败（不影响主流程）: musicId={}", id, e);
+        }
         evictRecommendCache();
         return Result.success("删除成功", null);
     }
