@@ -1,0 +1,64 @@
+{
+  "pages": [
+    "pages/discovery/discovery",
+    "pages/search/search",
+    "pages/songlist/songlist",
+    "pages/my/my",
+    "pages/login/login",
+    "pages/register/register",
+    "pages/rank/rank",
+    "pages/singer/singer",
+    "pages/singer-detail/singer-detail",
+    "pages/songlist-detail/songlist-detail",
+    "pages/song-detail/song-detail",
+    "pages/player/player",
+    "pages/my/liked/liked",
+    "pages/my/favorite/favorite",
+    "pages/my/created/created",
+    "pages/notify/notify",
+    "pages/settings/settings"
+  ],
+  "window": {
+    "backgroundColor": "#f6f9fc",
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#f6f9fc",
+    "navigationBarTitleText": "MusicDreamer",
+    "navigationBarTextStyle": "black"
+  },
+  "tabBar": {
+    "color": "#6b7280",
+    "selectedColor": "#5e5ce6",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/discovery/discovery",
+        "text": "首页",
+        "iconPath": "images/icons/home.png",
+        "selectedIconPath": "images/icons/home-active.png"
+      },
+      {
+        "pagePath": "pages/search/search",
+        "text": "搜索",
+        "iconPath": "images/icons/business.png",
+        "selectedIconPath": "images/icons/business-active.png"
+      },
+      {
+        "pagePath": "pages/songlist/songlist",
+        "text": "歌单",
+        "iconPath": "images/icons/goods.png",
+        "selectedIconPath": "images/icons/goods-active.png"
+      },
+      {
+        "pagePath": "pages/my/my",
+        "text": "我的",
+        "iconPath": "images/icons/usercenter.png",
+        "selectedIconPath": "images/icons/usercenter-active.png"
+      }
+    ]
+  },
+  "requiredBackgroundModes": ["audio"],
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}

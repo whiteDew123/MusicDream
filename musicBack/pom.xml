@@ -19,7 +19,6 @@
         <module>domain</module>
         <module>music_gateway</module>
         <module>Mod_login</module>
-        <module>Mod_music</module>
         <module>Mod_singer</module>
         <module>Mod_admin</module>
         <module>Mod_setting</module>
@@ -29,6 +28,10 @@
         <module>Mod_like</module>
         <module>Mod_recommend</module>
         <module>Mod_capsule</module>
+        <module>Mod_recognize</module>
+        <module>Mod_room</module>
+        <module>Mod_friend</module>
+        <module>Mod_musicbox</module>
     </modules>
 
     <properties>
@@ -139,5 +142,18 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <repositories>
+        <!--JitPack 仓库：用于下载 com.github.* 坐标的依赖（如 JTransforms）-->
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+        <!--阿里云公共仓库（加速国内下载）-->
+        <repository>
+            <id>aliyun-public</id>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </repository>
+    </repositories>
 
 </project>

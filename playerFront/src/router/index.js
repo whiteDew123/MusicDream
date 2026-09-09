@@ -19,6 +19,12 @@ const routes = [
     meta: { title: '注册', public: true }
   },
   {
+    path: '/player',
+    name: 'SwipePlayer',
+    component: () => import('@/views/player/SwipePlayer.vue'),
+    meta: { title: '播放器' }
+  },
+  {
     path: '/',
     component: () => import('@/layout/Layout.vue'),
     redirect: '/discover',
@@ -41,6 +47,12 @@ const routes = [
         name: 'SingerDetail',
         component: () => import('@/views/singer/SingerDetail.vue'),
         meta: { title: '歌手详情' }
+      },
+      {
+        path: 'recognize',
+        name: 'Recognize',
+        component: () => import('@/views/recognize/RecognizePage.vue'),
+        meta: { title: '听歌识曲', icon: 'Microphone' }
       },
       {
         path: 'rank',
@@ -74,6 +86,47 @@ const routes = [
         name: 'SongListDetail',
         component: () => import('@/views/songlist/SongListDetail.vue'),
         meta: { title: '歌单详情' }
+      },
+      {
+        // 一起听·播放室 房间列表
+        path: 'rooms',
+        name: 'RoomList',
+        component: () => import('@/views/room/RoomListPage.vue'),
+        meta: { title: '播放室', icon: 'Headset' }
+      },
+      {
+        // 好友（重定向到发现页，实际通过 TopBar 抽屉交互）
+        path: 'friend',
+        redirect: '/discover',
+        meta: { title: '好友', icon: 'User' }
+      },
+      {
+        // 盲盒广场
+        path: 'Musicbox/plaza',
+        name: 'MusicBoxPlaza',
+        component: () => import('@/views/musicbox/BoxPlaza.vue'),
+        meta: { title: '盲盒广场', icon: 'Present' }
+      },
+      {
+        // 创建盲盒
+        path: 'Musicbox/create',
+        name: 'CreateMusicBox',
+        component: () => import('@/views/musicbox/CreateBox.vue'),
+        meta: { title: '创建盲盒' }
+      },
+      {
+        // 盲盒详情
+        path: 'Musicbox/:id',
+        name: 'BoxDetail',
+        component: () => import('@/views/musicbox/BoxDetail.vue'),
+        meta: { title: '盲盒详情' }
+      },
+      {
+        // 我的盲盒
+        path: 'Musicbox/my',
+        name: 'MyMusicBox',
+        component: () => import('@/views/musicbox/MyBox.vue'),
+        meta: { title: '我的盲盒' }
       },
       {
         // 我的（分组，redirect 到第一个子项，无 component）
@@ -131,6 +184,20 @@ const routes = [
         meta: { title: '搜索', public: true }
       }
     ]
+  },
+  {
+    // 播放室主界面（沉浸式全屏，独立于主布局；需登录）
+    path: '/room/:id',
+    name: 'RoomDetail',
+    component: () => import('@/views/room/RoomDetail.vue'),
+    meta: { title: '播放室' }
+  },
+  {
+    // 邀请落地页（公开，未登录也可查看房间信息）
+    path: '/invite/:code',
+    name: 'InviteLanding',
+    component: () => import('@/views/room/InviteLanding.vue'),
+    meta: { title: '邀请加入', public: true }
   },
   {
     path: '/:pathMatch(.*)*',

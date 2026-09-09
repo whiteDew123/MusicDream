@@ -1,0 +1,57 @@
+<view class="song-detail" wx:if="{{song}}">
+  <!-- 歌曲头部 -->
+  <view class="song-head">
+    <image wx:if="{{song.imageUrl}}" class="cover" src="{{song.imageUrl}}" mode="aspectFill" />
+    <view wx:else class="cover fallback">♪</view>
+    <view class="head-info">
+      <view class="name">{{song.musicName}}</view>
+      <view class="singer">{{song.singerName}}</view>
+      <view class="stats">播放 {{song.listenNumb || 0}} · 喜欢 {{likesCount}} · 评论 {{commentTotal}}</view>
+    </view>
+  </view>
+
+  <!-- 操作区 -->
+  <view class="action-row">
+    <view class="act-btn" bindtap="onCollect">
+      <text class="act-icon {{ collected ? 'liked' : '' }}">{{ collected ? '♥' : '♡' }}</text>
+      <text class="act-label">收藏</text>
+    </view>
+    <view class="act-btn" bindtap="onLike">
+      <text class="act-icon {{ liked ? 'liked' : '' }}">{{ liked ? '👍' : '👍' }}</text>
+      <text class="act-label">点赞 {{likesCount}}</text>
+    </view>
+    <view class="act-btn" bindtap="onAddToSongList">
+      <text class="act-icon">＋</text>
+      <text class="act-label">加入歌单</text>
+    </view>
+    <button class="act-btn share" open-type="share">
+      <text class="act-icon">↗</text>
+      <text class="act-label">分享</text>
+    </button>
+  </view>
+
+  <!-- 评论 -->
+  <view class="comment-section">
+    <view class="section-title">评论 ({{commentTotal}})</view>
+
+    <view class="comment-input-row">
+      <input class="comment-input" placeholder="说点什么吧..." placeholder-class="input-ph" value="{{commentText}}" bindinput="onCommentInput" confirm-type="send" bindconfirm="onSubmitComment" />
+      <button class="comment-submit" loading="{{submitting}}" bindtap="onSubmitComment">发送</button>
+    </view>
+
+    <view class="comment-list" wx:if="{{comments.length}}">
+      <view wx:for="{{comments}}" wx:key="id" class="comment-item">
+        <view class="comment-avatar">{{item.username ? item.username[0] : '客'}}</view>
+        <view class="comment-body">
+          <view class="comment-user">{{item.username || '匿名用户'}}</view>
+          <view class="comment-content">{{item.content}}</view>
+          <view class="comment-time">{{item.createTime}}</view>
+        </view>
+      </view>
+    </view>
+    <empty-state wx:else text="还没有评论，快来抢沙发~" />
+  </view>
+
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

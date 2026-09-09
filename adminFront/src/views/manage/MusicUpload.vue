@@ -1,30 +1,27 @@
 <template>
   <div class="music-upload">
-    <!-- 页面标题 -->
     <div class="page-header">
       <div>
         <p class="eyebrow">SINGER · PUBLISH</p>
         <h2 class="page-title">发布歌曲</h2>
-        <p class="page-desc">上传音乐文件、封面与歌词，提交后进入自动审核流程。</p>
+        <p class="page-desc">上传音乐文件、封面与歌词，选择风格标签后提交发布。</p>
       </div>
     </div>
 
     <div class="panel form-panel">
       <el-form ref="formRef" :model="store.form" label-width="100px">
-        <!-- 歌曲基本信息 -->
         <el-form-item label="歌曲名" required>
           <el-input v-model="store.form.musicName" placeholder="请输入歌曲名" maxlength="50" />
         </el-form-item>
 
-        <el-form-item label="标签">
-          <el-input v-model="store.form.tags" placeholder="多个标签用逗号分隔，例如：流行,治愈,吉他" />
+        <el-form-item label="风格标签">
+          <TagSelector v-model="store.form.tags" />
         </el-form-item>
 
         <el-form-item label="时长(秒)">
           <el-input-number v-model="store.form.timelength" :min="0" :max="9999" :controls="false" style="width: 100%" />
         </el-form-item>
 
-        <!-- 文件上传 -->
         <el-form-item label="音乐文件" required>
           <el-upload
             :show-file-list="false"
@@ -67,7 +64,6 @@
           <div v-if="store.form.lyric" class="upload-tip">已上传：{{ store.form.lyric }}</div>
         </el-form-item>
 
-        <!-- 提交 -->
         <el-form-item>
           <el-button type="primary" size="large" :loading="store.publishing" @click="handlePublish">
             提交发布
@@ -83,6 +79,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useSingerUploadStore } from '@/store/singerUpload'
+import TagSelector from '@/components/TagSelector.vue'
 
 const store = useSingerUploadStore()
 const formRef = ref()

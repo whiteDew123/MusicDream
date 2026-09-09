@@ -11,28 +11,22 @@ import com.itheima.setting.vo.UserVO;
 public interface SettingService {
 
     /**
+     * 获取指定用户信息
+     */
+    UserVO getUserInfo(Integer userId);
+
+    /**
      * 设置用户信息
-     *
-     * @param userId 用户ID
-     * @param dto 用户信息
-     * @return 更新后的用户信息
      */
     UserVO updateUserInfo(Integer userId, UserUpdateDTO dto);
 
     /**
      * 修改用户密码
-     *
-     * @param userId 用户ID
-     * @param dto 原密码和新密码
      */
     void updatePassword(Integer userId, PasswordDTO dto);
 
     /**
      * 修改用户头像
-     *
-     * @param userId 用户ID
-     * @param dto 头像地址
-     * @return 更新后的用户信息
      */
     UserVO updateAvatar(Integer userId, AvatarDTO dto);
 }

@@ -43,7 +43,10 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             "/api/singer/recommend/**",
             "/api/singer/detail/**",
             "/api/songList/public/**",
-            "/api/capsule/plaza"
+            "/api/capsule/plaza",
+            "/api/room/invite/**",
+            "/ws/**",
+            "/uploads/**"
     );
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();

@@ -23,13 +23,13 @@ public interface ListMusicMapper extends BaseMapper<ListMusic> {
      *
      * @param listId 歌单ID
      */
-    @Select("SELECT lm.music AS music_id, lm.listid AS list_id, " +
+    @Select("SELECT lm.music_id AS music_id, lm.list_id AS list_id, " +
             "m.music_name, m.music_url, m.image_url, m.timelength, " +
             "m.listen_numb, m.from_singer AS singer_id, m.lyric, u.username AS singer_name " +
             "FROM list_music lm " +
-            "LEFT JOIN music m ON lm.music = m.music_id " +
+            "LEFT JOIN music m ON lm.music_id = m.music_id " +
             "LEFT JOIN user u ON m.from_singer = u.id " +
-            "WHERE lm.listid = #{listId} AND (m.activation = 0 OR m.activation IS NULL) " +
-            "ORDER BY lm.listid")
+            "WHERE lm.list_id = #{listId} AND (m.activation = 0 OR m.activation IS NULL) " +
+            "ORDER BY lm.list_id")
     List<ListMusic> selectSongsByListId(@Param("listId") Integer listId);
 }

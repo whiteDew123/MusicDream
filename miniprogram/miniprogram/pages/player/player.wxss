@@ -1,0 +1,169 @@
+/* 全屏播放器（animation.md 第一章：轻微沉浸亮色） */
+.player-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 40%, #eef2f8 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32rpx 40rpx 60rpx;
+}
+.top-info {
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+.song-name {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.song-singer {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  margin-top: 10rpx;
+}
+
+/* 封面/歌词舞台 */
+.stage {
+  width: 100%;
+  height: 520rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 24rpx;
+}
+.album-cover {
+  width: 480rpx;
+  height: 480rpx;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-hover);
+}
+.album-cover.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 120rpx;
+  color: var(--text-muted);
+  background: var(--bg-card);
+}
+.album-cover.spin {
+  animation: spin 12s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.album-hint {
+  position: absolute;
+  bottom: 8rpx;
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+
+.lyric-scroll {
+  width: 100%;
+  height: 520rpx;
+}
+.lyric-list {
+  padding: 200rpx 0;
+}
+.lyric-line {
+  text-align: center;
+  font-size: 28rpx;
+  color: var(--text-muted);
+  padding: 18rpx 0;
+  line-height: 1.6;
+  transition: color 200ms ease;
+}
+.lyric-line.active {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 32rpx;
+  transform: scale(1.05);
+}
+.lyric-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 200rpx 0;
+}
+
+/* 进度条 */
+.progress-area {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.time {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  width: 70rpx;
+  text-align: center;
+}
+.progress-slider {
+  flex: 1;
+  margin: 0;
+}
+
+/* 控制栏 */
+.control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 80%;
+  margin: 32rpx 0;
+}
+.ctrl {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+}
+.ctrl.mode { color: var(--text-secondary); }
+.glyph { font-size: 36rpx; }
+.glyph.big { font-size: 44rpx; }
+.ctrl.play-btn {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: #fff;
+  box-shadow: 0 8rpx 24rpx rgba(94, 92, 230, 0.4);
+}
+.glyph.play { font-size: 52rpx; color: #fff; }
+
+/* 副操作 */
+.sub-actions {
+  display: flex;
+  justify-content: center;
+  gap: 80rpx;
+  width: 100%;
+}
+.sub-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  line-height: inherit;
+}
+.sub-icon {
+  font-size: 44rpx;
+  color: var(--text-secondary);
+}
+.sub-label {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+
+.player-empty {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

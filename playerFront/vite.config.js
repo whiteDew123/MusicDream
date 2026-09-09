@@ -33,12 +33,24 @@ export default defineConfig({
         target: 'http://localhost:9000',
         changeOrigin: true
       },
-      // 静态资源（音乐/封面/歌词）：统一由 Mod_upload (8005) 从 musicBack/resource/ 提供
+      // WebSocket（STOMP）：转发到网关，网关再转发到 mod-room
+      '/ws': {
+        target: 'http://localhost:9000',
+        changeOrigin: true,
+        ws: true
+      },
+      // 静态资源（音乐/封面/歌词）：统一由 Mod_upload (8012) 从 musicBack/resource/ 提供
       // 兼容 /music /img /lyric（历史数据）与 /uploads（新上传）四种前缀
-      '/music': { target: 'http://localhost:8005', changeOrigin: true },
-      '/img': { target: 'http://localhost:8005', changeOrigin: true },
-      '/lyric': { target: 'http://localhost:8005', changeOrigin: true },
-      '/uploads': { target: 'http://localhost:8005', changeOrigin: true }
+      '/music': { target: 'http://localhost:8012', changeOrigin: true },
+      '/img': { target: 'http://localhost:8012', changeOrigin: true },
+      '/lyric': { target: 'http://localhost:8012', changeOrigin: true },
+      '/uploads': { target: 'http://localhost:8012', changeOrigin: true }
+    },
+    // History 模式刷新页面支持：所有非 API/静态资源 请求返回 index.html
+    historyApiFallback: {
+      rewrites: [
+        { from: /.*/, to: '/index.html' }
+      ]
     }
   }
 })

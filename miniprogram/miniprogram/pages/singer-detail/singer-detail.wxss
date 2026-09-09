@@ -1,0 +1,52 @@
+.singer-detail {
+  padding: 32rpx 24rpx 0;
+}
+.artist-head {
+  display: flex;
+  align-items: center;
+  padding: 32rpx;
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-soft) 100%);
+  border-radius: var(--radius-lg);
+}
+.artist-avatar {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.3);
+  border: 4rpx solid rgba(255, 255, 255, 0.5);
+}
+.artist-avatar.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+  color: #fff;
+}
+.artist-head-info { margin-left: 28rpx; }
+.artist-name { font-size: 40rpx; font-weight: 600; color: #fff; }
+.artist-stats { font-size: 24rpx; color: rgba(255, 255, 255, 0.85); margin-top: 10rpx; }
+
+.about-card {
+  margin-top: 24rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 24rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 36rpx 8rpx 20rpx;
+}
+.list {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.bottom-space { height: 120rpx; }

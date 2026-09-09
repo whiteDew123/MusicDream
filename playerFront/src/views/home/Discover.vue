@@ -251,7 +251,7 @@ onMounted(() => {
   .skeleton-banner {
     height: 200px;
     border-radius: var(--rounded-lg);
-    background: #e8ecf0;
+    background: var(--st-skeleton);
     animation: skeletonPulse 1.2s infinite ease-in-out;
   }
   .skeleton-card-row {
@@ -261,7 +261,7 @@ onMounted(() => {
     width: 120px;
     height: 24px;
     border-radius: var(--rounded-sm);
-    background: #e8ecf0;
+    background: var(--st-skeleton);
     animation: skeletonPulse 1.2s infinite ease-in-out;
   }
   .skeleton-cards {
@@ -273,7 +273,7 @@ onMounted(() => {
     flex: 1;
     height: 200px;
     border-radius: var(--rounded-lg);
-    background: #e8ecf0;
+    background: var(--st-skeleton);
     animation: skeletonPulse 1.2s infinite ease-in-out;
   }
 }
@@ -388,6 +388,21 @@ onMounted(() => {
 @keyframes visualPulse {
   0%, 100% { transform: scale(1); opacity: 0.3; }
   50% { transform: scale(1.1); opacity: 0.6; }
+}
+
+/* ===== 深色模式适配（Discover banner）=====
+ * banner 背景用了 var(--st-primary)，而 deep 模式下它会变成 Spotify 亮绿 #1ed760。
+ * 白字/白色圆环/白色耳机在亮绿底上对比不足（用户反馈"耳机看不清、律动看不清"），
+ * 且 Spotify 规范禁止绿色作背景（"绿色只做功能性强调"）。
+ * 因此 deep 下改用深绿渐变（#008000 → #006400）：与主题 Spotify 绿 #1ed760 同色相、
+ * 不同明度，既有品牌呼应又不刺眼，白色元素自然清晰 */
+[data-theme="dark"] .banner-card {
+  background: linear-gradient(135deg, #008000 0%, #006400 100%);
+}
+
+/* 深色底下把律动圆环透明度略微提亮，让扩散动效更明显 */
+[data-theme="dark"] .visual-circle {
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* === 内容区通用 === */

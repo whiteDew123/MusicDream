@@ -1,0 +1,54 @@
+<view class="my-page">
+  <!-- 未登录 -->
+  <view wx:if="{{!login}}" class="login-cta">
+    <view class="cta-avatar">🎵</view>
+    <view class="cta-text">登录后同步你的喜欢、歌单与消息</view>
+    <button class="btn-login" bindtap="goLogin">微信一键登录</button>
+  </view>
+
+  <!-- 已登录 -->
+  <block wx:else>
+    <view class="profile-card">
+      <image wx:if="{{avatar}}" class="avatar" src="{{avatar}}" mode="aspectFill" />
+      <view wx:else class="avatar fallback">{{userInfo.username[0]}}</view>
+      <view class="profile-info">
+        <view class="username">{{userInfo.username}}</view>
+        <view class="role-tag">{{ userInfo.role == 0 ? '管理员' : (userInfo.role == 1 ? '歌手' : '音乐爱好者') }}</view>
+      </view>
+    </view>
+
+    <view class="menu-card">
+      <view class="menu-item" bindtap="goLiked">
+        <text class="menu-icon">♥</text>
+        <text class="menu-text">我喜欢的音乐</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="goFavorite">
+        <text class="menu-icon">☆</text>
+        <text class="menu-text">收藏的歌单</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="goCreated">
+        <text class="menu-icon">＋</text>
+        <text class="menu-text">我创建的歌单</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="goNotify">
+        <text class="menu-icon">🔔</text>
+        <text class="menu-text">消息通知</text>
+        <text class="menu-badge" wx:if="{{unread}}">{{unread}}</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="goSettings">
+        <text class="menu-icon">⚙</text>
+        <text class="menu-text">设置</text>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+
+    <button class="btn-logout" bindtap="onLogout">退出登录</button>
+  </block>
+
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

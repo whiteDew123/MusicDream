@@ -21,7 +21,7 @@
       <template v-for="item in menuRoutes" :key="item.path">
         <!-- 分组：带 children 的项渲染为可展开 sub-menu -->
         <el-sub-menu
-          v-if="item.children && item.children.length"
+          v-if="item.children && filterChildren(item.children).length"
           :index="'/' + item.path"
         >
           <template #title>
@@ -70,6 +70,16 @@ defineProps({
 
 const route = useRoute()
 const userStore = useUserStore()
+
+// 过滤子菜单：根据角色权限过滤不可见的子菜单项
+function filterChildren(children) {
+  if (!children || !children.length) return []
+  return children.filter((child) => {
+    const childRoles = child.meta?.roles
+    if (!childRoles) return true
+    return userStore.hasRole(...childRoles)
+  })
+}
 
 const menuRoutes = computed(() => {
   const layout = routes.find((r) => r.path === '/')

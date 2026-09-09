@@ -63,12 +63,15 @@ mvnw.cmd
 .trae/
 
 ### Spring Boot 配置文件（含数据库密码等敏感信息） ###
-musicBack/**/src/main/resources/application.yml
 musicBack/**/src/main/resources/application-*.yml
 musicBack/**/src/main/resources/bootstrap.yml
 musicBack/**/src/main/resources/bootstrap-*.yml
 musicBack/**/src/main/resources/application.properties
 musicBack/**/src/main/resources/application-*.properties
+
+### JTransforms ###
+**/JTransforms-*.jar
+**/jtransforms-*.jar
 
 ### Database backups ###
 backup_database.sql

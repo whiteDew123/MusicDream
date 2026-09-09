@@ -5,9 +5,13 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.itheima.domain.common.PageResult;
 import com.itheima.domain.entity.Music;
+import com.itheima.domain.entity.MusicTag;
+import com.itheima.domain.entity.Tag;
 import com.itheima.domain.entity.User;
 import com.itheima.singer.dto.MusicDTO;
 import com.itheima.singer.mapper.MusicMapper;
+import com.itheima.singer.mapper.MusicTagMapper;
+import com.itheima.singer.mapper.TagMapper;
 import com.itheima.singer.mapper.UserMapper;
 import com.itheima.singer.service.SingerService;
 import com.itheima.singer.util.ReviewResult;
@@ -15,19 +19,30 @@ import com.itheima.singer.util.SensitiveWordUtil;
 import com.itheima.singer.vo.MusicVO;
 import com.itheima.singer.vo.SingerVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.net.URI;
 
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
  * 歌手模块业务实现
- *
- * <p>使用 MyBatis Plus 条件构造器 + 分页插件完成歌曲管理。</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -35,6 +50,36 @@ public class SingerServiceImpl implements SingerService {
 
     private final MusicMapper musicMapper;
     private final UserMapper userMapper;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final TagMapper tagMapper;
+    private final MusicTagMapper musicTagMapper;
+
+    /**
+     * 清理推荐模块 Redis 缓存；不可用时跳过，等待 TTL 自动过期
+     */
+    private void evictRecommendCache() {
+        List<String> patterns = Arrays.asList("recommend:*", "music:*", "artist:*");
+        try {
+            Set<String> allKeys = new HashSet<>();
+            for (String pattern : patterns) {
+                Set<String> keys = stringRedisTemplate.keys(pattern);
+                if (keys != null && !keys.isEmpty()) {
+                    allKeys.addAll(keys);
+                }
+            }
+            if (!allKeys.isEmpty()) {
+                stringRedisTemplate.delete(allKeys);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(SingerServiceImpl.class);
+
+    @Value("${recognize.service-url:http://localhost:8011}")
+    private String recognizeServiceUrl;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
     public Map<String, Object> getDashboard(Integer singerId) {
@@ -96,20 +141,39 @@ public class SingerServiceImpl implements SingerService {
 
     @Override
     public PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size) {
+        return pageSongs(singerId, page, size, null, null);
+    }
+
+    @Override
+    public PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size, String keyword, Integer activation) {
+        return pageSongs(singerId, page, size, keyword, activation, null);
+    }
+
+    @Override
+    public PageResult<MusicVO> pageSongs(Integer singerId, Integer page, Integer size, String keyword, Integer activation, Integer auditStatus) {
         long current = page == null || page < 1 ? 1 : page;
         long pageSize = size == null || size < 1 ? 10 : Math.min(size, 100);
 
         Page<Music> p = new Page<>(current, pageSize);
 
-        LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
-                .orderByDesc(Music::getCreateTime)
-                .orderByDesc(Music::getListenNumb);
+        LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<>();
         if (singerId != null) {
             wrapper.eq(Music::getFromSinger, singerId);
         } else {
             wrapper.eq(Music::getAuditStatus, 1)
                    .eq(Music::getActivation, 0);
         }
+        if (activation != null) {
+            wrapper.eq(Music::getActivation, activation);
+        }
+        if (auditStatus != null) {
+            wrapper.eq(Music::getAuditStatus, auditStatus);
+        }
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(Music::getMusicName, keyword);
+        }
+        wrapper.orderByDesc(Music::getCreateTime)
+                .orderByDesc(Music::getListenNumb);
 
         musicMapper.selectPage(p, wrapper);
 
@@ -147,6 +211,50 @@ public class SingerServiceImpl implements SingerService {
         music.setCreateTime(LocalDate.now());
 
         musicMapper.insert(music);
+        syncMusicTags(music.getMusicId(), music.getTags());
+        evictRecommendCache();
+
+        // 自动审核通过后，异步触发听歌识曲指纹注册（不阻塞发布响应）
+        if (review.isPass() && StringUtils.hasText(music.getMusicUrl())) {
+            CompletableFuture.runAsync(() -> triggerFingerprintRegister(music));
+        }
+        return toMusicVO(music);
+    }
+
+    @Override
+    public MusicVO addMusic(MusicDTO dto) {
+        if (dto == null || !StringUtils.hasText(dto.getMusicName())) {
+            throw new IllegalArgumentException("歌曲名不能为空");
+        }
+        if (!StringUtils.hasText(dto.getMusicUrl())) {
+            throw new IllegalArgumentException("请上传音频文件");
+        }
+        if (dto.getFromSinger() == null) {
+            throw new IllegalArgumentException("歌手ID不能为空");
+        }
+
+        Music music = new Music();
+        music.setFromSinger(dto.getFromSinger());
+        music.setMusicName(dto.getMusicName());
+        music.setMusicUrl(dto.getMusicUrl());
+        music.setImageUrl(dto.getImageUrl());
+        music.setTimelength(dto.getTimelength());
+        music.setActivation(0);
+        music.setAuditStatus(0);
+        music.setListenNumb(0);
+        music.setCreateTime(LocalDate.now());
+
+        String lyricUrl = dto.getLyricUrl() != null ? dto.getLyricUrl() : dto.getLyric();
+        music.setLyric(lyricUrl);
+
+        if (dto.getTagList() != null && !dto.getTagList().isEmpty()) {
+            music.setTags(String.join(",", dto.getTagList()));
+        } else if (StringUtils.hasText(dto.getTags())) {
+            music.setTags(dto.getTags());
+        }
+
+        musicMapper.insert(music);
+        syncMusicTags(music.getMusicId(), music.getTags());
         return toMusicVO(music);
     }
 
@@ -175,7 +283,8 @@ public class SingerServiceImpl implements SingerService {
         if (dto.getTimelength() != null) {
             wrapper.set(Music::getTimelength, dto.getTimelength());
         }
-        if (StringUtils.hasText(dto.getTags())) {
+        boolean tagsChanged = StringUtils.hasText(dto.getTags());
+        if (tagsChanged) {
             wrapper.set(Music::getTags, dto.getTags());
         }
         if (StringUtils.hasText(dto.getLyric())) {
@@ -183,12 +292,45 @@ public class SingerServiceImpl implements SingerService {
         }
 
         musicMapper.update(null, wrapper);
+        if (tagsChanged) {
+            syncMusicTags(musicId, dto.getTags());
+        }
+        return toMusicVO(musicMapper.selectById(musicId));
+    }
+
+    @Override
+    public MusicVO updateMusicStatus(Integer musicId, Integer activation) {
+        Music exist = musicMapper.selectById(musicId);
+        if (exist == null) {
+            return null;
+        }
+
+        LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
+                .eq(Music::getMusicId, musicId)
+                .set(Music::getActivation, activation);
+        musicMapper.update(null, wrapper);
+
         return toMusicVO(musicMapper.selectById(musicId));
     }
 
     @Override
     public boolean deleteSong(Integer musicId) {
-        return musicMapper.deleteById(musicId) > 0;
+        try {
+            musicMapper.deleteById(musicId);
+            // 硬删除成功后清理歌曲-标签关联，避免孤儿数据；失败仅记日志
+            try {
+                musicTagMapper.delete(new LambdaQueryWrapper<MusicTag>()
+                        .eq(MusicTag::getMusicId, musicId));
+            } catch (Exception e) {
+                log.warn("清理 music_tag 失败（不影响主流程）: musicId={}", musicId, e);
+            }
+            return true;
+        } catch (Exception e) {
+            LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
+                    .eq(Music::getMusicId, musicId)
+                    .set(Music::getActivation, 1);
+            return musicMapper.update(null, wrapper) > 0;
+        }
     }
 
     @Override
@@ -237,6 +379,52 @@ public class SingerServiceImpl implements SingerService {
         return vo;
     }
 
+    /**
+     * 同步歌曲标签关联（music_tag）。
+     * 解析 tags 字符串（"code:name" 逗号分隔），字典命中的建立关联，未命中的 token 跳过并告警。
+     * 任何异常仅记日志，不影响发布/编辑主流程（music_tag 为冗余数据，可随时用迁移脚本重建）。
+     */
+    private void syncMusicTags(Integer musicId, String tags) {
+        if (musicId == null || !StringUtils.hasText(tags)) {
+            return;
+        }
+        try {
+            // 先清空旧关联，再按当前 tags 重建
+            musicTagMapper.delete(new LambdaQueryWrapper<MusicTag>()
+                    .eq(MusicTag::getMusicId, musicId));
+
+            for (String token : tags.split(",")) {
+                String t = token.trim();
+                if (t.isEmpty()) {
+                    continue;
+                }
+                String code = null;
+                String name = t;
+                int idx = t.indexOf(':');
+                if (idx > 0) {
+                    code = t.substring(0, idx);
+                    name = t.substring(idx + 1).trim();
+                }
+
+                Tag tag = tagMapper.selectOne(new LambdaQueryWrapper<Tag>()
+                        .eq(code != null, Tag::getCode, code)
+                        .eq(Tag::getName, name)
+                        .last("LIMIT 1"));
+                if (tag == null) {
+                    log.warn("标签未在字典中，跳过 music_tag 同步: musicId={}, token={}", musicId, t);
+                    continue;
+                }
+
+                MusicTag mt = new MusicTag();
+                mt.setMusicId(musicId);
+                mt.setTagId(tag.getTagId());
+                musicTagMapper.insert(mt);
+            }
+        } catch (Exception e) {
+            log.warn("同步 music_tag 失败（不影响主流程）: musicId={}", musicId, e);
+        }
+    }
+
     private MusicVO toMusicVO(Music music) {
         MusicVO vo = new MusicVO();
         vo.setMusicId(music.getMusicId());
@@ -252,11 +440,51 @@ public class SingerServiceImpl implements SingerService {
         vo.setCreateTime(music.getCreateTime());
         vo.setTags(music.getTags());
         vo.setLyric(music.getLyric());
+        vo.setAuditStatus(music.getAuditStatus());
+        vo.setAuditRemark(music.getAuditRemark());
 
         User singer = music.getFromSinger() == null ? null : userMapper.selectById(music.getFromSinger());
         if (singer != null) {
             vo.setSingerName(singer.getUsername());
         }
         return vo;
+    }
+
+/**
+     * 调用听歌识曲服务注册指纹
+     */
+    private void triggerFingerprintRegister(Music music) {
+        try {
+            URI uri = UriComponentsBuilder
+                    .fromHttpUrl(recognizeServiceUrl + "/recognize/registerByUrl")
+                    .queryParam("musicId", music.getMusicId())
+                    .queryParam("musicUrl", music.getMusicUrl())
+                    .build()
+                    .toUri();
+            ResponseEntity<String> resp = restTemplate.postForEntity(uri, null, String.class);
+            log.info("歌曲发布自动通过，指纹注册任务已触发: musicId={}, 响应={}", music.getMusicId(), resp.getBody());
+        } catch (Exception e) {
+            log.error("歌曲指纹注册失败: musicId={}", music.getMusicId(), e);
+        }
+    }
+
+    @Override
+    public MusicVO auditSong(Integer musicId, Integer auditStatus, String auditRemark) {
+        Music exist = musicMapper.selectById(musicId);
+        if (exist == null) {
+            return null;
+        }
+
+        LambdaUpdateWrapper<Music> wrapper = new LambdaUpdateWrapper<Music>()
+                .eq(Music::getMusicId, musicId)
+                .set(Music::getAuditStatus, auditStatus)
+                .set(Music::getAuditRemark, auditRemark);
+
+        if (auditStatus == 1) {
+            wrapper.set(Music::getActivation, 0);
+        }
+
+        musicMapper.update(null, wrapper);
+        return toMusicVO(musicMapper.selectById(musicId));
     }
 }

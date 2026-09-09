@@ -221,7 +221,7 @@ onMounted(() => {
   .skeleton-summary {
     height: 56px;
     border-radius: var(--rounded-md);
-    background: #e8ecf0;
+    background: var(--st-skeleton);
     margin-bottom: 16px;
     animation: skeletonPulse 1.2s infinite ease-in-out;
   }

@@ -57,4 +57,13 @@ public class Music implements Serializable {
 
     /** 歌词文件URL */
     private String lyric;
+
+    /** 点赞数（冗余列，原子更新） */
+    private Integer likesCount;
+
+    /** 评论数（冗余列，原子更新） */
+    private Integer commentCount;
+
+    /** 分享数（冗余列，原子更新） */
+    private Integer shareCount;
 }

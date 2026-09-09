@@ -1,0 +1,8 @@
+.liked-page { padding: 24rpx 24rpx 0; }
+.list {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.bottom-space { height: 120rpx; }

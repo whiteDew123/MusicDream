@@ -1,0 +1,38 @@
+.singer-page {
+  padding: 32rpx 24rpx 0;
+}
+.page-title {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 28rpx;
+  padding: 0 8rpx;
+}
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24rpx;
+}
+.artist-card {
+  width: calc(25% - 18rpx);
+  text-align: center;
+}
+.artist-avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-subtle);
+  margin: 0 auto;
+}
+.artist-avatar.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56rpx;
+  color: var(--text-muted);
+}
+.artist-name { font-size: 26rpx; color: var(--text-primary); margin-top: 10rpx; }
+.artist-stat { font-size: 22rpx; color: var(--text-muted); margin-top: 4rpx; }
+.artist-skeleton { width: 120rpx; height: 120rpx; border-radius: 50%; margin: 0 auto; }
+.bottom-space { height: 120rpx; }

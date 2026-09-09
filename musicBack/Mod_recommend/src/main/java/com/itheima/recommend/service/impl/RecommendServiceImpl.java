@@ -20,11 +20,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * 歌曲推荐搜索模块业务实现
@@ -72,7 +75,7 @@ public class RecommendServiceImpl implements RecommendService {
     @Override
     public List<MusicVO> rankSongs(Integer limit) {
         int size = normalizeLimit(limit);
-        String cacheKey = "music:rank:" + size;
+        String cacheKey = "music:rank:play:" + size;
 
         List<MusicVO> cachedList = getCachedList(cacheKey, MusicVO.class);
         if (cachedList != null) {
@@ -80,8 +83,33 @@ public class RecommendServiceImpl implements RecommendService {
         }
 
         List<Music> songs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getAuditStatus, 1)
                 .eq(Music::getActivation, 0)
                 .orderByDesc(Music::getListenNumb)
+                .last("LIMIT " + size));
+
+        List<MusicVO> voList = songs.stream()
+                .map(this::toMusicVO)
+                .collect(Collectors.toList());
+
+        setCache(cacheKey, JSON.toJSONString(voList));
+        return voList;
+    }
+
+    @Override
+    public List<MusicVO> rankSongsByPlayTime(Integer limit) {
+        int size = normalizeLimit(limit);
+        String cacheKey = "music:rank:time:" + size;
+
+        List<MusicVO> cachedList = getCachedList(cacheKey, MusicVO.class);
+        if (cachedList != null) {
+            return cachedList;
+        }
+
+        List<Music> songs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getAuditStatus, 1)
+                .eq(Music::getActivation, 0)
+                .orderByDesc(Music::getCreateTime)
                 .last("LIMIT " + size));
 
         List<MusicVO> voList = songs.stream()
@@ -105,6 +133,7 @@ public class RecommendServiceImpl implements RecommendService {
         }
 
         LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
+                .eq(Music::getAuditStatus, 1)
                 .eq(Music::getActivation, 0)
                 .orderByDesc(Music::getListenNumb);
 
@@ -190,6 +219,7 @@ public class RecommendServiceImpl implements RecommendService {
 
                     List<Music> songs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
                             .eq(Music::getFromSinger, singer.getId())
+                            .eq(Music::getAuditStatus, 1)
                             .eq(Music::getActivation, 0));
                     vo.setSongCount(songs.size());
                     vo.setTotalListen(songs.stream()
@@ -230,6 +260,7 @@ public class RecommendServiceImpl implements RecommendService {
 
         List<Music> songs = musicMapper.selectList(new LambdaQueryWrapper<Music>()
                 .eq(Music::getFromSinger, artistId)
+                .eq(Music::getAuditStatus, 1)
                 .eq(Music::getActivation, 0)
                 .orderByDesc(Music::getListenNumb));
 
@@ -296,13 +327,13 @@ public class RecommendServiceImpl implements RecommendService {
      */
     private List<Music> recommendByUserLikes(Integer userId, int size) {
         List<Mylike> likes = mylikeMapper.selectList(new LambdaQueryWrapper<Mylike>()
-                .eq(Mylike::getUser, userId));
+                .eq(Mylike::getUserId, userId));
         if (likes.isEmpty()) {
             return topSongs(size);
         }
 
         List<Integer> likedMusicIds = likes.stream()
-                .map(Mylike::getMusic)
+                .map(Mylike::getMusicId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
         if (likedMusicIds.isEmpty()) {
@@ -324,6 +355,7 @@ public class RecommendServiceImpl implements RecommendService {
 
         if (tags.isEmpty()) {
             return musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                    .eq(Music::getAuditStatus, 1)
                     .eq(Music::getActivation, 0)
                     .notIn(!likedMusicIds.isEmpty(), Music::getMusicId, likedMusicIds)
                     .orderByDesc(Music::getListenNumb)
@@ -331,6 +363,7 @@ public class RecommendServiceImpl implements RecommendService {
         }
 
         LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
+                .eq(Music::getAuditStatus, 1)
                 .eq(Music::getActivation, 0)
                 .notIn(!likedMusicIds.isEmpty(), Music::getMusicId, likedMusicIds);
         wrapper.and(w -> {
@@ -350,6 +383,7 @@ public class RecommendServiceImpl implements RecommendService {
 
     private List<Music> topSongs(int size) {
         return musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getAuditStatus, 1)
                 .eq(Music::getActivation, 0)
                 .orderByDesc(Music::getListenNumb)
                 .last("LIMIT " + size));
@@ -374,6 +408,43 @@ public class RecommendServiceImpl implements RecommendService {
             vo.setSingerName(singer.getUsername());
         }
         return vo;
+    }
+
+    @Override
+    public void recordPlay(Integer musicId) {
+        if (musicId == null) {
+            return;
+        }
+        // 原子更新播放量 +1
+        int rows = musicMapper.update(null,
+                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Music>()
+                        .eq(Music::getMusicId, musicId)
+                        .setSql("listen_numb = listen_numb + 1"));
+        if (rows > 0) {
+            log.info("歌曲播放量 +1: musicId={}", musicId);
+            // 清除相关缓存
+            evictRecommendCache();
+        }
+    }
+
+    @Override
+    public void evictRecommendCache() {
+        String[] patterns = {"recommend:*", "music:*", "artist:*"};
+        try {
+            Set<String> allKeys = new LinkedHashSet<>();
+            for (String pattern : patterns) {
+                Set<String> keys = stringRedisTemplate.keys(pattern);
+                if (keys != null && !keys.isEmpty()) {
+                    allKeys.addAll(keys);
+                }
+            }
+            if (!allKeys.isEmpty()) {
+                stringRedisTemplate.delete(allKeys);
+                log.info("清理推荐模块 Redis 缓存成功, 共 {} 个 key", allKeys.size());
+            }
+        } catch (Exception e) {
+            log.warn("清理推荐模块 Redis 缓存失败, 待 TTL 自动过期: error={}", e.getMessage());
+        }
     }
 
     private int normalizeLimit(Integer limit) {

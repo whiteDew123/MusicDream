@@ -22,8 +22,31 @@
       />
     </div>
 
-    <!-- 右侧：用户区 -->
+    <!-- 右侧：好友 + 用户区 -->
     <div class="topbar-right">
+      <!-- 主题切换：亮↔暗（首次跟随系统，选择持久化）
+           图标左右滚动切换：变暗时太阳向左滚出、月亮从右滚入；变亮则反向 -->
+      <button
+        class="theme-btn"
+        :title="theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'"
+        aria-label="切换主题"
+        @click="handleToggleTheme"
+      >
+        <Transition :name="slideDir" mode="out-in">
+          <el-icon :key="theme">
+            <Sunny v-if="theme === 'dark'" />
+            <Moon v-else />
+          </el-icon>
+        </Transition>
+      </button>
+
+      <!-- 好友入口 -->
+      <div class="friend-entry" @click="friendDrawerVisible = true">
+        <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+          <el-icon><User /></el-icon>
+        </el-badge>
+      </div>
+
       <el-dropdown trigger="click" @command="handleCommand">
         <div class="user-trigger">
           <div class="avatar">
@@ -49,10 +72,16 @@
       </el-dropdown>
     </div>
   </header>
+
+  <!-- 好友抽屉面板 -->
+  <FriendDrawer
+    v-model="friendDrawerVisible"
+    @close="loadUnreadCount"
+  />
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import {
@@ -63,13 +92,30 @@ import {
   CaretBottom,
   User,
   Setting,
-  SwitchButton
+  SwitchButton,
+  Moon,
+  Sunny
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
+import { useTheme } from '@/utils/theme'
+import { getReceivedRequestsApi } from '@/api/friend'
+import FriendDrawer from '@/components/FriendDrawer.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+const { theme, toggleTheme } = useTheme()
 const keyword = ref('')
+const unreadCount = ref(0)
+const friendDrawerVisible = ref(false)
+
+// 图标滚动方向：变暗（light→dark）向左滚；变亮（dark→light）向右滚
+const slideDir = ref('slide-left')
+
+function handleToggleTheme() {
+  // 先定方向，再切换：transition name 在动画开始前确定
+  slideDir.value = theme.value === 'dark' ? 'slide-right' : 'slide-left'
+  toggleTheme()
+}
 
 const userInfo = userStore.userInfo
 
@@ -98,6 +144,20 @@ function handleCommand(command) {
       break
   }
 }
+
+// 加载未读好友请求数
+async function loadUnreadCount() {
+  try {
+    const res = await getReceivedRequestsApi()
+    unreadCount.value = (res.data || []).length
+  } catch (error) {
+    // 静默失败
+  }
+}
+
+onMounted(() => {
+  loadUnreadCount()
+})
 </script>
 
 <style scoped lang="scss">
@@ -153,7 +213,7 @@ function handleCommand(command) {
       transition: all 200ms ease;
     }
     :deep(.el-input__wrapper:hover) {
-      background: #e9edf3;
+      background: var(--st-input-hover);
     }
     :deep(.el-input__wrapper.is-focus) {
       border-color: var(--st-primary);
@@ -176,7 +236,90 @@ function handleCommand(command) {
 
 /* 右侧用户区 */
 .topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 好友入口 */
+.friend-entry {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--st-canvas-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease;
+  position: relative;
+
+  .el-icon {
+    font-size: 18px;
+    color: var(--st-ink-secondary);
+  }
+
+  &:hover {
+    background: var(--st-primary-subdued);
+    .el-icon {
+      color: var(--st-primary);
+    }
+  }
+}
+
+/* 主题切换按钮：圆形 32px（与 nav-btn 同几何语言） */
+.theme-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--st-canvas-hover);
+  color: var(--st-ink-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  /* 裁剪滑出滑入的图标，形成"滚出按钮边缘"的滚动感 */
+  overflow: hidden;
+  transition: background 200ms ease, color 200ms ease;
+
+  &:hover {
+    background: var(--st-primary-subdued);
+    color: var(--st-primary);
+  }
+}
+
+/* 图标左右滚动切换动画（out-in：旧图标先滚出，新图标再滚入） */
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease;
+}
+
+/* 向左滚：旧图标向左出（-120%），新图标从右侧入（+120%）*/
+.slide-left-enter-from {
+  transform: translateX(120%);
+  opacity: 0;
+}
+.slide-left-leave-to {
+  transform: translateX(-120%);
+  opacity: 0;
+}
+
+/* 向右滚：旧图标向右出（+120%），新图标从左侧入（-120%）*/
+.slide-right-enter-from {
+  transform: translateX(-120%);
+  opacity: 0;
+}
+.slide-right-leave-to {
+  transform: translateX(120%);
+  opacity: 0;
 }
 
 .user-trigger {

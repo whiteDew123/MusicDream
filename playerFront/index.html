@@ -13,6 +13,23 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
       rel="stylesheet"
     />
+    <!-- 主题防闪白：Vue 挂载前同步 html.dark（Element Plus 暗色 css-vars 开关）
+         有存储用存储值；无存储跟随系统偏好；用户选择持久化于 localStorage(md_theme) -->
+    <script>
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('md_theme')
+          var dark = stored
+            ? stored === 'dark'
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+          if (dark) {
+            document.documentElement.classList.add('dark')
+          }
+        } catch (e) {
+          /* localStorage 不可用（隐私模式等）时静默跳过，保持亮色默认 */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

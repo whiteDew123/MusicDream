@@ -1,0 +1,94 @@
+<view class="discover-page">
+  <!-- 骨架屏 -->
+  <view wx:if="{{loading}}" class="skeleton-section">
+    <view class="skeleton banner-skeleton"></view>
+    <view class="skeleton title-skeleton"></view>
+    <view class="skeleton-card-row">
+      <view wx:for="{{[1,2,3]}}" wx:key="*this" class="skeleton card-skeleton"></view>
+    </view>
+  </view>
+
+  <block wx:else>
+    <!-- Banner -->
+    <view class="banner-card">
+      <view class="banner-text">
+        <view class="banner-tag">MusicDreamer</view>
+        <view class="banner-title">让音乐流动</view>
+        <view class="banner-desc">发现属于你的声音</view>
+        <view class="banner-btn" bindtap="onPlayRecommend">▶ 立即试听</view>
+      </view>
+    </view>
+
+    <!-- 推荐歌曲 -->
+    <block wx:if="{{recommendSongs.length}}">
+      <view class="section-header">
+        <view class="section-title">推荐歌曲</view>
+        <view class="section-more" bindtap="goRank">查看更多 →</view>
+      </view>
+      <view class="song-grid">
+        <view wx:for="{{recommendSongs}}" wx:key="musicId" class="song-card" data-idx="{{index}}" bindtap="onSongTap">
+          <image wx:if="{{item.imageUrl}}" class="song-cover" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+          <view wx:else class="song-cover fallback">♪</view>
+          <view class="song-name ellipsis">{{item.musicName}}</view>
+          <view class="song-singer ellipsis">{{item.singerName}}</view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 热门排行 -->
+    <block wx:if="{{rankSongs.length}}">
+      <view class="section-header">
+        <view class="section-title">热门排行</view>
+        <view class="section-more" bindtap="goRank">完整榜单 →</view>
+      </view>
+      <view class="rank-list">
+        <view wx:for="{{rankSongs}}" wx:key="musicId" class="rank-item {{ index < 3 ? 'top' : '' }}" data-idx="{{index}}" bindtap="onRankTap">
+          <view class="rank-num">{{ index + 1 }}</view>
+          <image wx:if="{{item.imageUrl}}" class="rank-cover" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+          <view wx:else class="rank-cover fallback">♪</view>
+          <view class="rank-info">
+            <view class="rank-name ellipsis">{{item.musicName}}</view>
+            <view class="rank-singer ellipsis">{{item.singerName}}</view>
+          </view>
+          <view class="rank-plays">{{item.playsText}}</view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 精选歌单 -->
+    <block wx:if="{{songLists.length}}">
+      <view class="section-header">
+        <view class="section-title">精选歌单</view>
+        <view class="section-more" bindtap="goSongList">更多歌单 →</view>
+      </view>
+      <view class="playlist-grid">
+        <view wx:for="{{songLists}}" wx:key="id" class="playlist-card" data-id="{{item.id}}" bindtap="onPlaylistTap">
+          <image wx:if="{{item.pic}}" class="playlist-cover" src="{{item.pic}}" mode="aspectFill" lazy-load />
+          <view wx:else class="playlist-cover fallback">♪</view>
+          <view class="playlist-name clamp-2">{{item.name}}</view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 推荐歌手 -->
+    <block wx:if="{{recommendArtists.length}}">
+      <view class="section-header">
+        <view class="section-title">推荐歌手</view>
+        <view class="section-more" bindtap="goSinger">全部歌手 →</view>
+      </view>
+      <view class="artist-grid">
+        <view wx:for="{{recommendArtists}}" wx:key="id" class="artist-card" data-id="{{item.id}}" bindtap="onArtistTap">
+          <image wx:if="{{item.imageUrl}}" class="artist-avatar" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+          <view wx:else class="artist-avatar fallback">🎤</view>
+          <view class="artist-name ellipsis">{{item.username}}</view>
+          <view class="artist-stat">{{item.songCount || 0}} 首歌曲</view>
+        </view>
+      </view>
+    </block>
+
+    <empty-state wx:if="{{!recommendSongs.length && !rankSongs.length && !songLists.length && !recommendArtists.length}}" text="暂无内容" />
+  </block>
+
+  <view class="bottom-space"></view>
+  <mini-player />
+</view>

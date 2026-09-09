@@ -14,4 +14,19 @@ public interface LikeListService extends IService<LikeList> {
      * 查询用户收藏的歌单列表（联表返回歌单详情）
      */
     List<LikeList> getLikedList(Integer userId);
+
+    /**
+     * 检查是否已收藏
+     */
+    boolean isLiked(Integer userId, Integer listId);
+
+    /**
+     * 新增收藏
+     */
+    void addLike(Integer userId, Integer listId);
+
+    /**
+     * 移除收藏
+     */
+    void removeLike(Integer userId, Integer listId);
 }

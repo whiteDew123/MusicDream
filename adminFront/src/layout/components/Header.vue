@@ -77,7 +77,7 @@ function handleCommand(command) {
   if (command === 'logout') {
     handleLogout()
   } else if (command === 'info') {
-    ElMessage.info('个人信息功能待开发')
+    router.push('/setting/profile')
   }
 }
 

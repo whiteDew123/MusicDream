@@ -30,7 +30,9 @@ service.interceptors.response.use(
     const res = response.data
     // 后端统一响应：code === 200 表示成功
     if (res.code !== 200) {
-      ElMessage.error(res.message || '请求失败')
+      if (!response.config.silent) {
+        ElMessage.error(res.message || '请求失败')
+      }
       // 401: token 失效或未登录
       if (res.code === 401) {
         clearAuth()
@@ -43,12 +45,15 @@ service.interceptors.response.use(
   (error) => {
     // HTTP 层错误（网络、超时、网关返回 401/500 等）
     const status = error.response?.status
-    if (status === 401) {
-      ElMessage.error('登录已过期，请重新登录')
-      clearAuth()
-      router.push('/login')
-    } else {
-      ElMessage.error(error.response?.data?.message || error.message || '网络异常')
+    if (!error.config?.silent) {
+      if (status === 401) {
+        ElMessage.error('登录已过期，请重新登录')
+        clearAuth()
+        router.push('/login')
+      } else if (status !== 404) {
+        // 404 静默处理（接口不存在时不弹窗）
+        ElMessage.error(error.response?.data?.message || error.message || '网络异常')
+      }
     }
     return Promise.reject(error)
   }

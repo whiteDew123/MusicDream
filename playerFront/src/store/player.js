@@ -1,5 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import axios from 'axios'
+import { recordPlayApi } from '@/api/interaction'
+
+// 创建不经过 /api 前缀的 axios 实例，用于加载静态资源（如歌词文件）
+const resourceAxios = axios.create({
+  timeout: 10000
+})
 
 // 播放器状态管理
 // - 维护播放列表、当前歌曲、播放进度、音量、播放模式
@@ -32,11 +39,16 @@ export const usePlayerStore = defineStore('player', () => {
   const lyrics = ref([])
   // 当前高亮歌词行索引
   const currentLyricIndex = ref(-1)
+  // 桌面字幕开关
+  const subtitleEnabled = ref(false)
 
   // ===== 当前歌曲（计算属性）=====
   const currentSong = computed(() => {
     return currentIndex.value >= 0 ? playlist.value[currentIndex.value] : null
   })
+
+  // ===== 已记录播放量的歌曲 ID 集合（防止重复计数）=====
+  const playedIds = ref(new Set())
 
   // ===== 歌词解析 =====
   // 解析 LRC 格式歌词，返回 [{ time: 秒数, text: '歌词' }] 按时间升序
@@ -97,12 +109,12 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   // 加载并播放当前歌曲
-  function loadAndPlay() {
+  async function loadAndPlay() {
     const song = currentSong.value
     if (!song || !audio.value) return
     audio.value.src = song.musicUrl || ''
-    // 解析歌词
-    lyrics.value = parseLyrics(song.lyric)
+    // 解析歌词（支持直接文本和文件路径两种格式）
+    await loadLyrics(song.lyric)
     currentLyricIndex.value = -1
     audio.value
       .play()
@@ -112,6 +124,27 @@ export const usePlayerStore = defineStore('player', () => {
       .catch(() => {
         playing.value = false
       })
+  }
+
+  // 加载歌词：支持直接 LRC 文本或文件路径
+  async function loadLyrics(lyricData) {
+    if (!lyricData) {
+      lyrics.value = []
+      return
+    }
+    // 如果是文件路径（以 / 或 http 开头），则通过 HTTP 获取内容
+    if (typeof lyricData === 'string' && (lyricData.startsWith('/') || lyricData.startsWith('http'))) {
+      try {
+        const res = await resourceAxios.get(lyricData, { responseType: 'text' })
+        lyrics.value = parseLyrics(res.data)
+      } catch (e) {
+        console.warn('歌词文件加载失败:', e)
+        lyrics.value = []
+      }
+    } else {
+      // 直接是 LRC 文本
+      lyrics.value = parseLyrics(lyricData)
+    }
   }
 
   // 播放/暂停切换
@@ -142,6 +175,8 @@ export const usePlayerStore = defineStore('player', () => {
       currentIndex.value =
         (currentIndex.value - 1 + playlist.value.length) % playlist.value.length
     }
+    // 切换歌曲后清除播放量记录，新歌可正常计数
+    playedIds.value.clear()
     loadAndPlay()
   }
 
@@ -154,6 +189,8 @@ export const usePlayerStore = defineStore('player', () => {
     } else {
       currentIndex.value = (currentIndex.value + 1) % playlist.value.length
     }
+    // 切换歌曲后清除播放量记录，新歌可正常计数
+    playedIds.value.clear()
     loadAndPlay()
   }
 
@@ -245,6 +282,14 @@ export const usePlayerStore = defineStore('player', () => {
     })
     audio.value.addEventListener('play', () => {
       playing.value = true
+      // 记录播放量（首次播放时计数，暂停恢复不重复）
+      const musicId = currentSong.value?.musicId
+      if (musicId && !playedIds.value.has(musicId)) {
+        playedIds.value.add(musicId)
+        recordPlayApi(musicId).catch(() => {
+          // 静默失败，不影响播放
+        })
+      }
     })
     audio.value.addEventListener('pause', () => {
       playing.value = false
@@ -264,6 +309,7 @@ export const usePlayerStore = defineStore('player', () => {
     playModeLabels,
     lyrics,
     currentLyricIndex,
+    subtitleEnabled,
     currentSong,
     setPlaylist,
     playSong,
