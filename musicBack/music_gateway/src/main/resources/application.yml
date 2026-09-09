@@ -134,6 +134,13 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: mod-achievement
+          uri: lb://mod-achievement
+          predicates:
+            - Path=/api/achievement/**
+          filters:
+            - StripPrefix=1
+
         - id: mod-room-ws
           uri: lb:ws://mod-room
           predicates:

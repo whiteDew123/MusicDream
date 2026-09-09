@@ -417,6 +417,7 @@ import CommentDrawer from '@/components/CommentDrawer.vue'
 import { usePlayerStore } from '@/store/player'
 import { getMusicStatsApi, toggleLikeApi, shareSongApi } from '@/api/interaction'
 import { addLikedMusicApi, removeLikedMusicApi, likedMusicApi } from '@/api/like'
+import { triggerAchievementApi } from '@/api/achievement'
 import { myCreatedSongListApi, addMusicToSongListApi } from '@/api/songList'
 
 const props = defineProps({
@@ -695,6 +696,7 @@ async function handleFavorite() {
       favorited.value = true
       favoriteIds.value.add(currentSong.value.musicId)
       ElMessage.success('收藏成功')
+      triggerAchievementApi('LIKE', currentSong.value.musicId).catch(() => {})
     }
   } catch (e) {
     // 静默

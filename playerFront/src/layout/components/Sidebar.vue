@@ -82,6 +82,7 @@ const myItems = [
   { path: '/my/capsules', label: '我的胶囊', icon: 'MagicStick' },
   { path: '/Musicbox/my', label: '我的盲盒', icon: 'Present' },
   { path: '/my/favorite', label: '收藏歌单', icon: 'Collection' },
+  { path: '/my/achievement', label: '我的成就', icon: 'Medal' },
   { path: '/my/created', label: '创建歌单', icon: 'FolderAdd' },
   { path: '/my/notify', label: '消息通知', icon: 'Bell' },
   { path: '/my/settings', label: '设置', icon: 'Setting' }

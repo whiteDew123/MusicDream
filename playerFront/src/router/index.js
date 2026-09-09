@@ -159,6 +159,12 @@ const routes = [
             meta: { title: '收藏歌单', icon: 'Collection' }
           },
           {
+            path: 'achievement',
+            name: 'MyAchievement',
+            component: () => import('@/views/my/Achievement.vue'),
+            meta: { title: '我的成就', icon: 'Medal' }
+          },
+          {
             path: 'created',
             name: 'MyCreated',
             component: () => import('@/views/my/Created.vue'),

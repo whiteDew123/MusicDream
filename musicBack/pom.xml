@@ -16,6 +16,7 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <modules>
+        <module>Mod_achievement</module>
         <module>domain</module>
         <module>music_gateway</module>
         <module>Mod_login</module>

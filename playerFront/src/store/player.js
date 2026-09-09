@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 import { incrementPlayApi } from '@/api/music'
+import { triggerAchievementApi } from '@/api/achievement'
 
 // 创建不经过 /api 前缀的 axios 实例，用于加载静态资源（如歌词文件）
 const resourceAxios = axios.create({
@@ -290,6 +291,7 @@ export const usePlayerStore = defineStore('player', () => {
       if (songId && lastPlayReportedId !== songId) {
         lastPlayReportedId = songId
         incrementPlayApi(songId).catch(() => {})
+        triggerAchievementApi('PLAY', songId).catch(() => {})
       }
     })
     audio.value.addEventListener('pause', () => {
