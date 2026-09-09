@@ -1,5 +1,5 @@
-// Electron 主进程 - MusicDreamer 桌面版 v3.0 (网易云风格悬浮歌词)
-// 两个窗口 + 双向 IPC + 位置/样式持久化 + 穿透/置顶 + 3行淡入淡出
+// Electron 主进程 - MusicDreamer 桌面版 v4.0
+// 两个窗口 + 双向 IPC + 位置/样式持久化 + 穿透/置顶 + 迷你/歌词双模式
 
 const { app, BrowserWindow, ipcMain, screen } = require('electron')
 const path = require('path')
@@ -47,7 +47,8 @@ function createMainWindow() {
   })
 }
 
-// ===== 悬浮歌词窗口（网易云风格：小胶囊 + 穿透 + 置顶）=====
+// ===== 悬浮歌词窗口 =====
+// 迷你模式: ~56px 高   歌词模式: ~180px 高
 function createLyricsWindow() {
   if (lyricsWindow && !lyricsWindow.isDestroyed()) {
     lyricsWindow.show()
@@ -58,16 +59,16 @@ function createLyricsWindow() {
   const workArea = screen.getPrimaryDisplay().workArea
 
   lyricsWindow = new BrowserWindow({
-    width: saved?.width || 420,
-    height: saved?.height || 56,     // 迷你条高度
-    minWidth: 320, minHeight: 48,
-    maxWidth: 1200, maxHeight: 120,
-    x: saved?.x ?? (workArea.x + workArea.width / 2 - 210),
-    y: saved?.y ?? (workArea.y + workArea.height - 140),
+    width: saved?.width || 480,
+    height: saved?.height || 60,
+    minWidth: 360, minHeight: 56,
+    maxWidth: 1200, maxHeight: 220,
+    x: saved?.x ?? (workArea.x + workArea.width / 2 - 240),
+    y: saved?.y ?? (workArea.y + workArea.height - 160),
     frame: false,
     transparent: true,
-    alwaysOnTop: true,                  // 网易云核心：始终置顶
-    skipTaskbar: true,                  // 不占任务栏
+    alwaysOnTop: true,
+    skipTaskbar: true,
     resizable: true,
     minimizable: false, maximizable: false,
     hasShadow: false,
@@ -97,11 +98,11 @@ ipcMain.on('open-lyrics-window', createLyricsWindow)
 ipcMain.on('close-lyrics-window', () => { if (lyricsWindow && !lyricsWindow.isDestroyed()) lyricsWindow.hide() })
 ipcMain.on('close-lyrics', () => { if (lyricsWindow && !lyricsWindow.isDestroyed()) lyricsWindow.hide() })
 
-ipcMain.on('song-change', (_e, data) => broadcast('song-change', data))
-ipcMain.on('lyrics-update', (_e, data) => broadcast('lyrics', data))
+ipcMain.on('song-change',       (_e, data) => broadcast('song-change', data))
+ipcMain.on('lyrics-update',     (_e, data) => broadcast('lyrics', data))
 ipcMain.on('play-state-change', (_e, data) => broadcast('play-state', data))
-ipcMain.on('progress-update', (_e, data) => broadcast('progress', data))
-ipcMain.on('cover-update', (_e, data) => broadcast('cover', data))
+ipcMain.on('progress-update',   (_e, data) => broadcast('progress', data))
+ipcMain.on('cover-update',      (_e, data) => broadcast('cover', data))
 
 // ===== IPC：悬浮窗 → 主窗口 =====
 ipcMain.on('remote-play-pause', () => {
@@ -117,20 +118,17 @@ ipcMain.on('lyrics-window-ready', () => {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('lyrics-window-ready')
 })
 
-// ===== 悬浮窗自身控制：穿透 / 置顶切换 =====
+// ===== 悬浮窗自身控制 =====
 ipcMain.on('toggle-passthrough', (_e, on) => {
   if (lyricsWindow && !lyricsWindow.isDestroyed()) {
     lyricsWindow.setIgnoreMouseEvents(!!on, { forward: true })
-    console.log('[主进程] 点击穿透:', !!on)
   }
 })
 ipcMain.on('toggle-ontop', (_e, on) => {
   if (lyricsWindow && !lyricsWindow.isDestroyed()) {
     lyricsWindow.setAlwaysOnTop(!!on, 'screen-saver')
-    console.log('[主进程] 置顶:', !!on)
   }
 })
-// 悬浮窗 → 主窗口：点击封面唤起完整播放器
 ipcMain.on('show-main-window', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) mainWindow.restore()
@@ -139,10 +137,24 @@ ipcMain.on('show-main-window', () => {
   }
 })
 
+// ===== 渲染层请求调整窗口尺寸（模式切换时自动 resize）=====
+ipcMain.on('set-lyrics-bounds', (_e, { width, height }) => {
+  if (!lyricsWindow || lyricsWindow.isDestroyed()) return
+  const [cx, cy] = [
+    lyricsWindow.getBounds().x + lyricsWindow.getBounds().width / 2,
+    lyricsWindow.getBounds().y + lyricsWindow.getBounds().height / 2
+  ]
+  lyricsWindow.setBounds({
+    x: Math.round(cx - width / 2),
+    y: Math.round(cy - height / 2),
+    width, height
+  })
+})
+
 // ===== 样式持久化 =====
 ipcMain.handle('get-lyrics-style', () => {
   try { if (fs.existsSync(STYLE_FILE)) return JSON.parse(fs.readFileSync(STYLE_FILE, 'utf8')) }
-  catch (e) { console.warn('读取样式失败:', e.message) }
+  catch (e) { return null }
   return null
 })
 ipcMain.on('save-lyrics-style', (_e, style) => {
