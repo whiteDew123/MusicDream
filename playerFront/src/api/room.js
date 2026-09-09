@@ -118,3 +118,17 @@ export function skipVoteApi(id, data) {
 export function agreeVoteApi(id, data) {
   return request({ url: `/room/${id}/skip-vote/agree`, method: 'post', data })
 }
+
+// ===== 统计 =====
+
+// 房间统计：总观看、峰值在线、累计分钟
+// GET /api/room/{id}/stats
+export function roomStatsApi(id) {
+  return request({ url: `/room/${id}/stats`, method: 'get' })
+}
+
+// 房间最近进出记录
+// GET /api/room/{id}/sessions?limit=50
+export function roomSessionsApi(id, limit = 50) {
+  return request({ url: `/room/${id}/sessions`, method: 'get', params: { limit } })
+}

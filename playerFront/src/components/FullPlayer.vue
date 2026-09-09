@@ -234,6 +234,9 @@
               <el-icon :size="18"><Promotion /></el-icon>
               <span v-if="stats.shareCount > 0">{{ formatCount(stats.shareCount) }}</span>
             </button>
+            <button class="b-action-btn" :class="{ active: playerStore.subtitleEnabled }" @click.stop="toggleDesktopLyrics" title="桌面歌词">
+              <el-icon :size="18"><ChatDotRound /></el-icon>
+            </button>
           </div>
         </transition>
       </div>
@@ -368,54 +371,12 @@
       </div>
     </div>
 
-    <!-- 评论抽屉（右侧滑入）-->
-    <el-drawer
-      v-model="showComment"
-      direction="rtl"
-      size="400px"
-      :show-close="false"
-      :with-header="false"
-      class="comment-drawer"
-    >
-      <div class="comment-panel">
-        <div class="comment-header">
-          <span class="comment-title">评论</span>
-          <span class="comment-count">{{ stats.commentCount }} 条</span>
-          <button class="comment-close" @click.stop="showComment = false">
-            <el-icon :size="20"><Close /></el-icon>
-          </button>
-        </div>
-        <div class="comment-input-row">
-          <el-input
-            v-model="newComment"
-            placeholder="说点什么..."
-            @keyup.enter="submitComment"
-            clearable
-            resize="none"
-          />
-          <button class="send-btn" @click.stop="submitComment">发送</button>
-        </div>
-        <div class="comment-list">
-          <div v-if="commentList.length === 0" class="comment-empty">
-            暂无评论，快来发表第一条吧
-          </div>
-          <div
-            v-for="item in commentList"
-            :key="item.id"
-            class="comment-item"
-          >
-            <div class="comment-avatar">
-              <el-icon :size="20"><User /></el-icon>
-            </div>
-            <div class="comment-body">
-              <div class="comment-user">{{ item.username || '用户' }}</div>
-              <div class="comment-text">{{ item.content }}</div>
-              <div class="comment-time">{{ item.createTime }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </el-drawer>
+    <!-- 评论抽屉（复用 CommentDrawer 组件）-->
+    <CommentDrawer
+      v-model:visible="showComment"
+      :song-id="currentSong?.musicId"
+      @comment-count="(n) => stats.commentCount = n"
+    />
 
     <!-- 分享弹层 -->
     <ShareModal
@@ -452,8 +413,9 @@ import {
   FolderAdd
 } from '@element-plus/icons-vue'
 import ShareModal from '@/components/ShareModal.vue'
+import CommentDrawer from '@/components/CommentDrawer.vue'
 import { usePlayerStore } from '@/store/player'
-import { getMusicStatsApi, toggleLikeApi, shareSongApi, commentListApi, createCommentApi } from '@/api/interaction'
+import { getMusicStatsApi, toggleLikeApi, shareSongApi } from '@/api/interaction'
 import { addLikedMusicApi, removeLikedMusicApi, likedMusicApi } from '@/api/like'
 import { myCreatedSongListApi, addMusicToSongListApi } from '@/api/songList'
 
@@ -501,10 +463,6 @@ const stats = reactive({
   shareCount: 0
 })
 const favorited = ref(false)
-
-// 评论数据
-const newComment = ref('')
-const commentList = ref([])
 
 // 歌词行高
 const LYRIC_LINE_HEIGHT = 52
@@ -712,40 +670,6 @@ async function loadStats() {
   }
 }
 
-async function loadComments() {
-  if (!currentSong.value?.musicId) return
-  try {
-    const res = await commentListApi(currentSong.value.musicId, 1, 50)
-    const list = res.data?.records || res.data?.list || res.data || []
-    commentList.value = list.map(item => ({
-      id: item.id,
-      username: item.username || item.nickname || '用户',
-      content: item.content || item.contentText || '',
-      createTime: item.createTime || item.createTimeStr || ''
-    }))
-    if (res.data?.total != null) {
-      stats.commentCount = res.data.total
-    }
-  } catch (e) {
-    // 静默失败
-  }
-}
-
-async function submitComment() {
-  if (!newComment.value.trim() || !currentSong.value?.musicId) return
-  try {
-    await createCommentApi(currentSong.value.musicId, {
-      content: newComment.value.trim()
-    })
-    newComment.value = ''
-    ElMessage.success('评论成功')
-    loadComments()
-    loadStats()
-  } catch (e) {
-    // request.js 已统一弹窗
-  }
-}
-
 async function handleLike() {
   if (!currentSong.value?.musicId) return
   try {
@@ -945,16 +869,130 @@ onMounted(() => {
   playerStore.initAudioEvents()
   window.addEventListener('resize', handleResize)
   loadFavoriteIds()
-})
 
-watch(showComment, (val) => {
-  if (val) {
-    loadComments()
+  // ===== Electron 事件监听 =====
+  if (isElectron) {
+    // 悬浮窗加载完成 → 重推所有状态
+    if (window.electron.onLyricsWindowReady) {
+      window.electron.onLyricsWindowReady(() => {
+        console.log('[FullPlayer] 收到悬浮窗 ready，重推状态')
+        pushAllState()
+      })
+    }
+    // 悬浮窗播放控制
+    if (window.electron.onRemotePlayPause) {
+      window.electron.onRemotePlayPause(() => playerStore.togglePlay())
+    }
+    if (window.electron.onRemotePrev) {
+      window.electron.onRemotePrev(() => playerStore.playPrev())
+    }
+    if (window.electron.onRemoteNext) {
+      window.electron.onRemoteNext(() => playerStore.playNext())
+    }
   }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+})
+
+// ===== Electron v2：完整悬浮播放器 =====
+const isElectron = typeof window.electron !== 'undefined'
+
+function toggleDesktopLyrics() {
+  playerStore.subtitleEnabled = !playerStore.subtitleEnabled
+  if (playerStore.subtitleEnabled) {
+    if (isElectron) {
+      window.electron.openLyricsWindow()
+      // 立即推送完整歌曲信息 + 封面 + 完整歌词数组 + 播放状态
+      const song = playerStore.currentSong
+      if (song) {
+        pushAllState()
+      }
+      ElMessage.success('桌面歌词已开启')
+    } else {
+      ElMessage.info('请在桌面版 MusicDreamer 中使用此功能')
+      playerStore.subtitleEnabled = false
+    }
+  } else {
+    if (isElectron) window.electron.closeLyricsWindow()
+  }
+}
+
+// 一次性推送所有状态（切歌/首次打开时用）
+function pushAllState() {
+  if (!isElectron || !playerStore.subtitleEnabled) return
+  const song = playerStore.currentSong
+  if (!song) return
+  window.electron.sendSongChange({
+    title: song.musicName || song.name || '',
+    artist: song.singerName || '',
+    lyrics: playerStore.lyrics.map(l => ({ time: l.time, text: l.text }))
+  })
+  window.electron.sendLyricsUpdate({
+    idx: playerStore.currentLyricIndex,
+    fullLyrics: playerStore.lyrics.map(l => ({ time: l.time, text: l.text }))
+  })
+  window.electron.sendPlayState({ playing: playerStore.playing })
+  window.electron.sendProgress({
+    current: playerStore.currentTime,
+    duration: playerStore.duration
+  })
+  if (song.imageUrl) {
+    window.electron.sendCover({ url: song.imageUrl })
+  }
+}
+
+// ===== 歌词行更新（每次 timeupdate 触发）=====
+let lyricsFullPushed = false  // 标记：完整歌词是否已推过
+
+watch(() => playerStore.currentLyricIndex, (idx) => {
+  if (!isElectron || !playerStore.subtitleEnabled || idx < 0) return
+  const lyricsArr = playerStore.lyrics.map(l => ({ time: l.time, text: l.text }))
+  // 第一次触发时顺便推完整歌词（此时 lyrics 数组应该已加载完成）
+  if (!lyricsFullPushed) {
+    lyricsFullPushed = true
+    const song = playerStore.currentSong
+    window.electron.sendSongChange({
+      title: song?.musicName || song?.name || '',
+      artist: song?.singerName || '',
+      lyrics: lyricsArr
+    })
+    if (song?.imageUrl) {
+      window.electron.sendCover({ url: song.imageUrl })
+    }
+  }
+  // 每次都带 fullLyrics，保证悬浮窗总能拿到最新数据（避免 race condition）
+  window.electron.sendLyricsUpdate({ idx, fullLyrics: lyricsArr })
+})
+
+// 切歌时重置标记
+watch(() => playerStore.currentSong?.musicId, () => {
+  lyricsFullPushed = false
+  if (!isElectron || !playerStore.subtitleEnabled) return
+  pushAllState()
+})
+
+// ===== 切歌 =====
+
+
+// ===== 播放/暂停状态 =====
+watch(() => playerStore.playing, (val) => {
+  if (!isElectron || !playerStore.subtitleEnabled) return
+  window.electron.sendPlayState({ playing: val })
+})
+
+// ===== 进度（节流：每 200ms 推一次）=====
+let lastProgressSent = 0
+watch(() => playerStore.currentTime, (val) => {
+  if (!isElectron || !playerStore.subtitleEnabled) return
+  const now = Date.now()
+  if (now - lastProgressSent < 200) return
+  lastProgressSent = now
+  window.electron.sendProgress({
+    current: val,
+    duration: playerStore.duration
+  })
 })
 </script>
 
@@ -2054,154 +2092,6 @@ onBeforeUnmount(() => {
   gap: 12px;
   width: calc(100% - 120px);
   max-width: 400px;
-}
-
-/* ========== 评论抽屉 ========== */
-.comment-drawer {
-  :deep(.el-drawer__body) {
-    padding: 0;
-    background: #fff;
-  }
-}
-
-.comment-panel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: #fff;
-}
-
-.comment-header {
-  display: flex;
-  align-items: center;
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  position: relative;
-}
-
-.comment-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
-.comment-count {
-  margin-left: 12px;
-  font-size: 13px;
-  color: #999;
-}
-
-.comment-close {
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: #f5f5f5;
-  color: #666;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 200ms;
-
-  &:hover {
-    background: #e8e8e8;
-    color: #333;
-  }
-}
-
-.comment-input-row {
-  display: flex;
-  gap: 8px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f5f5f5;
-
-  .el-input {
-    flex: 1;
-
-    :deep(.el-input__wrapper) {
-      border-radius: 20px;
-      background: #f5f5f5;
-      box-shadow: none;
-    }
-  }
-}
-
-.send-btn {
-  padding: 0 20px;
-  height: 36px;
-  border-radius: 18px;
-  border: none;
-  background: var(--st-primary);
-  color: #fff;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 200ms;
-
-  &:hover {
-    opacity: 0.9;
-  }
-}
-
-.comment-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 20px;
-}
-
-.comment-empty {
-  text-align: center;
-  color: #999;
-  padding: 40px 0;
-  font-size: 14px;
-}
-
-.comment-item {
-  display: flex;
-  gap: 12px;
-  padding: 14px 0;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.comment-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #f0f0f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #999;
-  flex-shrink: 0;
-}
-
-.comment-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.comment-user {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.comment-text {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.comment-time {
-  font-size: 12px;
-  color: #bbb;
-  margin-top: 6px;
 }
 
 /* ========== 响应式 ========== */

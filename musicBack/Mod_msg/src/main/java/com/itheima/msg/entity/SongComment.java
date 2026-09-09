@@ -52,4 +52,12 @@ public class SongComment implements Serializable {
     /** 当前用户是否已点赞该评论（不入库，运行时计算） */
     @TableField(exist = false)
     private Boolean liked;
+
+    /** 一级评论的回复数（不入库，Mapper 子查询填充） */
+    @TableField(exist = false)
+    private Integer replyCount;
+
+    /** 被回复目标用户昵称（楼中楼展示时用，不入库） */
+    @TableField(exist = false)
+    private String toUsername;
 }

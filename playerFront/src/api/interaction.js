@@ -86,6 +86,24 @@ export function commentCountApi(musicId) {
   })
 }
 
+// 查询某条一级评论的楼中楼回复
+// GET /api/comment/{parentId}/replies
+export function commentRepliesApi(parentId) {
+  return request({
+    url: `/comment/${parentId}/replies`,
+    method: 'get'
+  })
+}
+
+// 评论点赞
+// POST /api/comment/{id}/like
+export function likeCommentApi(id) {
+  return request({
+    url: `/comment/${id}/like`,
+    method: 'post'
+  })
+}
+
 // ===== 分享接口 =====
 
 // 记录分享行为（返回分享链接 + 最新分享数）

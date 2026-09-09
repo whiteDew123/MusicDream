@@ -48,7 +48,7 @@ spring:
         - id: mod-msg
           uri: lb://mod-msg
           predicates:
-            - Path=/api/msg/**
+            - Path=/api/msg/**,/api/comment/**
           filters:
             - StripPrefix=1
 
@@ -93,6 +93,11 @@ spring:
             - Path=/api/upload/**
           filters:
             - StripPrefix=1
+
+        - id: mod-upload-resources
+          uri: lb://mod-upload
+          predicates:
+            - Path=/uploads/**,/img/**,/lyric/**,/music/**
 
         - id: mod-capsule
           uri: lb://music-capsule-service

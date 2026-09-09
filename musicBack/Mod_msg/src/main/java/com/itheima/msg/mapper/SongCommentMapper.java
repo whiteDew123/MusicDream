@@ -20,10 +20,12 @@ import java.util.List;
 public interface SongCommentMapper extends BaseMapper<SongComment> {
 
     /**
-     * 分页查询某首歌的一级评论（parent_id IS NULL），联表 user 取昵称/头像
+     * 分页查询某首歌的一级评论（parent_id IS NULL），联表 user 取昵称/头像，
+     * 子查询补充 reply_count（该条一级评论下有多少楼中楼）
      */
     @Select("""
-            SELECT c.*, u.username, u.image_url AS avatar
+            SELECT c.*, u.username, u.image_url AS avatar,
+                   (SELECT COUNT(*) FROM song_comment r WHERE r.parent_id = c.id) AS reply_count
             FROM song_comment c
             LEFT JOIN `user` u ON c.user_id = u.id
             WHERE c.music_id = #{musicId} AND c.parent_id IS NULL
@@ -32,12 +34,15 @@ public interface SongCommentMapper extends BaseMapper<SongComment> {
     IPage<SongComment> selectTopLevelPage(IPage<SongComment> page, @Param("musicId") Integer musicId);
 
     /**
-     * 查询某条一级评论的楼中楼回复（按时间正序）
+     * 查询某条一级评论的楼中楼回复（按时间正序），
+     * 同时联表取被回复目标用户昵称（toUserId → toUsername）
      */
     @Select("""
-            SELECT c.*, u.username, u.image_url AS avatar
+            SELECT c.*, u.username, u.image_url AS avatar,
+                   tu.username AS to_username
             FROM song_comment c
             LEFT JOIN `user` u ON c.user_id = u.id
+            LEFT JOIN `user` tu ON c.to_user_id = tu.id
             WHERE c.parent_id = #{parentId}
             ORDER BY c.create_time ASC, c.id ASC
             """)

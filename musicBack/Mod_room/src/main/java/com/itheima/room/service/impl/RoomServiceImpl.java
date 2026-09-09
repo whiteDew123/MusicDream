@@ -9,15 +9,19 @@ import com.itheima.room.dto.RoomCreateDTO;
 import com.itheima.room.dto.RoomUpdateDTO;
 import com.itheima.room.entity.Room;
 import com.itheima.room.entity.RoomMember;
+import com.itheima.room.entity.RoomMemberSession;
 import com.itheima.room.entity.RoomMessage;
 import com.itheima.room.entity.RoomPlaylist;
 import com.itheima.room.entity.RoomPlaylistVote;
+import com.itheima.room.entity.RoomStats;
 import com.itheima.room.mapper.MusicMapper;
 import com.itheima.room.mapper.RoomMapper;
 import com.itheima.room.mapper.RoomMemberMapper;
+import com.itheima.room.mapper.RoomMemberSessionMapper;
 import com.itheima.room.mapper.RoomMessageMapper;
 import com.itheima.room.mapper.RoomPlaylistMapper;
 import com.itheima.room.mapper.RoomPlaylistVoteMapper;
+import com.itheima.room.mapper.RoomStatsMapper;
 import com.itheima.room.mapper.UserMapper;
 import com.itheima.room.service.RoomService;
 import com.itheima.room.vo.RoomDetailVO;
@@ -51,6 +55,8 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
     private final RoomMessageMapper roomMessageMapper;
     private final RoomNotifier roomNotifier;
     private final RoomPresenceService presenceService;
+    private final RoomMemberSessionMapper sessionMapper;
+    private final RoomStatsMapper statsMapper;
 
     public RoomServiceImpl(RoomMemberMapper roomMemberMapper,
                            MusicMapper musicMapper,
@@ -59,7 +65,9 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
                            RoomPlaylistVoteMapper roomPlaylistVoteMapper,
                            RoomMessageMapper roomMessageMapper,
                            RoomNotifier roomNotifier,
-                           RoomPresenceService presenceService) {
+                           RoomPresenceService presenceService,
+                           RoomMemberSessionMapper sessionMapper,
+                           RoomStatsMapper statsMapper) {
         this.roomMemberMapper = roomMemberMapper;
         this.musicMapper = musicMapper;
         this.userMapper = userMapper;
@@ -68,6 +76,8 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
         this.roomMessageMapper = roomMessageMapper;
         this.roomNotifier = roomNotifier;
         this.presenceService = presenceService;
+        this.sessionMapper = sessionMapper;
+        this.statsMapper = statsMapper;
     }
 
     /** 生成邀请码用的安全随机数（排除易混淆字符 0/O/1/I） */
@@ -113,6 +123,27 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
         member.setIsOnline(1);
         member.setJoinTime(LocalDateTime.now());
         roomMemberMapper.insert(member);
+
+        // === 统计初始化（房主走 createRoom，不走 joinRoom，所以这里必须补）===
+        // 1) 房主也 INSERT 一条 session，否则 heartbeatTick 重算累计分钟时房主的时长会被漏掉
+        RoomMemberSession ownerSession = new RoomMemberSession();
+        ownerSession.setRoomId(room.getId());
+        ownerSession.setUserId(userId);
+        ownerSession.setEnterTime(LocalDateTime.now());
+        sessionMapper.insert(ownerSession);
+
+        // 2) 首次有人进房间 → 建 room_stats 行（peak_online=1）
+        if (statsMapper.selectById(room.getId()) == null) {
+            RoomStats rs = new RoomStats();
+            rs.setRoomId(room.getId());
+            rs.setPeakOnline(1);
+            rs.setTotalWatchMinutes(0L);
+            statsMapper.insert(rs);
+        }
+
+        // 3) 创建后立即刷新一次，用户看到的不是全 0
+        presenceService.refreshPeak(room.getId());
+        statsMapper.recalcTotalWatchMinutes(room.getId());
 
         return getDetail(room.getId(), userId);
     }
@@ -242,6 +273,27 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
         roomNotifier.systemMessage(id, userId, "加入了房间");
         presenceService.broadcastPresence(id);
 
+        // === 统计：INSERT session + 确保 room_stats 存在 ===
+        RoomMemberSession session = new RoomMemberSession();
+        session.setRoomId(id);
+        session.setUserId(userId);
+        session.setEnterTime(LocalDateTime.now());
+        sessionMapper.insert(session);
+
+        // room_stats 首次有人进入时初始化一行（peak_online=1）
+        if (statsMapper.selectById(id) == null) {
+            RoomStats rs = new RoomStats();
+            rs.setRoomId(id);
+            rs.setPeakOnline(1);
+            rs.setTotalWatchMinutes(0L);
+            statsMapper.insert(rs);
+        }
+
+        // 新人加入后立即刷新峰值（之前只在"离线→在线"路径才调，新人这条路径漏了）
+        presenceService.refreshPeak(id);
+        // 顺手重算一次累计分钟，确保首次进房间的用户能看到实时数据
+        statsMapper.recalcTotalWatchMinutes(id);
+
         return getDetail(id, userId);
     }
 
@@ -361,6 +413,10 @@ public class RoomServiceImpl extends ServiceImpl<RoomMapper, Room> implements Ro
         if (member == null) {
             throw new IllegalArgumentException("你不在该房间中");
         }
+
+        // === 统计：关闭 session ===
+        sessionMapper.closeSession(roomId, userId, LocalDateTime.now());
+
         // 房主离开：房间解散
         if (Objects.equals(member.getRole(), 0)) {
             doClose(roomId);

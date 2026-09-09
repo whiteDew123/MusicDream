@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>MusicDreamer 桌面歌词</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  background: transparent !important;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  user-select: none; -webkit-user-select: none;
+}
+
+/* ========== 毛玻璃胶囊主容器 ========== */
+#app {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  margin: 2px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 6px 10px 6px 8px;
+  overflow: hidden;
+  cursor: default;
+  -webkit-app-region: drag;
+  transition: opacity 0.35s ease, background 0.3s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.45);
+}
+/* 鼠标移出整体降低透明度 */
+#app:not(:hover) { opacity: 0.5; }
+
+/* ========== 封面 48×48 ========== */
+#cover-wrap {
+  flex-shrink: 0;
+  width: 48px; height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #3a3a40, #1a1a1e);
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+#cover-wrap:hover { transform: scale(1.05); }
+#cover { width: 100%; height: 100%; object-fit: cover; display: none; }
+#cover.playing { animation: spin 12s linear infinite; display: block; }
+#cover:not(.playing) { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#cover-fallback {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: rgba(255,255,255,0.25);
+}
+
+/* ========== 歌曲+歌手（左二栏） ========== */
+#song-block {
+  flex-shrink: 0;
+  min-width: 0;
+  margin: 0 10px 0 10px;
+  -webkit-app-region: drag;
+}
+#song-title {
+  font-size: 13px;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 110px;
+  line-height: 1.3;
+}
+#song-artist {
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 110px;
+  margin-top: 1px;
+}
+
+/* ========== 单行大歌词区（左三栏，核心） ========== */
+#lyrics-block {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  -webkit-app-region: drag;
+  position: relative;
+}
+#lyrics-curr {
+  font-size: 16px;          /* ← 大歌词 */
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  transition: opacity 0.35s ease;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
+#lyrics-curr.fading { opacity: 0; }
+
+/* ========== 按钮组（右侧，常驻） ========== */
+#controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  -webkit-app-region: no-drag;
+}
+.ctrl-btn {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: none; cursor: pointer;
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.18s;
+}
+.ctrl-btn:hover {
+  background: rgba(255,255,255,0.22);
+  color: #fff;
+  transform: scale(1.08);
+}
+.ctrl-btn.main {
+  width: 30px; height: 30px;
+  background: rgba(124,122,255,0.45);
+  color: #fff;
+  font-size: 14px;
+}
+.ctrl-btn.main:hover {
+  background: rgba(124,122,255,0.7);
+}
+.ctrl-btn.close {
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  width: 22px; height: 22px;
+}
+.ctrl-btn.close:hover {
+  background: rgba(255,80,80,0.4);
+  color: #fff;
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- 左一：封面 -->
+  <div id="cover-wrap" title="点击打开播放器">
+    <img id="cover" alt="cover">
+    <div id="cover-fallback">♪</div>
+  </div>
+
+  <!-- 左二：歌名+歌手 -->
+  <div id="song-block">
+    <div id="song-title">等待播放</div>
+    <div id="song-artist">MusicDreamer</div>
+  </div>
+
+  <!-- 左三：大歌词 -->
+  <div id="lyrics-block">
+    <div id="lyrics-curr">♪</div>
+  </div>
+
+  <!-- 右侧：按钮组 -->
+  <div id="controls">
+    <button class="ctrl-btn"    id="btn-prev"  title="上一首">⏮</button>
+    <button class="ctrl-btn main" id="btn-play" title="播放/暂停">▶</button>
+    <button class="ctrl-btn"    id="btn-next"  title="下一首">⏭</button>
+    <button class="ctrl-btn close" id="btn-close" title="关闭">✕</button>
+  </div>
+</div>
+
+<script>
+const { ipcRenderer } = require('electron')
+
+const $ = id => document.getElementById(id)
+const app        = $('app')
+const coverWrap  = $('cover-wrap')
+const cover      = $('cover')
+const coverFb    = $('cover-fallback')
+const songTitle  = $('song-title')
+const songArtist = $('song-artist')
+const lyricsCurr = $('lyrics-curr')
+const btnPlay    = $('btn-play')
+
+// ===== 状态 =====
+let lyrics = []        // [{time, text}]
+let activeIdx = -1
+let isPlaying = false
+
+// ===== 工具：从 payload 提取 =====
+function extractLyrics(payload) {
+  if (!payload) return []
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload.fullLyrics)) return payload.fullLyrics
+  if (Array.isArray(payload.lyrics)) return payload.lyrics
+  if (typeof payload === 'string') return parseLRC(payload)
+  return []
+}
+function extractIdx(payload) {
+  if (!payload) return -1
+  const i = payload.idx
+  return typeof i === 'number' ? i : -1
+}
+
+// ===== 单行歌词切换（带淡入淡出）=====
+let fadeTimer = null
+function showLyric(idx) {
+  if (!lyrics.length || idx < 0 || idx >= lyrics.length) return
+  if (idx === activeIdx) return
+  activeIdx = idx
+  const text = lyrics[idx].text || '♪'
+
+  // 简单淡入淡出
+  lyricsCurr.classList.add('fading')
+  clearTimeout(fadeTimer)
+  fadeTimer = setTimeout(() => {
+    lyricsCurr.textContent = text
+    lyricsCurr.title = text    // tooltip
+    lyricsCurr.classList.remove('fading')
+  }, 150)
+}
+
+// ===== IPC：主窗口 → 悬浮窗 =====
+ipcRenderer.on('song-change', (_e, data) => {
+  songTitle.textContent  = data?.title  || data?.musicName || data?.name   || '等待播放'
+  songArtist.textContent = data?.artist || data?.singerName || data?.singer || 'MusicDreamer'
+  cover.classList.remove('playing')
+  const arr = extractLyrics(data)
+  if (arr.length) {
+    lyrics = arr
+    const idx = extractIdx(data)
+    showLyric(idx >= 0 ? idx : 0)
+  } else {
+    lyrics = []
+    lyricsCurr.textContent = '♪'
+    lyricsCurr.title = ''
+    activeIdx = -1
+  }
+})
+
+ipcRenderer.on('lyrics', (_e, data) => {
+  const arr = extractLyrics(data)
+  if (!arr.length) return
+  lyrics = arr
+  const idx = extractIdx(data)
+  showLyric(idx >= 0 ? idx : 0)
+})
+
+ipcRenderer.on('play-state', (_e, data) => {
+  isPlaying = !!data?.playing
+  btnPlay.textContent = isPlaying ? '⏸' : '▶'
+  if (isPlaying) cover.classList.add('playing')
+  else cover.classList.remove('playing')
+})
+
+ipcRenderer.on('cover', (_e, data) => {
+  const url = data?.url || ''
+  if (!url) return
+  const fullUrl = url.startsWith('http') ? url : 'http://localhost:9000' + url
+  cover.src = fullUrl
+  cover.onload  = () => { cover.style.display = 'block'; coverFb.style.display = 'none' }
+  cover.onerror = () => { cover.style.display = 'none';  coverFb.style.display = 'flex' }
+})
+
+// 进度事件：定位歌词行
+ipcRenderer.on('progress', (_e, data) => {
+  if (!lyrics.length) return
+  const cur = data?.current || data?.currentTime || 0
+  let idx = -1
+  for (let i = 0; i < lyrics.length; i++) {
+    if (lyrics[i].time <= cur) idx = i
+    else break
+  }
+  showLyric(idx)
+})
+
+// ===== 按钮事件 =====
+btnPlay.addEventListener('click', () => {
+  ipcRenderer.send('remote-play-pause')
+})
+$('btn-prev').addEventListener('click', () => {
+  ipcRenderer.send('remote-prev')
+})
+$('btn-next').addEventListener('click', () => {
+  ipcRenderer.send('remote-next')
+})
+$('btn-close').addEventListener('click', () => {
+  ipcRenderer.send('close-lyrics')
+})
+// 点击封面唤起主播放器
+coverWrap.addEventListener('click', () => {
+  ipcRenderer.send('show-main-window')
+})
+
+// ===== 简易 LRC 解析 =====
+function parseLRC(lrc) {
+  if (!lrc) return []
+  const result = []
+  const re = /\[(\d{1,2}):(\d{1,2})(?:\.(\d{1,3}))?\]/g
+  let m, lastIndex = 0
+  while ((m = re.exec(lrc)) !== null) {
+    if (m.index > lastIndex) {
+      const t = lrc.slice(lastIndex, m.index).trim()
+      if (t) result.push({ time: 0, text: t })
+    }
+    const min = parseInt(m[1]), sec = parseInt(m[2])
+    const ms = m[3] ? parseInt(m[3].padEnd(3,'0').slice(0,3)) : 0
+    result.push({ time: min * 60 + sec + ms/1000, text: lrc.slice(m.index + m[0].length, re.lastIndex).trim() })
+    lastIndex = re.lastIndex
+  }
+  if (lastIndex < lrc.length) {
+    const t = lrc.slice(lastIndex).trim()
+    if (t) result.push({ time: 0, text: t })
+  }
+  if (result.length === 0 && lrc.trim()) {
+    lrc.split('\n').forEach(line => {
+      const t = line.trim()
+      if (t) result.push({ time: 0, text: t })
+    })
+  }
+  return result
+}
+
+// ===== 启动 =====
+try { ipcRenderer.send('lyrics-window-ready') } catch(e){}
+</script>
+
+</body>
+</html>

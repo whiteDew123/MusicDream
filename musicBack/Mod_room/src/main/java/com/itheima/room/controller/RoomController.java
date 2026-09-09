@@ -7,6 +7,10 @@ import com.itheima.room.dto.RoomCreateDTO;
 import com.itheima.room.dto.RoomUpdateDTO;
 import com.itheima.room.dto.SkipVoteDTO;
 import com.itheima.room.dto.TransferDTO;
+import com.itheima.room.mapper.RoomMemberMapper;
+import com.itheima.room.mapper.RoomMemberSessionMapper;
+import com.itheima.room.mapper.RoomStatsMapper;
+import com.itheima.room.mapper.UserMapper;
 import com.itheima.room.service.RoomMessageService;
 import com.itheima.room.service.RoomPlaylistService;
 import com.itheima.room.service.RoomService;
@@ -43,15 +47,27 @@ public class RoomController {
     private final RoomPlaylistService roomPlaylistService;
     private final RoomMessageService roomMessageService;
     private final RoomVoteService roomVoteService;
+    private final RoomStatsMapper statsMapper;
+    private final RoomMemberMapper memberMapper;
+    private final RoomMemberSessionMapper sessionMapper;
+    private final UserMapper userMapper;
 
     public RoomController(RoomService roomService,
                           RoomPlaylistService roomPlaylistService,
                           RoomMessageService roomMessageService,
-                          RoomVoteService roomVoteService) {
+                          RoomVoteService roomVoteService,
+                          RoomStatsMapper statsMapper,
+                          RoomMemberMapper memberMapper,
+                          RoomMemberSessionMapper sessionMapper,
+                          UserMapper userMapper) {
         this.roomService = roomService;
         this.roomPlaylistService = roomPlaylistService;
         this.roomMessageService = roomMessageService;
         this.roomVoteService = roomVoteService;
+        this.statsMapper = statsMapper;
+        this.memberMapper = memberMapper;
+        this.sessionMapper = sessionMapper;
+        this.userMapper = userMapper;
     }
 
     // ======================== 房间 ========================
@@ -346,5 +362,66 @@ public class RoomController {
         }
         boolean skipped = roomVoteService.agreeVote(id, dto.getMusicId(), userId);
         return Result.success(skipped ? "切歌成功" : "已附议，等待更多成员", skipped);
+    }
+
+    // ======================== 统计 ========================
+
+    /**
+     * 查询房间统计：总观看人数、峰值在线、累计观看分钟
+     * GET /room/{id}/stats
+     */
+    @GetMapping("/{id}/stats")
+    public Result<Object> stats(@PathVariable Long id) {
+        // 总观看：room_member COUNT DISTINCT user_id
+        long totalViewers = memberMapper.selectCount(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.itheima.room.entity.RoomMember>()
+                        .eq("room_id", id).select("DISTINCT user_id"));
+        // 当前在线
+        long onlineNow = memberMapper.selectCount(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.itheima.room.entity.RoomMember>()
+                        .eq("room_id", id).eq("is_online", 1));
+        // room_stats 表的峰值 + 累计时长
+        java.util.Map<String, Object> stat = new java.util.HashMap<>();
+        stat.put("totalViewers", totalViewers);
+        stat.put("onlineNow", onlineNow);
+        com.itheima.room.entity.RoomStats rs = statsMapper.selectById(id);
+        stat.put("peakOnline", rs == null ? 0 : rs.getPeakOnline());
+        stat.put("totalWatchMinutes", rs == null ? 0L : rs.getTotalWatchMinutes());
+        return Result.success(stat);
+    }
+
+    /**
+     * 查询房间最近进出记录
+     * GET /room/{id}/sessions?limit=50
+     */
+    @GetMapping("/{id}/sessions")
+    public Result<Object> sessions(@PathVariable Long id,
+                                    @RequestParam(value = "limit", defaultValue = "50") int limit) {
+        List<com.itheima.room.entity.RoomMemberSession> sessions = sessionMapper.selectRecentByRoom(id, Math.min(limit, 200));
+        // 联表用户信息：把 userId → username + imageUrl
+        List<Long> userIds = sessions.stream().map(com.itheima.room.entity.RoomMemberSession::getUserId).distinct().toList();
+        java.util.Map<Integer, com.itheima.domain.entity.User> userMap = new java.util.HashMap<>();
+        if (!userIds.isEmpty()) {
+            userMap = new java.util.HashMap<>(userMapper.selectBatchIds(
+                    userIds.stream().map(Long::intValue).toList())
+                    .stream().collect(java.util.stream.Collectors.toMap(
+                            com.itheima.domain.entity.User::getId, u -> u)));
+        }
+        java.util.List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
+        for (com.itheima.room.entity.RoomMemberSession s : sessions) {
+            java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
+            item.put("id", s.getId());
+            item.put("userId", s.getUserId());
+            com.itheima.domain.entity.User u = userMap.get(s.getUserId().intValue());
+            if (u != null) {
+                item.put("username", u.getUsername());
+                item.put("avatar", u.getImageUrl());
+            }
+            item.put("enterTime", s.getEnterTime());
+            item.put("leaveTime", s.getLeaveTime());
+            item.put("durationSec", s.getDurationSec());
+            result.add(item);
+        }
+        return Result.success(result);
     }
 }

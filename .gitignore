@@ -74,4 +74,4 @@ musicBack/**/src/main/resources/application-*.properties
 **/jtransforms-*.jar
 
 ### Database backups ###
-backup_database.sql
+electron/node_modules/

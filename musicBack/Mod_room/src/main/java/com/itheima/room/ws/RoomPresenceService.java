@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.itheima.domain.entity.User;
 import com.itheima.room.entity.RoomMember;
 import com.itheima.room.mapper.RoomMemberMapper;
+import com.itheima.room.mapper.RoomMemberSessionMapper;
+import com.itheima.room.mapper.RoomStatsMapper;
 import com.itheima.room.mapper.UserMapper;
 import com.itheima.room.vo.RoomMemberVO;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -31,18 +33,24 @@ public class RoomPresenceService {
     private final UserMapper userMapper;
     private final RoomSessionRegistry sessionRegistry;
     private final SimpMessagingTemplate messagingTemplate;
+    private final RoomMemberSessionMapper sessionMapper;
+    private final RoomStatsMapper statsMapper;
 
     public RoomPresenceService(RoomMemberMapper roomMemberMapper,
                                UserMapper userMapper,
                                RoomSessionRegistry sessionRegistry,
-                               SimpMessagingTemplate messagingTemplate) {
+                               SimpMessagingTemplate messagingTemplate,
+                               RoomMemberSessionMapper sessionMapper,
+                               RoomStatsMapper statsMapper) {
         this.roomMemberMapper = roomMemberMapper;
         this.userMapper = userMapper;
         this.sessionRegistry = sessionRegistry;
         this.messagingTemplate = messagingTemplate;
+        this.sessionMapper = sessionMapper;
+        this.statsMapper = statsMapper;
     }
 
-    /** 成员心跳：更新 last_heartbeat / is_online，并注册会话；仅"离线→在线"时有变化才广播，避免每次心跳都全量重查 member+user */
+    /** 成员心跳：更新 last_heartbeat / is_online，并注册会话 */
     public void memberOnline(Long roomId, Long userId, String sessionId) {
         if (sessionId != null) {
             sessionRegistry.put(sessionId, userId, roomId);
@@ -53,17 +61,18 @@ public class RoomPresenceService {
         if (member == null) {
             return;
         }
-        // 只在由离线变为在线时广播一次成员列表，心跳本身不再广播
         boolean wasOffline = member.getIsOnline() == null || member.getIsOnline() == 0;
         member.setLastHeartbeat(LocalDateTime.now());
         member.setIsOnline(1);
         roomMemberMapper.updateById(member);
         if (wasOffline) {
             broadcastPresence(roomId);
+            // 离线→在线：更新 peak_online
+            refreshPeak(roomId);
         }
     }
 
-    /** 断线：移除会话并把该成员置为离线、广播 */
+    /** 断线：移除会话、置离线、关闭 session、广播 */
     public void memberOffline(String sessionId) {
         RoomSessionRegistry.SessionInfo info = sessionRegistry.remove(sessionId);
         if (info == null) {
@@ -76,35 +85,62 @@ public class RoomPresenceService {
             member.setIsOnline(0);
             roomMemberMapper.updateById(member);
         }
+        // 关闭这个用户的未关闭 session
+        sessionMapper.closeSession(info.roomId, info.userId, LocalDateTime.now());
         broadcastPresence(info.roomId);
     }
 
-    /** 定时心跳巡检：超过 60 秒未心跳的成员标记离线并广播 */
+    /** 定时心跳巡检：超时成员置离线 + 关闭 session + 刷新所有活跃房间的峰值和累计分钟 */
     public void heartbeatTick() {
         LocalDateTime threshold = LocalDateTime.now().minusSeconds(HEARTBEAT_TIMEOUT_SECONDS);
-        // 找出超时在线的成员
         List<RoomMember> offline = roomMemberMapper.selectList(new LambdaQueryWrapper<RoomMember>()
                 .eq(RoomMember::getIsOnline, 1)
                 .and(w -> w.isNull(RoomMember::getLastHeartbeat)
                         .or()
                         .lt(RoomMember::getLastHeartbeat, threshold)));
-        if (offline.isEmpty()) {
-            return;
-        }
-        List<Long> roomIds = new ArrayList<>();
-        for (RoomMember m : offline) {
-            m.setIsOnline(0);
-            roomMemberMapper.updateById(m);
-            if (!roomIds.contains(m.getRoomId())) {
-                roomIds.add(m.getRoomId());
+
+        // 1) 处理离线：收集每个房间的离线用户
+        if (!offline.isEmpty()) {
+            Map<Long, List<Long>> roomUserMap = offline.stream()
+                    .collect(Collectors.groupingBy(RoomMember::getRoomId,
+                            Collectors.mapping(RoomMember::getUserId, Collectors.toList())));
+
+            LocalDateTime now = LocalDateTime.now();
+            for (RoomMember m : offline) {
+                m.setIsOnline(0);
+                roomMemberMapper.updateById(m);
+            }
+
+            // 批量关闭离线成员的未关闭 session
+            for (Map.Entry<Long, List<Long>> e : roomUserMap.entrySet()) {
+                sessionMapper.closeSessions(e.getKey(), e.getValue(), now);
+                broadcastPresence(e.getKey());
             }
         }
-        for (Long roomId : roomIds) {
-            broadcastPresence(roomId);
+
+        // 2) 兜底：不管有没有人离线，每 30s 扫一遍所有活跃房间 → 刷新峰值 + 重算累计分钟
+        //    这样新人加入、心跳超时、正常离开三条路径都能覆盖到
+        List<Long> activeRoomIds = roomMemberMapper.selectList(new LambdaQueryWrapper<RoomMember>()
+                        .select(RoomMember::getRoomId)
+                        .eq(RoomMember::getIsOnline, 1)
+                        .groupBy(RoomMember::getRoomId))
+                .stream().map(RoomMember::getRoomId).distinct().collect(Collectors.toList());
+        for (Long roomId : activeRoomIds) {
+            refreshPeak(roomId);
+            statsMapper.recalcTotalWatchMinutes(roomId);
         }
     }
 
-    /** 广播当前成员列表（含昵称/头像/在线态） */
+    /** 刷新指定房间的峰值在线数（public，供 joinRoom 等外部路径调用） */
+    public void refreshPeak(Long roomId) {
+        int onlineCount = Math.toIntExact(roomMemberMapper.selectCount(new LambdaQueryWrapper<RoomMember>()
+                .eq(RoomMember::getRoomId, roomId)
+                .eq(RoomMember::getIsOnline, 1)));
+        if (onlineCount == 0) return;
+        statsMapper.updatePeakIfHigher(roomId, onlineCount);
+    }
+
+    /** 广播当前成员列表 */
     public void broadcastPresence(Long roomId) {
         List<RoomMember> members = roomMemberMapper.selectList(new LambdaQueryWrapper<RoomMember>()
                 .eq(RoomMember::getRoomId, roomId)

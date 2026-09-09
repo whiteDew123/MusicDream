@@ -297,14 +297,13 @@ async function handleChangePassword() {
   if (!pwFormRef.value) return
   await pwFormRef.value.validate(async (valid) => {
     if (!valid) return
-    const userId = userStore.userInfo?.userId
-    if (!userId) {
+    if (!userStore.isLogin()) {
       ElMessage.warning('登录信息已失效，请重新登录')
       return
     }
     pwLoading.value = true
     try {
-      await updatePasswordApi(userId, {
+      await updatePasswordApi({
         oldPassword: pwForm.oldPassword,
         newPassword: pwForm.newPassword
       })

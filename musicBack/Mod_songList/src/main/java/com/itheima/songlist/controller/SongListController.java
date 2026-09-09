@@ -148,11 +148,12 @@ public class SongListController {
         if (!existing.getUserId().equals(userId)) {
             return Result.fail(403, "无权删除他人歌单");
         }
-        songListService.removeById(id);
+        // 先清理子表引用（list_music、likelist），再删主表 song_list
         listMusicService.remove(new LambdaQueryWrapper<ListMusic>()
                 .eq(ListMusic::getListId, id));
         likeListService.remove(new LambdaQueryWrapper<LikeList>()
                 .eq(LikeList::getListId, id));
+        songListService.removeById(id);
         return Result.success();
     }
 

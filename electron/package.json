@@ -1,0 +1,16 @@
+{
+  "name": "musicdreamer-desktop",
+  "version": "0.1.0",
+  "description": "MusicDreamer 桌面版 - 基于 Electron + Vue3",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "set VITE_DEV_SERVER_URL=http://localhost:5174 && electron .",
+    "build": "electron-builder --win"
+  },
+  "author": "MusicDreamer Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^30.5.1"
+  }
+}

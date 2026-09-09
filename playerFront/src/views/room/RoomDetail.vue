@@ -100,12 +100,20 @@
           <div class="chat-list" ref="chatListRef">
             <div v-if="messages.length === 0" class="chat-empty">开始聊天吧～（支持文字 / Emoji）</div>
             <div v-for="msg in messages" :key="msg.id" class="chat-item" :class="{ me: msg.userId === myUserId, sys: msg.type === 2 }">
+              <!-- 系统消息居中 -->
               <template v-if="msg.type === 2">
                 <span class="sys-text">{{ msg.username ? msg.username + ' ' + msg.content : msg.content }}</span>
               </template>
+              <!-- 普通消息：统一 DOM 顺序 [头像, 气泡]，自己的消息靠 .me 反向 -->
               <template v-else>
-                <span class="chat-name">{{ msg.username || '系统' }}</span>
-                <span class="chat-text">{{ msg.content }}</span>
+                <div class="msg-avatar">
+                  <img v-if="msg.imageUrl" :src="msg.imageUrl" />
+                  <el-icon v-else><User /></el-icon>
+                </div>
+                <div class="msg-bubble">
+                  <span class="msg-name">{{ msg.username || '系统' }}</span>
+                  <span class="msg-text">{{ msg.content }}</span>
+                </div>
               </template>
             </div>
           </div>
@@ -122,8 +130,51 @@
         </div>
       </section>
 
-      <!-- 右：歌单 + 成员 -->
+      <!-- 右：统计 + 歌单 + 成员/动态 -->
       <section class="side-panel">
+        <!-- 统计卡片 -->
+        <div class="stats-card">
+          <div class="stats-head">
+            <span class="stats-title">
+              <el-icon><DataAnalysis /></el-icon>
+              房间数据
+            </span>
+            <span class="stats-refresh" @click="loadStats" title="刷新">
+              <el-icon><RefreshRight /></el-icon>
+            </span>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-icon icon-online"><el-icon><View /></el-icon></div>
+              <div class="stat-body">
+                <span class="stat-value">{{ stats.onlineNow }}</span>
+                <span class="stat-label">当前在线</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon icon-total"><el-icon><UserFilled /></el-icon></div>
+              <div class="stat-body">
+                <span class="stat-value">{{ stats.totalViewers }}</span>
+                <span class="stat-label">累计观众</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon icon-peak"><el-icon><TrendCharts /></el-icon></div>
+              <div class="stat-body">
+                <span class="stat-value">{{ stats.peakOnline }}</span>
+                <span class="stat-label">峰值在线</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon icon-time"><el-icon><Timer /></el-icon></div>
+              <div class="stat-body">
+                <span class="stat-value">{{ stats.totalWatchMinutes }}</span>
+                <span class="stat-label">累计分钟</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 歌单 -->
         <div class="playlist-panel">
           <div class="panel-header">
@@ -158,15 +209,34 @@
           </div>
         </div>
 
-        <!-- 成员 -->
+        <!-- 成员 / 动态 Tab -->
         <div class="members-panel">
           <div class="panel-header">
             <span class="panel-title">
               <el-icon><UserFilled /></el-icon>
-              成员
+              成员 / 动态
             </span>
           </div>
-          <div class="members-list">
+          <!-- Tab 切换 -->
+          <div class="tabs-bar">
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'members' }"
+              @click="activeTab = 'members'"
+            >
+              成员 ({{ members.length }})
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'activity' }"
+              @click="activeTab = 'activity'; loadSessions()"
+            >
+              动态
+            </button>
+          </div>
+
+          <!-- 成员列表 -->
+          <div v-show="activeTab === 'members'" class="members-list">
             <div v-for="m in members" :key="m.userId" class="member-item">
               <div class="member-avatar">
                 <img v-if="m.imageUrl" :src="m.imageUrl" />
@@ -177,6 +247,32 @@
               <span v-else-if="m.isOnline === 1" class="online-dot">在线</span>
               <button v-if="isOwner && m.role !== 0" class="transfer-btn" @click="transferOwnership(m)">转让</button>
               <button v-if="isOwner && m.role !== 0" class="kick-btn" @click="kickMember(m)">踢出</button>
+            </div>
+          </div>
+
+          <!-- 动态：进出记录 -->
+          <div v-show="activeTab === 'activity'" class="activity-list">
+            <div v-if="sessionsLoading" class="activity-empty">加载中…</div>
+            <div v-else-if="sessions.length === 0" class="activity-empty">暂无动态</div>
+            <div v-else>
+              <div v-for="s in sessions" :key="s.id" class="activity-item">
+                <div class="activity-avatar">
+                  <img v-if="s.avatar" :src="s.avatar" />
+                  <el-icon v-else><User /></el-icon>
+                </div>
+                <div class="activity-body">
+                  <div class="activity-head">
+                    <span class="activity-name">{{ s.username || ('用户' + s.userId) }}</span>
+                    <span v-if="s.leaveTime" class="activity-badge left">已离开</span>
+                    <span v-else class="activity-badge joined">在场</span>
+                  </div>
+                  <div class="activity-meta">
+                    <span>进入 {{ formatAbsTime(s.enterTime) }}</span>
+                    <span v-if="s.leaveTime">· 离开 {{ formatAbsTime(s.leaveTime) }}</span>
+                    <span class="activity-duration">· 停留 {{ formatDuration(s.durationSec) }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -219,14 +315,16 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Link, UserFilled, VideoPlay, RefreshRight, ChatDotRound,
-  List, Plus, Close, Headset, User, Search, Select, Document
+  List, Plus, Close, Headset, User, Search, Select, Document,
+  DataAnalysis, TrendCharts, Timer, View
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { getToken } from '@/utils/auth'
 import { useTheme } from '@/utils/theme'
 import {
   roomDetailApi, roomPlaylistApi, addRoomPlaylistApi, removeRoomPlaylistApi,
-  leaveRoomApi, closeRoomApi, roomMessagesApi, kickRoomApi, transferRoomApi
+  leaveRoomApi, closeRoomApi, roomMessagesApi, kickRoomApi, transferRoomApi,
+  roomStatsApi, roomSessionsApi
 } from '@/api/room'
 import { searchSongsApi } from '@/api/music'
 import { createRoomSocket } from '@/utils/room-socket'
@@ -269,6 +367,13 @@ let lastMusicId = null
 let lastSeq = 0
 let voteTimer = null
 const audioUnlocked = ref(false)
+
+// ===== 统计 & 动态 =====
+const stats = reactive({ totalViewers: 0, onlineNow: 0, peakOnline: 0, totalWatchMinutes: 0 })
+const sessions = ref([])
+const sessionsLoading = ref(false)
+const activeTab = ref('members') // 'members' | 'activity'
+let statsTimer = null
 
 // 切歌投票实时状态（附议数/所需/剩余秒）
 const voteState = reactive({ musicId: null, votes: 0, agreeCount: 0, required: 0, remaining: 0, active: false })
@@ -329,11 +434,16 @@ onMounted(async () => {
   }
   connectRoomSocket()
   loadMessages()
+  loadStats()
+  loadSessions()
+  // 每 30s 刷新统计（峰值、累计时长都靠定时心跳推）
+  statsTimer = setInterval(() => { loadStats() }, 30000)
 })
 
 onUnmounted(() => {
   if (socket) socket.disconnect()
   stopVoteTicker()
+  if (statsTimer) clearInterval(statsTimer)
   if (lyricAutoResetTimer) clearTimeout(lyricAutoResetTimer)
   if (roomAudio) {
     roomAudio.pause()
@@ -837,6 +947,51 @@ function goBack() {
     router.push('/rooms')
   }
 }
+
+// ===== 统计 & 动态 =====
+async function loadStats() {
+  try {
+    const res = await roomStatsApi(roomId)
+    const d = res.data || {}
+    stats.totalViewers = d.totalViewers || 0
+    stats.onlineNow = d.onlineNow || 0
+    stats.peakOnline = d.peakOnline || 0
+    stats.totalWatchMinutes = d.totalWatchMinutes || 0
+  } catch (e) {
+    console.warn('[Room] stats 加载失败:', e?.message)
+  }
+}
+
+async function loadSessions() {
+  sessionsLoading.value = true
+  try {
+    const res = await roomSessionsApi(roomId, 30)
+    sessions.value = res.data || []
+  } catch (e) {
+    console.warn('[Room] sessions 加载失败:', e?.message)
+  } finally {
+    sessionsLoading.value = false
+  }
+}
+
+// 格式化观看时长（秒 → "1h 23m" 或 "45s"）
+function formatDuration(sec) {
+  if (!sec || sec <= 0) return '—'
+  if (sec < 60) return sec + 's'
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  if (h > 0) return h + 'h ' + m + 'm'
+  return m + 'm'
+}
+
+// 格式化绝对时间（enterTime / leaveTime 可能是 epoch ms 或字符串）
+function formatAbsTime(t) {
+  if (!t) return '—'
+  const d = typeof t === 'number' ? new Date(t) : new Date(t)
+  if (isNaN(d.getTime())) return '—'
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
 </script>
 
 <style scoped lang="scss">
@@ -1137,12 +1292,12 @@ function goBack() {
 }
 
 .chat-panel {
-  height: 260px;
+  height: 340px;
   flex-shrink: 0;
   background: var(--st-canvas);
   border: 1px solid var(--st-hairline);
   border-radius: var(--rounded-xl);
-  padding: 20px;
+  padding: 16px 20px 16px;
   display: flex;
   flex-direction: column;
 
@@ -1153,7 +1308,8 @@ function goBack() {
     font-size: 14px;
     font-weight: 600;
     color: var(--st-ink);
-    margin-bottom: 12px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
     .el-icon { color: var(--st-primary); }
     .chat-status {
       margin-left: auto;
@@ -1165,26 +1321,100 @@ function goBack() {
 
   .chat-list {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
-    .chat-empty { color: var(--st-ink-mute); font-size: 13px; text-align: center; padding: 16px 0; }
+    gap: 14px;
+    padding: 6px 4px 6px 0;
+    margin-bottom: 10px;
+    scrollbar-width: thin;
+
+    .chat-empty {
+      color: var(--st-ink-mute);
+      font-size: 13px;
+      text-align: center;
+      padding: 24px 0;
+    }
+
+    /* ==== 消息行：统一 DOM 顺序 [头像, 气泡]，靠 flex-direction 分左右 ==== */
     .chat-item {
       display: flex;
-      align-items: baseline;
-      gap: 8px;
+      align-items: flex-start;
+      gap: 10px;
       font-size: 13px;
-      .chat-name { color: var(--st-primary); font-weight: 600; flex-shrink: 0; }
-      .chat-text { color: var(--st-ink); word-break: break-word; }
-      &.me { justify-content: flex-end; .chat-name { color: var(--st-ink-mute); } }
-      &.sys { justify-content: center; }
-      .sys-text { color: var(--st-ink-mute); font-size: 12px; text-align: center; }
+      max-width: 100%;
+
+      /* 对方消息：头像在左，气泡在左（flex-direction: row 默认） */
+      .msg-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--rounded-md, 8px);
+        overflow: hidden;
+        background: var(--st-input-bg, #f0f2f5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: var(--st-ink-mute);
+        img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .el-icon { font-size: 18px; }
+      }
+
+      .msg-bubble {
+        max-width: calc(100% - 100px);
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .msg-name {
+        font-size: 11px;
+        color: var(--st-ink-mute);
+        line-height: 1;
+      }
+
+      .msg-text {
+        padding: 8px 12px;
+        background: var(--st-canvas-soft, #f6f9fc);
+        border: 1px solid var(--st-hairline);
+        border-radius: var(--rounded-md, 10px);
+        color: var(--st-ink);
+        line-height: 1.5;
+        word-break: break-word;
+        white-space: pre-wrap;
+        font-size: 13px;
+      }
+
+      /* 自己的消息：头像+气泡整体靠右，DOM 反向 */
+      &.me {
+        flex-direction: row-reverse;
+        .msg-bubble { align-items: flex-end; }
+        .msg-name { text-align: right; }
+        .msg-text {
+          background: var(--st-primary);
+          border-color: var(--st-primary);
+          color: #fff;
+        }
+      }
+
+      /* 系统消息：居中灰条 */
+      &.sys {
+        justify-content: center;
+        .sys-text {
+          background: var(--st-canvas-soft, #f6f9fc);
+          padding: 4px 12px;
+          border-radius: var(--rounded-pill);
+          color: var(--st-ink-mute);
+          font-size: 11px;
+          text-align: center;
+        }
+      }
     }
   }
 
   .chat-input {
+    flex-shrink: 0;
     .emoji-bar { display: flex; gap: 6px; margin-bottom: 8px; }
     .emoji-btn {
       background: var(--st-canvas-hover);
@@ -1321,5 +1551,211 @@ function goBack() {
   .item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .item-name { font-size: 13px; color: var(--st-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item-singer { font-size: 11px; color: var(--st-ink-mute); }
+}
+
+/* ===== 统计卡片 ===== */
+.stats-card {
+  background: var(--st-canvas);
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--rounded-xl);
+  padding: 18px 20px;
+
+  .stats-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    .stats-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--st-ink);
+      .el-icon { color: var(--st-primary); }
+    }
+    .stats-refresh {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: var(--rounded-pill);
+      color: var(--st-ink-mute);
+      cursor: pointer;
+      transition: background 150ms ease, color 150ms ease, transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+      &:hover {
+        background: var(--st-primary-subdued);
+        color: var(--st-primary);
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--st-canvas-soft, #f6f9fc);
+    border-radius: var(--rounded-md);
+    border: 1px solid var(--st-hairline);
+    transition: border-color 150ms ease, transform 200ms ease;
+    &:hover {
+      border-color: var(--st-primary);
+      transform: translateY(-1px);
+    }
+
+    .stat-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--rounded-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 16px;
+      &.icon-online  { background: rgba(99, 65, 255, 0.1); color: var(--st-primary); }
+      &.icon-total   { background: rgba(234, 34, 97, 0.1); color: var(--st-ruby, #ea2261); }
+      &.icon-peak    { background: rgba(52, 211, 153, 0.12); color: #10b981; }
+      &.icon-time    { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+    }
+
+    .stat-body {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--st-ink);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.3px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--st-ink-mute);
+      margin-top: 3px;
+    }
+  }
+}
+
+/* ===== Tab 切换 ===== */
+.tabs-bar {
+  display: flex;
+  gap: 4px;
+  background: var(--st-canvas-soft, #f6f9fc);
+  border-radius: var(--rounded-pill);
+  padding: 3px;
+  margin-bottom: 12px;
+
+  .tab-btn {
+    flex: 1;
+    height: 30px;
+    border: none;
+    background: transparent;
+    border-radius: var(--rounded-pill);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--st-ink-mute);
+    cursor: pointer;
+    transition: background 200ms ease, color 200ms ease, box-shadow 200ms ease;
+    &:hover { color: var(--st-ink); }
+    &.active {
+      background: var(--st-canvas);
+      color: var(--st-primary);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+  }
+}
+
+/* ===== 动态列表 ===== */
+.activity-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activity-empty {
+  color: var(--st-ink-mute);
+  font-size: 13px;
+  text-align: center;
+  padding: 32px 0;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: var(--rounded-md);
+  transition: background 150ms ease;
+  &:hover { background: var(--st-canvas-hover); }
+
+  .activity-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--st-input-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--st-ink-mute);
+    flex-shrink: 0;
+    img { width: 100%; height: 100%; object-fit: cover; }
+  }
+
+  .activity-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .activity-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+
+    .activity-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--st-ink);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .activity-badge {
+      padding: 1px 8px;
+      border-radius: var(--rounded-pill);
+      font-size: 10px;
+      font-weight: 500;
+      white-space: nowrap;
+      &.joined { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+      &.left   { background: rgba(156, 163, 175, 0.15); color: #6b7280; }
+    }
+  }
+
+  .activity-meta {
+    font-size: 11px;
+    color: var(--st-ink-mute);
+    line-height: 1.5;
+    .activity-duration {
+      color: var(--st-primary);
+      font-weight: 500;
+    }
+  }
 }
 </style>

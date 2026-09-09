@@ -28,6 +28,8 @@ public class MsgServiceImpl implements MsgService {
         this.userMapper = userMapper;
         this.redisTemplate = redisTemplate;
     }
+          //broadcast=true → 遍历所有活跃用户，每人生成一条 msg 记录
+    //broadcast=false + userId=3 → 只给 userId=3 生成一条 msg 记录
 
     @Override
     public Msg publish(PublishMsgRequest request) {

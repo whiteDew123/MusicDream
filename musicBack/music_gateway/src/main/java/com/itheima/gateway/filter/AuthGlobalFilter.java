@@ -36,7 +36,7 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
 
     /** 白名单路径（无需登录即可访问） */
     private static final List<String> WHITELIST = List.of(
-            "/api/login/**",
+            "/api/login",
             "/api/register/**",
             "/api/email/**",
             "/api/music/**",
