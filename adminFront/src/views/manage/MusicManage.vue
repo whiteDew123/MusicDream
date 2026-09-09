@@ -180,7 +180,7 @@
           <el-input-number v-model="editForm.timelength" :min="0" :controls="false" style="width: 100%" />
         </el-form-item>
         <el-form-item label="标签">
-          <el-input v-model="editForm.tags" placeholder="多个标签用逗号分隔" />
+          <TagSelector v-model="editForm.tags" />
         </el-form-item>
         <el-form-item label="歌词URL">
           <el-input v-model="editForm.lyric" placeholder="请输入歌词文件URL" />
@@ -200,6 +200,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Headset, Picture } from '@element-plus/icons-vue'
 import { useAdminMusicStore } from '@/store/adminMusic'
 import { uploadFileApi } from '@/api/music'
+import TagSelector from '@/components/TagSelector.vue'
 
 const store = useAdminMusicStore()
 
