@@ -22,8 +22,10 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -59,7 +61,7 @@ public class RecommendServiceImpl implements RecommendService {
 
         List<Music> result;
         if (userId != null) {
-            result = recommendByUserLikes(userId, size);
+            result = tagProfileRecommend(userId, size);
         } else {
             result = topSongs(size);
         }
@@ -323,9 +325,11 @@ public class RecommendServiceImpl implements RecommendService {
     }
 
     /**
-     * 基于用户收藏歌曲的标签进行简单推荐；无收藏时返回热门歌曲。
+     * 基于用户收藏歌曲的标签画像做个性化推荐。
+     * 画像 = 收藏歌曲标签的出现频次；候选歌曲按画像命中加权打分排序（分数高者优先，同分按播放量降序）；
+     * 无收藏或画像为空（收藏均未打标）时回退热门榜。
      */
-    private List<Music> recommendByUserLikes(Integer userId, int size) {
+    private List<Music> tagProfileRecommend(Integer userId, int size) {
         List<Mylike> likes = mylikeMapper.selectList(new LambdaQueryWrapper<Mylike>()
                 .eq(Mylike::getUserId, userId));
         if (likes.isEmpty()) {
@@ -340,45 +344,59 @@ public class RecommendServiceImpl implements RecommendService {
             return topSongs(size);
         }
 
-        List<Music> likedSongs = musicMapper.selectBatchIds(likedMusicIds);
-        Set<String> tags = new LinkedHashSet<>();
-        for (Music song : likedSongs) {
-            if (StringUtils.hasText(song.getTags())) {
-                for (String tag : song.getTags().split(",")) {
-                    String t = tag.trim();
-                    if (StringUtils.hasText(t)) {
-                        tags.add(t);
-                    }
-                }
+        // 画像：批量查收藏歌曲的标签关联，按标签聚合出现频次
+        Map<Integer, Integer> profile = new HashMap<>();
+        for (Map<String, Object> rel : musicMapper.selectTagRelations(likedMusicIds)) {
+            Object tagIdObj = rel.get("tag_id");
+            if (tagIdObj != null) {
+                profile.merge(((Number) tagIdObj).intValue(), 1, Integer::sum);
             }
         }
-
-        if (tags.isEmpty()) {
-            return musicMapper.selectList(new LambdaQueryWrapper<Music>()
-                    .eq(Music::getAuditStatus, 1)
-                    .eq(Music::getActivation, 0)
-                    .notIn(!likedMusicIds.isEmpty(), Music::getMusicId, likedMusicIds)
-                    .orderByDesc(Music::getListenNumb)
-                    .last("LIMIT " + size));
+        if (profile.isEmpty()) {
+            return topSongs(size);
         }
 
-        LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<Music>()
+        // 候选集：已审核、未冻结，排除已收藏
+        List<Music> candidates = musicMapper.selectList(new LambdaQueryWrapper<Music>()
                 .eq(Music::getAuditStatus, 1)
                 .eq(Music::getActivation, 0)
-                .notIn(!likedMusicIds.isEmpty(), Music::getMusicId, likedMusicIds);
-        wrapper.and(w -> {
-            boolean first = true;
-            for (String tag : tags) {
-                if (first) {
-                    w.like(Music::getTags, tag);
-                    first = false;
-                } else {
-                    w.or().like(Music::getTags, tag);
+                .notIn(Music::getMusicId, likedMusicIds));
+        if (candidates.isEmpty()) {
+            return topSongs(size);
+        }
+
+        // 一次性取候选歌曲的标签关联（仅保留画像中的标签），按歌曲聚合分数
+        List<Integer> candidateIds = candidates.stream()
+                .map(Music::getMusicId)
+                .collect(Collectors.toList());
+        Map<Integer, Integer> songScore = new HashMap<>();
+        for (Map<String, Object> rel : musicMapper.selectTagRelations(candidateIds)) {
+            Object midObj = rel.get("music_id");
+            Object tagIdObj = rel.get("tag_id");
+            if (midObj != null && tagIdObj != null) {
+                int tagId = ((Number) tagIdObj).intValue();
+                if (profile.containsKey(tagId)) {
+                    songScore.merge(((Number) midObj).intValue(), profile.get(tagId), Integer::sum);
                 }
             }
-        });
-        wrapper.orderByDesc(Music::getListenNumb).last("LIMIT " + size);
-        return musicMapper.selectList(wrapper);
+        }
+
+        // 按分数排序，同分按播放量降序；完全未命中画像的歌曲不进推荐列表
+        return candidates.stream()
+                .filter(song -> songScore.containsKey(song.getMusicId()))
+                .sorted((a, b) -> {
+                    int cmp = Integer.compare(
+                            songScore.getOrDefault(b.getMusicId(), 0),
+                            songScore.getOrDefault(a.getMusicId(), 0));
+                    if (cmp != 0) {
+                        return cmp;
+                    }
+                    return Integer.compare(
+                            b.getListenNumb() == null ? 0 : b.getListenNumb(),
+                            a.getListenNumb() == null ? 0 : a.getListenNumb());
+                })
+                .limit(size)
+                .collect(Collectors.toList());
     }
 
     private List<Music> topSongs(int size) {
