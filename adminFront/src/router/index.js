@@ -65,6 +65,12 @@ const routes = [
             meta: { title: '我的歌曲', icon: 'Headset', roles: [1] }
           },
           {
+            path: 'tag',
+            name: 'TagManage',
+            component: () => import('@/views/manage/TagManage.vue'),
+            meta: { title: '标签管理', icon: 'Collection', roles: [0] }
+          },
+          {
             path: 'log',
             name: 'LogManage',
             component: () => import('@/views/manage/LogManage.vue'),

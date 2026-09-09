@@ -1,6 +1,7 @@
 package com.itheima.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -28,6 +29,13 @@ public class Tag implements Serializable {
     /** 标签名称 */
     private String name;
 
+    /** 状态：1-启用 0-禁用 */
+    private Integer status;
+
     /** 创建时间 */
     private LocalDateTime createTime;
+
+    /** 使用频次（非表字段，统计查询填充） */
+    @TableField(exist = false)
+    private Long usageCount;
 }

@@ -1,8 +1,11 @@
 package com.itheima.singer.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.itheima.domain.common.PageResult;
 import com.itheima.domain.common.Result;
+import com.itheima.domain.entity.Tag;
 import com.itheima.singer.dto.MusicDTO;
+import com.itheima.singer.mapper.TagMapper;
 import com.itheima.singer.service.SingerService;
 import com.itheima.singer.vo.MusicVO;
 import com.itheima.singer.vo.SingerVO;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,6 +33,19 @@ import java.util.Map;
 public class SingerController {
 
     private final SingerService singerService;
+    private final TagMapper tagMapper;
+
+    /**
+     * 启用中的标签列表（供标签选择器动态加载，管理员/歌手均可使用，需登录）
+     */
+    @GetMapping("/tag/enabled")
+    public Result<List<Tag>> enabledTags() {
+        List<Tag> tags = tagMapper.selectList(new LambdaQueryWrapper<Tag>()
+                .eq(Tag::getStatus, 1)
+                .orderByAsc(Tag::getCode)
+                .orderByAsc(Tag::getTagId));
+        return Result.success(tags);
+    }
 
     /**
      * 歌手仪表盘数据

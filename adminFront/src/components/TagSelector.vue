@@ -1,7 +1,7 @@
 <template>
   <div class="tag-selector">
     <!-- 按类别分组渲染 -->
-    <div v-for="group in PRESET_TAGS" :key="group.code" class="tag-group">
+    <div v-for="group in groups" :key="group.code" class="tag-group">
       <p class="tag-category">{{ group.category }}</p>
       <div class="tag-grid">
         <button
@@ -36,8 +36,9 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
-import { PRESET_TAGS, resolveTagCode } from '@/constants/tags'
+import { reactive, ref, watch, onMounted } from 'vue'
+import { buildGroups, CODE_CATEGORY_MAP, PRESET_TAGS, resolveTagCode } from '@/constants/tags'
+import { getEnabledTags } from '@/api/tag'
 
 const props = defineProps({
   modelValue: {
@@ -50,15 +51,23 @@ const emit = defineEmits(['update:modelValue'])
 // 选中态：元素形如 "genre:流行"、"mood:欢快"，与存储值一一对应
 const selectedTags = reactive(new Set())
 
+// 标签分组：初始为预设常量（兜底），挂载后从服务端拉取启用标签替换
+const groups = ref(PRESET_TAGS)
+
+// module 级请求去重：同页多个选择器并发挂载时只发一次请求
+let fetchPromise = null
+
 /**
  * 将外部传入的 tags 字符串解析为选中集合。
- * - 带前缀的 "code:name"：命中预设则加入
- * - 无前缀的 "name"：按名称唯一匹配类别后加入
- * - 孤儿标签（无前缀且不在预设内）：一期不兜底，待二期迁移统一处理
+ * - 带前缀的 "code:name"：命中当前分组则加入；
+ *   类别码合法但已不在分组（如被禁用）也保留在已选列表，仅不能再新选
+ * - 无前缀的 "name"：按名称唯一匹配当前分组后加入
+ * - 孤儿标签（无前缀且不在字典内）：不兜底，等待迁移处理
  */
 function parseTags(value) {
   const set = new Set()
   if (!value) return set
+  const gs = groups.value
   value.split(',').forEach((token) => {
     const t = token.trim()
     if (!t) return
@@ -66,26 +75,34 @@ function parseTags(value) {
     if (idx > 0) {
       const code = t.slice(0, idx)
       const name = t.slice(idx + 1)
-      if (PRESET_TAGS.some((g) => g.code === code && g.tags.includes(name))) {
+      if (gs.some((g) => g.code === code && g.tags.includes(name))) {
+        set.add(`${code}:${name}`)
+      } else if (CODE_CATEGORY_MAP[code]) {
         set.add(`${code}:${name}`)
       }
     } else {
-      const code = resolveTagCode(t)
+      const code = resolveTagCode(t, gs)
       if (code) set.add(`${code}:${t}`)
     }
   })
   return set
 }
 
-// 回显：外部值变化时同步到选中集合
+// 将选中集合同步回 props.modelValue 格式（回显解析时使用）
+function resync() {
+  selectedTags.clear()
+  parseTags(props.modelValue).forEach((k) => selectedTags.add(k))
+}
+
+// 外部值变化时同步选中集合
 watch(
   () => props.modelValue,
-  (val) => {
-    selectedTags.clear()
-    parseTags(val).forEach((k) => selectedTags.add(k))
-  },
+  () => resync(),
   { immediate: true }
 )
+
+// 动态分组就绪后重跑解析，保证已选 token 与新分组对齐
+watch(groups, () => resync())
 
 function syncToModel() {
   emit('update:modelValue', Array.from(selectedTags).join(','))
@@ -115,6 +132,24 @@ function clearTags() {
 function stripPrefix(key) {
   return key.slice(key.indexOf(':') + 1)
 }
+
+onMounted(() => {
+  if (!fetchPromise) {
+    fetchPromise = getEnabledTags()
+      .then((res) => {
+        const gs = buildGroups(res.data)
+        if (gs.length > 0) {
+          groups.value = gs
+        }
+      })
+      .catch(() => {
+        // 拉取失败时保留预设常量兜底，选择器仍可用
+      })
+      .finally(() => {
+        fetchPromise = null
+      })
+  }
+})
 </script>
 
 <style scoped lang="scss">
