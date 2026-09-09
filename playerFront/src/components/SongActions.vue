@@ -45,6 +45,7 @@ import {
 } from '@element-plus/icons-vue'
 import { getMusicStatsApi, toggleLikeApi, shareSongApi } from '@/api/interaction'
 import { addLikedMusicApi, removeLikedMusicApi } from '@/api/like'
+import { triggerAchievementApi } from '@/api/achievement'
 
 const props = defineProps({
   song: {
@@ -106,6 +107,8 @@ async function handleFavorite() {
       await addLikedMusicApi(props.song.musicId)
       favorited.value = true
       ElMessage.success('收藏成功')
+      // 触发听歌成就判定（收藏数量类）
+      triggerAchievementApi('LIKE', props.song.musicId).catch(() => {})
     }
   } catch (e) {
     // request.js 已统一弹窗

@@ -21,7 +21,7 @@ spring:
         server-addr: localhost:8848
         namespace: public
         username: nacos
-        password: ${NACOS_PASSWORD:8ECJshugKVQP}
+        password: ${NACOS_PASSWORD:nacos}
     gateway:
       routes:
         - id: mod-login
@@ -126,6 +126,13 @@ spring:
           uri: lb://mod-musicbox
           predicates:
             - Path=/api/musicbox/**
+          filters:
+            - StripPrefix=1
+
+        - id: mod-achievement
+          uri: lb://mod-achievement
+          predicates:
+            - Path=/api/achievement/**
           filters:
             - StripPrefix=1
 

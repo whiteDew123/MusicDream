@@ -4,11 +4,11 @@
 #  默认值与本机开发环境一致，直接启动即可
 # ============================================================
 server:
-  port: 8004
+  port: 8016
 
 spring:
   application:
-    name: mod-setting
+    name: mod-achievement
   cloud:
     nacos:
       discovery:
@@ -40,4 +40,4 @@ mybatis-plus:
 
 logging:
   level:
-    com.itheima.setting: debug
+    com.itheima.achievement: debug

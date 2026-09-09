@@ -20,7 +20,7 @@ spring:
       discovery:
         server-addr: localhost:8848
         username: nacos
-        password: ${NACOS_PASSWORD:8ECJshugKVQP}
+        password: ${NACOS_PASSWORD:nacos}
         namespace: public
 
 mybatis-plus:

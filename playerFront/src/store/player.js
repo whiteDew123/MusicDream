@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 import { recordPlayApi } from '@/api/interaction'
+import { triggerAchievementApi } from '@/api/achievement'
 
 // 创建不经过 /api 前缀的 axios 实例，用于加载静态资源（如歌词文件）
 const resourceAxios = axios.create({
@@ -288,6 +289,10 @@ export const usePlayerStore = defineStore('player', () => {
         playedIds.value.add(musicId)
         recordPlayApi(musicId).catch(() => {
           // 静默失败，不影响播放
+        })
+        // 同步触发听歌成就判定（累计播放类）
+        triggerAchievementApi('PLAY', musicId).catch(() => {
+          // 静默失败，成就不阻塞播放
         })
       }
     })
