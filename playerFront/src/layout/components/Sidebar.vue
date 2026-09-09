@@ -84,6 +84,7 @@ const myItems = [
   { path: '/my/favorite', label: '收藏歌单', icon: 'Collection' },
   { path: '/my/created', label: '创建歌单', icon: 'FolderAdd' },
   { path: '/my/notify', label: '消息通知', icon: 'Bell' },
+  { path: '/my/achievement', label: '听歌成就', icon: 'Trophy' },
   { path: '/my/settings', label: '设置', icon: 'Setting' }
 ]
 

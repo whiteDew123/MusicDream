@@ -32,6 +32,7 @@
         <module>Mod_room</module>
         <module>Mod_friend</module>
         <module>Mod_musicbox</module>
+        <module>Mod_achievement</module>
     </modules>
 
     <properties>

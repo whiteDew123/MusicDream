@@ -15,7 +15,7 @@ spring:
         server-addr: localhost:8848
         namespace: public
         username: nacos
-        password: ${NACOS_PASSWORD:8ECJshugKVQP}
+        password: ${NACOS_PASSWORD:nacos}
     servlet:
       multipart:
         max-file-size: 50MB
