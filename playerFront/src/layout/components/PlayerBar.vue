@@ -10,6 +10,8 @@
         />
         <el-icon v-else class="cover-placeholder"><Headset /></el-icon>
       </div>
+      <!-- 迷你律动：封面旁 5 根竖条随音乐跳动（音频可视化第一期） -->
+      <canvas ref="miniWaveRef" class="mini-wave" aria-hidden="true"></canvas>
       <div class="song-text" v-if="currentSong">
         <div class="song-name">{{ currentSong.musicName }}</div>
         <div class="song-singer">{{ currentSong.singerName }}</div>
@@ -134,7 +136,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import {
   Headset,
   Sort,
@@ -151,6 +153,7 @@ import {
   ChatLineRound
 } from '@element-plus/icons-vue'
 import { usePlayerStore } from '@/store/player'
+import { useAudioAnalyser } from '@/composables/useAudioAnalyser'
 import FullPlayer from '@/components/FullPlayer.vue'
 import DesktopSubtitle from '@/components/DesktopSubtitle.vue'
 
@@ -177,6 +180,93 @@ const progressPercent = computed(() => {
 const volumePercent = computed(() => {
   return (playerStore.muted ? 0 : playerStore.volume) * 100
 })
+
+// ===== 迷你律动（音频可视化第一期）=====
+const analyser = useAudioAnalyser()
+const miniWaveRef = ref(null)
+let waveRafId = 0
+// 系统开启"减弱动态效果"时不启动律动（animation.md 无障碍协议）
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+// 低频段采样桶：fftSize=512 产生 256 桶，人耳敏感的低频集中在前 40 桶内
+const WAVE_BINS = [3, 7, 12, 20, 32]
+let waveCtx = null
+let waveColor = '#5e5ce6'
+let waveSize = { w: 28, h: 22 }
+
+// 初始化画布：按 devicePixelRatio 放大物理像素，高分屏下柱条不发虚
+function initMiniWave() {
+  const canvas = miniWaveRef.value
+  if (!canvas) return
+  const dpr = window.devicePixelRatio || 1
+  const rect = canvas.getBoundingClientRect()
+  canvas.width = rect.width * dpr
+  canvas.height = rect.height * dpr
+  waveCtx = canvas.getContext('2d')
+  waveCtx.scale(dpr, dpr)
+  waveSize = { w: rect.width, h: rect.height }
+  // 主题色只在初始化时读一次：播放栏始终深色背景，主题变量在播放途中不变
+  const cssColor = getComputedStyle(document.documentElement)
+    .getPropertyValue('--st-primary')
+    .trim()
+  if (cssColor) waveColor = cssColor
+  drawWaveBars(null, false)
+}
+
+// 绘制柱条：data 为 null（分析器未就绪或已暂停）时绘制统一基线高度的静态柱条
+function drawWaveBars(data, playing) {
+  if (!waveCtx) return
+  const { w, h } = waveSize
+  waveCtx.clearRect(0, 0, w, h)
+  const barW = 3
+  const gap = (w - barW * WAVE_BINS.length) / (WAVE_BINS.length - 1)
+  waveCtx.globalAlpha = playing ? 0.95 : 0.35 // 暂停时降透明度，视觉呼应"未播放"
+  waveCtx.fillStyle = waveColor
+  WAVE_BINS.forEach((bin, i) => {
+    let barH = 2 // 静止基线：占位且不突兀
+    if (playing && data) {
+      // 取 bin±1 邻域均值：抹平单桶随机抖动，律动更稳
+      const v = (data[bin - 1] + data[bin] + data[bin + 1]) / 3 / 255
+      // 指数放大：小尺寸下强化高低频落差，视觉更有冲击感
+      barH = Math.max(2, Math.pow(v, 1.6) * (h - 2))
+    }
+    const x = i * (barW + gap)
+    waveCtx.beginPath()
+    waveCtx.roundRect(x, h - barH, barW, barH, 1.5)
+    waveCtx.fill()
+  })
+}
+
+// 每帧绘制 + 登记下一帧（rAF 与浏览器渲染帧对齐）
+function drawWaveFrame() {
+  drawWaveBars(analyser.getFrequencyData(), playerStore.playing)
+  waveRafId = requestAnimationFrame(drawWaveFrame)
+}
+
+// 播放状态联动：播放启动 rAF 循环，暂停切静态基线并停止循环（CPU 回落）
+watch(
+  () => playerStore.playing,
+  (playingNow) => {
+    if (reducedMotion) return
+    cancelAnimationFrame(waveRafId)
+    if (playingNow) {
+      drawWaveFrame()
+    } else {
+      drawWaveBars(null, false)
+    }
+  }
+)
+
+// 挂载时若已在播放（如路由切换后返回），需手动补启循环（watch 不会对旧值触发）
+onMounted(() => {
+  initMiniWave()
+  if (!reducedMotion && playerStore.playing) {
+    cancelAnimationFrame(waveRafId)
+    drawWaveFrame()
+  }
+})
+
+// 组件销毁时停止循环，避免 rAF 悬挂
+onBeforeUnmount(() => cancelAnimationFrame(waveRafId))
 
 // 格式化时间 mm:ss
 function formatTime(sec) {
@@ -297,6 +387,13 @@ function handleVolumeMouseDown(e) {
   .song-empty {
     font-size: 14px;
     color: var(--player-text-mute);
+  }
+
+  // 迷你律动画布固定尺寸，仅占位不参与布局伸缩（可压缩歌词文字的剩余空间）
+  .mini-wave {
+    width: 28px;
+    height: 22px;
+    flex-shrink: 0;
   }
 }
 

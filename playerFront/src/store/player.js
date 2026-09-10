@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import axios from 'axios'
 import { recordPlayApi } from '@/api/interaction'
 import { triggerAchievementApi } from '@/api/achievement'
+import { useAudioAnalyser } from '@/composables/useAudioAnalyser'
 
 // 创建不经过 /api 前缀的 axios 实例，用于加载静态资源（如歌词文件）
 const resourceAxios = axios.create({
@@ -50,6 +51,16 @@ export const usePlayerStore = defineStore('player', () => {
 
   // ===== 已记录播放量的歌曲 ID 集合（防止重复计数）=====
   const playedIds = ref(new Set())
+
+  // ===== 音频可视化分析器（模块级单例，律动数据源）=====
+  const analyser = useAudioAnalyser()
+
+  // 播放成功后接入分析器并激活 AudioContext
+  // 必须在 play() 成功回调里调用：attach 幂等（切歌复用），resume 需要用户手势上下文
+  function ensureAnalyser() {
+    analyser.attach(audio.value)
+    analyser.resume()
+  }
 
   // ===== 歌词解析 =====
   // 解析 LRC 格式歌词，返回 [{ time: 秒数, text: '歌词' }] 按时间升序
@@ -121,6 +132,8 @@ export const usePlayerStore = defineStore('player', () => {
       .play()
       .then(() => {
         playing.value = true
+        // attach 幂等，切歌复用同一分析链，无需重新绑定
+        ensureAnalyser()
       })
       .catch(() => {
         playing.value = false
@@ -159,6 +172,8 @@ export const usePlayerStore = defineStore('player', () => {
         .play()
         .then(() => {
           playing.value = true
+          // 暂停恢复时 AudioContext 可能被浏览器挂起，需重新激活
+          ensureAnalyser()
         })
         .catch(() => {
           playing.value = false
