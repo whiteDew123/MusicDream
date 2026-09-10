@@ -9,7 +9,11 @@ const FALLBACK_COLOR = '#5e5ce6'
 const analyser = useAudioAnalyser()
 
 // 模块级状态：跨组件共享（与 useAudioAnalyser 同一设计）
-let canvas2d = null
+// 三期批次B加固：全站可能存在多个可视化图层（全屏播放器/播放室），
+// 以 Map 登记已挂载画布，detach 只注销自己的画布，避免误清仍在屏上的图层
+let canvases = new Map() // canvas 元素 → 2D 上下文
+let activeCanvas = null // 当前渲染目标（最后 attach/重绑的画布）
+let canvas2d = null // 活跃画布的 2D 上下文（tick 直接使用）
 let size = { w: 0, h: 0 }
 let rendererDef = null // 当前渲染器定义（注册表单例）
 let renderer = null // 当前渲染器实例（Object.create 隔离实例状态）
@@ -64,27 +68,58 @@ export function useVisualizer() {
   }
 
   // ---- 画布绑定 ----
-  function attach(canvas) {
-    const ctx = canvas.getContext('2d')
+  // canvas 尺寸建立：物理像素 = CSS 尺寸 × dpr（高分屏不发虚）
+  function initCanvasSize(canvas) {
+    const ctx = canvases.get(canvas)
     const dpr = window.devicePixelRatio || 1
     const rect = canvas.getBoundingClientRect()
     canvas.width = rect.width * dpr
     canvas.height = rect.height * dpr
-    ctx.scale(dpr, dpr) // 此后均以 CSS 像素坐标绘制，高分屏不发虚
-    canvas2d = ctx
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0) // setTransform 重置：重复 attach 不累积缩放
+    return rect
+  }
+
+  function attach(canvas) {
+    if (!canvas) return false
+    if (!canvases.has(canvas)) canvases.set(canvas, canvas.getContext('2d'))
+    activeCanvas = canvas
+    canvas2d = canvases.get(canvas)
+    const rect = initCanvasSize(canvas)
     size = { w: rect.width, h: rect.height }
     if (renderer) {
       renderer.init(canvas2d, initOpts())
     }
-    window.addEventListener('resize', handleResize)
-    document.addEventListener('visibilitychange', handleVisibility)
-  }
-
-  function detach() {
-    stopLoop()
+    // 全局监听保持单份：重复 attach 时不叠加
     window.removeEventListener('resize', handleResize)
     document.removeEventListener('visibilitychange', handleVisibility)
-    canvas2d = null
+    window.addEventListener('resize', handleResize)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return true
+  }
+
+  function detach(canvas) {
+    if (!canvas || !canvases.has(canvas)) return false
+    stopLoop()
+    canvases.delete(canvas)
+    if (activeCanvas !== canvas) return true // 注销的不是当前渲染目标：不影响在屏图层
+    // 当前图层被销毁：若有其他已挂载图层则重绑为活跃目标，否则清空引用并移除全局监听
+    const survivor = canvases.keys().next().value
+    if (survivor) {
+      activeCanvas = survivor
+      canvas2d = canvases.get(survivor)
+      const rect = initCanvasSize(survivor)
+      size = { w: rect.width, h: rect.height }
+      if (renderer) {
+        renderer.init(canvas2d, initOpts())
+      }
+      if (playingNow && rendererId !== 'off') startLoop()
+    } else {
+      activeCanvas = null
+      canvas2d = null
+      window.removeEventListener('resize', handleResize)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+    return true
   }
 
   // 窗口尺寸变化：重建画布物理像素与渲染器尺寸（rendrer.resize 由 init 覆盖实现）

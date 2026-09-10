@@ -5,7 +5,12 @@
       <img :src="currentSong.imageUrl" alt="" />
     </div>
     <!-- 音频可视化层（二期）：背景模糊之上、卡片堆叠之下，纯氛围不拦截交互 -->
-    <VisualizerLayer :mode="visualMode" :color="visualColor" :playing="playerStore.playing" />
+    <VisualizerLayer
+      :mode="visualMode"
+      :color="visualColor"
+      :playing="playerStore.playing"
+      :anchor="visualAnchor"
+    />
     <!-- 顶部栏 -->
     <div class="top-bar">
       <button class="back-btn" @click.stop="$emit('close')">

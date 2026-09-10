@@ -51,7 +51,7 @@ watch(
   { deep: true }
 )
 
-onBeforeUnmount(() => visualizer.detach())
+onBeforeUnmount(() => visualizer.detach(canvasRef.value))
 </script>
 
 <style scoped>

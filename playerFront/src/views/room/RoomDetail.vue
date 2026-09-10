@@ -35,6 +35,30 @@
             :playing="roomPlaying"
             :anchor="visualAnchor"
           />
+          <!-- 可视化模式切换（三期批次B）：与全屏播放器共享模式，室内可自选预设 -->
+          <div class="room-visual-switch">
+            <transition name="mode-panel-fade">
+              <div v-if="showRoomModePanel" class="mode-panel" @click.stop>
+                <button
+                  v-for="m in MODE_LIST"
+                  :key="m.id"
+                  class="mode-option"
+                  :class="{ active: m.id === visualMode }"
+                  @click.stop="selectRoomMode(m.id)"
+                >
+                  {{ m.name }}
+                </button>
+              </div>
+            </transition>
+            <button
+              class="mode-btn"
+              :class="{ active: visualMode !== 'off' }"
+              @click.stop="showRoomModePanel = !showRoomModePanel"
+              title="音频可视化模式"
+            >
+              <el-icon :size="18"><MagicStick /></el-icon>
+            </button>
+          </div>
           <div class="player-main">
             <div class="album-cover" ref="albumCoverRef" :style="{ background: coverBg }">
               <img v-if="currentSongCover" :src="currentSongCover" :alt="currentSongName" />
@@ -241,6 +265,7 @@ import { parseLrc, fetchLrc } from '@/utils/lrc'
 import VisualizerLayer from '@/components/VisualizerLayer.vue'
 import { useAudioAnalyser } from '@/composables/useAudioAnalyser'
 import { getInitialMode, extractCoverColor } from '@/composables/useVisualizer'
+import { MODE_LIST } from '@/utils/visualizer/renderers'
 
 const route = useRoute()
 const router = useRouter()
@@ -342,6 +367,7 @@ onMounted(async () => {
   // 可视化锚点测量：nextTick 确保子可视化图层已渲染；窗口 resize 时重测
   nextTick(measureVisualAnchor)
   window.addEventListener('resize', measureVisualAnchor)
+  document.addEventListener('click', closeRoomModePanel)
 })
 
 onUnmounted(() => {
@@ -349,6 +375,7 @@ onUnmounted(() => {
   stopVoteTicker()
   if (lyricAutoResetTimer) clearTimeout(lyricAutoResetTimer)
   window.removeEventListener('resize', measureVisualAnchor)
+  document.removeEventListener('click', closeRoomModePanel)
   if (roomAudio) {
     roomAudio.pause()
     roomAudio.removeAttribute('src')
@@ -451,8 +478,20 @@ const visualColor = ref('#5e5ce6') // 默认主题紫，切歌后按封面主色
 const visualAnchor = ref(null)
 const playerCardRef = ref(null)
 const albumCoverRef = ref(null)
+// 室内模式面板（三期批次B）：与全屏播放器共享同一持久化模式
+const showRoomModePanel = ref(false)
 // 取色请求自增序号：防止旧封面取色结果晚到覆盖新歌颜色
 let colorReqSeq = 0
+
+function selectRoomMode(id) {
+  visualMode.value = id
+  showRoomModePanel.value = false
+}
+
+// 点击面板外任意处收起（面板与按钮自身已 stop 冒泡）
+function closeRoomModePanel() {
+  showRoomModePanel.value = false
+}
 
 // 可视化锚点：专辑封面中心（相对播放卡左上，即 Canvas 坐标系）
 function measureVisualAnchor() {
@@ -1015,6 +1054,80 @@ function goBack() {
   /* 可视化氛围层（三期批次B）：盖在渐变之上、内容（player-main/歌词 z-index:1）之下 */
   :deep(.visualizer-canvas) {
     z-index: 0 !important;
+  }
+
+  /* 室内可视化模式切换（三期批次B）：卡片右上角悬浮，浅色卡片风格 */
+  .room-visual-switch {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 6;
+
+    .mode-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--st-border, rgba(0, 0, 0, 0.08));
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      color: var(--st-ink-mute, #666);
+      cursor: pointer;
+      transition: all 150ms ease;
+
+      &:hover { color: var(--st-primary); }
+      &.active {
+        color: #fff;
+        background: linear-gradient(135deg, #5e5ce6, #8e7be8);
+        border-color: transparent;
+      }
+    }
+
+    .mode-panel {
+      position: absolute;
+      top: 44px;
+      right: 0;
+      width: 188px;
+      padding: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+      z-index: 7;
+
+      .mode-option {
+        flex: 1 1 40%;
+        border: none;
+        border-radius: 8px;
+        padding: 6px 8px;
+        background: transparent;
+        font-size: 13px;
+        color: var(--st-ink-main, #222);
+        cursor: pointer;
+        transition: background 120ms ease;
+
+        &:hover { background: rgba(0, 0, 0, 0.05); }
+        &.active {
+          background: rgba(94, 92, 230, 0.12);
+          color: #5e5ce6;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  .mode-panel-fade-enter-active,
+  .mode-panel-fade-leave-active {
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+  .mode-panel-fade-enter-from,
+  .mode-panel-fade-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
   }
 
   .player-main {
