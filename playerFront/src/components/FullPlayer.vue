@@ -4,6 +4,8 @@
     <div class="player-bg-blur" v-if="currentSong?.imageUrl" :key="'bg-' + currentSong.musicId">
       <img :src="currentSong.imageUrl" alt="" />
     </div>
+    <!-- 音频可视化层（二期）：背景模糊之上、卡片堆叠之下，纯氛围不拦截交互 -->
+    <VisualizerLayer :mode="visualMode" :color="visualColor" :playing="playerStore.playing" />
     <!-- 顶部栏 -->
     <div class="top-bar">
       <button class="back-btn" @click.stop="$emit('close')">
@@ -12,6 +14,32 @@
       <div class="top-center" v-if="currentSong">
         <span class="top-label">正在播放</span>
         <span class="top-title">{{ currentSong.musicName }}</span>
+      </div>
+      <!-- 可视化模式切换（音频可视化二期） -->
+      <div class="top-right">
+        <div class="visualizer-switch">
+          <transition name="mode-panel-fade">
+            <div v-if="showModePanel" class="mode-panel" @click.stop>
+              <button
+                v-for="m in MODE_LIST"
+                :key="m.id"
+                class="mode-option"
+                :class="{ active: m.id === visualMode }"
+                @click.stop="selectVisualMode(m.id)"
+              >
+                {{ m.name }}
+              </button>
+            </div>
+          </transition>
+          <button
+            class="mode-btn"
+            :class="{ active: visualMode !== 'off' }"
+            @click.stop="showModePanel = !showModePanel"
+            title="音频可视化模式"
+          >
+            <el-icon :size="20"><Brush /></el-icon>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -408,10 +436,14 @@ import {
   Close,
   Tickets,
   MuteNotification,
-  Microphone
+  Microphone,
+  Brush
 } from '@element-plus/icons-vue'
 import ShareModal from '@/components/ShareModal.vue'
+import VisualizerLayer from '@/components/VisualizerLayer.vue'
 import { usePlayerStore } from '@/store/player'
+import { getInitialMode, extractCoverColor } from '@/composables/useVisualizer'
+import { MODE_LIST } from '@/utils/visualizer/renderers'
 import { getMusicStatsApi, toggleLikeApi, shareSongApi, commentListApi, createCommentApi } from '@/api/interaction'
 import { addLikedMusicApi, removeLikedMusicApi, likedMusicApi } from '@/api/like'
 import { triggerAchievementApi } from '@/api/achievement'
@@ -448,6 +480,25 @@ const showComment = ref(false)
 const showShare = ref(false)
 const showPlaylist = ref(false)
 
+// ===== 音频可视化（二期）=====
+// 初始模式：本地持久化优先；系统开启减弱动效且无记录时默认关闭
+const visualMode = ref(getInitialMode())
+// 氛围主题色：默认主题紫，切歌后按封面主色更新
+const visualColor = ref('#5e5ce6')
+const showModePanel = ref(false)
+// 取色请求自增序号：防止切歌后旧封面的取色结果晚到覆盖新歌颜色
+let colorReqSeq = 0
+
+function selectVisualMode(id) {
+  visualMode.value = id
+  showModePanel.value = false
+}
+
+// 点击面板外任意处收起模式选择条（面板与按钮自身已 stop 冒泡）
+function closeModePanel() {
+  showModePanel.value = false
+}
+
 // 底部进度条和音量条 ref
 const bottomProgressBarRef = ref(null)
 const bottomVolumeBarRef = ref(null)
@@ -482,6 +533,23 @@ const currentIndex = computed(() => playerStore.currentIndex)
 
 const prevSong = computed(() => playlist.value[currentIndex.value - 1] || null)
 const nextSong = computed(() => playlist.value[currentIndex.value + 1] || null)
+
+// 封面变化 → 重新提取主色（跨域等失败回退默认色）
+// 注意：immediate watch 必须在 currentSong 定义之后注册，否则回调执行时访问到 TDZ 变量
+watch(
+  () => currentSong.value?.imageUrl,
+  (url) => {
+    const seq = ++colorReqSeq
+    if (!url) {
+      visualColor.value = '#5e5ce6'
+      return
+    }
+    extractCoverColor(url).then((c) => {
+      if (seq === colorReqSeq && c) visualColor.value = c
+    })
+  },
+  { immediate: true }
+)
 
 const progressPercent = computed(() => {
   if (!playerStore.duration) return 0
@@ -870,6 +938,7 @@ watch(
 onMounted(() => {
   playerStore.initAudioEvents()
   window.addEventListener('resize', handleResize)
+  document.addEventListener('click', closeModePanel)
   loadFavoriteIds()
 })
 
@@ -881,6 +950,7 @@ watch(showComment, (val) => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  document.removeEventListener('click', closeModePanel)
 })
 </script>
 
@@ -953,6 +1023,91 @@ onBeforeUnmount(() => {
   &:hover {
     background: rgba(255, 255, 255, 0.25);
   }
+}
+
+/* === 可视化模式切换（顶栏右侧）=== */
+.top-right {
+  margin-left: auto;
+  pointer-events: auto; /* 顶栏整体 pointer-events:none，交互元素需显式恢复 */
+  display: flex;
+  align-items: center;
+}
+
+.visualizer-switch {
+  position: relative;
+}
+
+.mode-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 200ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  &.active {
+    color: var(--st-primary);
+    background: rgba(94, 92, 230, 0.25);
+  }
+}
+
+.mode-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: rgba(20, 20, 20, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.mode-option {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all 200ms ease;
+
+  &:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &.active {
+    background: var(--st-primary);
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
+/* 模式面板出入场 */
+.mode-panel-fade-enter-active,
+.mode-panel-fade-leave-active {
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.mode-panel-fade-enter-from,
+.mode-panel-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 .top-title {
