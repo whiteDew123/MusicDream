@@ -1,5 +1,5 @@
 // 可视化调度层（模块级单例）
-// 职责：rAF 循环 / 渲染器生命周期 / 页面隐藏暂停 / 模式持久化 / 封面主色提取
+// 职责：rAF 循环 / 渲染器生命周期 / 页面隐藏暂停 / 模式持久化 / 封面主色提取 / 渲染锚点透传
 // 对渲染器只认"注册表约定接口"，不感知具体预设实现（开闭原则）
 import { useAudioAnalyser } from './useAudioAnalyser'
 import { MODE_LIST, DEFAULT_MODE, getRenderer } from '@/utils/visualizer/renderers'
@@ -15,6 +15,7 @@ let rendererDef = null // 当前渲染器定义（注册表单例）
 let renderer = null // 当前渲染器实例（Object.create 隔离实例状态）
 let rendererId = 'off'
 let color = FALLBACK_COLOR
+let anchor = null // 渲染锚点（如黑胶中心）：null = 渲染器自决（缺省屏幕中心）
 let playingNow = false
 let running = false
 let rafId = 0
@@ -31,11 +32,17 @@ function normalizeColor(hex) {
   return FALLBACK_COLOR
 }
 
+// 旧存档键迁移：三期"流星"中途重设计为"星网"（id meteor → constellation），避免老用户存储的旧 id 失效
+const LEGACY_MODE_MAP = { meteor: 'constellation' }
+
 // 读取初始模式（本地持久化优先；无记录且系统开启减弱动效时默认关闭）
 export function getInitialMode() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored && MODE_LIST.some((m) => m.id === stored)) return stored
+    if (stored) {
+      const mapped = LEGACY_MODE_MAP[stored] || stored
+      if (MODE_LIST.some((m) => m.id === mapped)) return mapped
+    }
   } catch (e) {
     // localStorage 不可用（隐私模式等）时静默回退
   }
@@ -43,6 +50,11 @@ export function getInitialMode() {
 }
 
 export function useVisualizer() {
+  // 渲染器 init 参数收口：新增作用域参数（如锚点）只改此处，避免各调用点遗漏
+  function initOpts() {
+    return { ...size, color, anchor }
+  }
+
   // ---- 画布绑定 ----
   function attach(canvas) {
     const ctx = canvas.getContext('2d')
@@ -54,7 +66,7 @@ export function useVisualizer() {
     canvas2d = ctx
     size = { w: rect.width, h: rect.height }
     if (renderer) {
-      renderer.init(canvas2d, { ...size, color })
+      renderer.init(canvas2d, initOpts())
     }
     window.addEventListener('resize', handleResize)
     document.addEventListener('visibilitychange', handleVisibility)
@@ -67,7 +79,7 @@ export function useVisualizer() {
     canvas2d = null
   }
 
-  // 窗口尺寸变化：重建画布物理像素与渲染器尺寸（renderer.resize 由 init 覆盖实现）
+  // 窗口尺寸变化：重建画布物理像素与渲染器尺寸（rendrer.resize 由 init 覆盖实现）
   function handleResize() {
     if (!canvas2d) return
     const canvas = canvas2d.canvas
@@ -78,7 +90,7 @@ export function useVisualizer() {
     canvas2d.setTransform(dpr, 0, 0, dpr, 0, 0)
     size = { w: rect.width, h: rect.height }
     if (renderer) {
-      renderer.init(canvas2d, { ...size, color })
+      renderer.init(canvas2d, initOpts())
     }
   }
 
@@ -101,7 +113,7 @@ export function useVisualizer() {
     // Object.create：实例状态（相位、涟漪等）与注册表单例隔离
     renderer = Object.create(rendererDef)
     if (canvas2d) {
-      renderer.init(canvas2d, { ...size, color })
+      renderer.init(canvas2d, initOpts())
     }
     if (playingNow) startLoop()
   }
@@ -110,7 +122,15 @@ export function useVisualizer() {
     color = normalizeColor(hex)
     // 颜色变化 = 重建渲染器配色（渲染器自身无 setColor 约定，保持接口最小化）
     if (renderer && canvas2d) {
-      renderer.init(canvas2d, { ...size, color })
+      renderer.init(canvas2d, initOpts())
+    }
+  }
+
+  // 渲染锚点（三期）：如黑胶中心，由组件测量后透传；非法值回退 null（渲染器缺省屏幕中心）
+  function setAnchor(pos) {
+    anchor = pos && typeof pos.x === 'number' && typeof pos.y === 'number' ? { x: pos.x, y: pos.y } : null
+    if (renderer && canvas2d) {
+      renderer.init(canvas2d, initOpts())
     }
   }
 
@@ -155,7 +175,7 @@ export function useVisualizer() {
     rafId = requestAnimationFrame(tick)
   }
 
-  return { attach, detach, setMode, setColor, setPlaying }
+  return { attach, detach, setMode, setColor, setAnchor, setPlaying }
 }
 
 // ---- 封面主色提取 ----

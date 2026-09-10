@@ -4,23 +4,29 @@
 //
 // 渲染器策略接口约定（所有预设必须实现）：
 // - id / name：注册标识与模式面板显示名
-// - init(ctx, {w, h, color})：创建或重建（color 为 #rrggbb 十六进制字符串）
+// - init(ctx, {w, h, color, anchor})：创建或重建（color 为 #rrggbb 十六进制字符串；anchor 为可选锚点 {x,y}，缺省屏幕中心）
 // - render(ctx, {freq, time, dt})：每帧绘制；freq=频域 Uint8Array，time=时域 Uint8Array，dt=距上帧毫秒
 // - destroy()：释放（当前无外部资源，保留为扩展点）
 // 颜色约定：渲染器内用 ctx.globalAlpha + ctx.fillStyle/strokeStyle 直接着色
 import bars from './bars'
 import pulse from './pulse'
-import wave from './wave'
+import waterfall from './waterfall'
+import nebula from './nebula'
+import constellation from './constellation'
+import vinylOrbit from './vinylOrbit'
 
 // 注册表：id 同时作为 localStorage 持久化键
-export const rendererRegistry = { bars, pulse, wave }
+export const rendererRegistry = { bars, pulse, waterfall, nebula, constellation, vinylOrbit }
 
 // 模式面板选项列表（off 为关闭档，不是渲染器，由调度器特殊处理）
 export const MODE_LIST = [
   { id: 'off', name: '关' },
   { id: 'bars', name: '频谱' },
   { id: 'pulse', name: '脉冲' },
-  { id: 'wave', name: '波形' }
+  { id: 'waterfall', name: '瀑布' },
+  { id: 'nebula', name: '星云' },
+  { id: 'constellation', name: '星网' },
+  { id: 'vinylOrbit', name: '唱片光效' }
 ]
 
 export const DEFAULT_MODE = 'bars'

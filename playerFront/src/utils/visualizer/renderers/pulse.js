@@ -1,12 +1,14 @@
 // 预设 2：圆形脉冲（中心涟漪 + 旋转频谱环）
+// 三期扩展：支持可选渲染锚点（如黑胶中心），缺省屏幕中心
 export default {
   id: 'pulse',
   name: '脉冲',
 
-  init(ctx, { w, h, color }) {
+  init(ctx, { w, h, color, anchor }) {
     this.w = w
     this.h = h
     this.color = color
+    this.anchor = anchor && typeof anchor.x === 'number' && typeof anchor.y === 'number' ? anchor : null
     this.baseR = Math.min(w, h) * 0.12 // 内圈半径：随屏幕尺寸缩放
     this.ripples = [] // 鼓点触发的扩散涟漪
     this.phase = 0 // 频谱环旋转相位
@@ -16,8 +18,9 @@ export default {
   render(ctx, { freq, dt }) {
     const { w, h, color, baseR } = this
     ctx.clearRect(0, 0, w, h)
-    const cx = w / 2
-    const cy = h / 2
+    // 锚点优先：黑胶中心；未提供则回退屏幕中心
+    const cx = this.anchor ? this.anchor.x : w / 2
+    const cy = this.anchor ? this.anchor.y : h / 2
 
     // 低频能量均值（桶 1~8）：检测鼓点脉冲
     let bass = 0
@@ -76,9 +79,10 @@ export default {
     ctx.globalAlpha = 1
   },
 
-  resize(ctx, { w, h }) {
+  resize(ctx, { w, h, anchor }) {
     this.w = w
     this.h = h
+    this.anchor = anchor && typeof anchor.x === 'number' && typeof anchor.y === 'number' ? anchor : null
     this.baseR = Math.min(w, h) * 0.12
   },
 

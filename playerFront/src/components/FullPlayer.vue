@@ -37,7 +37,7 @@
             @click.stop="showModePanel = !showModePanel"
             title="音频可视化模式"
           >
-            <el-icon :size="20"><Brush /></el-icon>
+            <el-icon :size="20"><MagicStick /></el-icon>
           </button>
         </div>
       </div>
@@ -125,7 +125,7 @@
           <div class="mobile-layout" v-else>
             <!-- 封面 + 信息 -->
             <div class="mobile-info">
-              <div class="mobile-cover" :class="{ spinning: playerStore.playing }">
+              <div class="mobile-cover" ref="mobileCoverRef" :class="{ spinning: playerStore.playing }">
                 <div class="mobile-cover-inner">
                   <img
                     v-if="currentSong.imageUrl"
@@ -492,6 +492,26 @@ let colorReqSeq = 0
 function selectVisualMode(id) {
   visualMode.value = id
   showModePanel.value = false
+}
+
+// 可视化锚点（三期）：桌面端 = 黑胶中心、移动端 = 封面中心；脉冲/轨道光效渲染器以此为圆心
+const visualAnchor = ref(null)
+const vinylWrapRef = ref(null)
+const mobileCoverRef = ref(null)
+
+function measureVisualAnchor() {
+  const rootEl = playerRef.value
+  const target = isDesktop.value ? vinylWrapRef.value : mobileCoverRef.value
+  if (!rootEl || !target) {
+    visualAnchor.value = null // 目标未渲染：回退屏幕中心（渲染器缺省行为）
+    return
+  }
+  const rr = rootEl.getBoundingClientRect()
+  const tr = target.getBoundingClientRect()
+  visualAnchor.value = {
+    x: tr.left + tr.width / 2 - rr.left,
+    y: tr.top + tr.height / 2 - rr.top
+  }
 }
 
 // 点击面板外任意处收起模式选择条（面板与按钮自身已 stop 冒泡）
@@ -940,6 +960,7 @@ onMounted(() => {
   window.addEventListener('resize', handleResize)
   document.addEventListener('click', closeModePanel)
   loadFavoriteIds()
+  measureVisualAnchor()
 })
 
 watch(showComment, (val) => {
@@ -1073,7 +1094,9 @@ onBeforeUnmount(() => {
   border-radius: 24px;
   backdrop-filter: blur(16px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  white-space: nowrap;
+  flex-wrap: wrap; /* 三期预设扩充至 8 项：窄屏自动折行避免溢出屏幕 */
+  justify-content: flex-end;
+  max-width: min(420px, 86vw);
 }
 
 .mode-option {
