@@ -8,7 +8,7 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useVisualizer } from '@/composables/useVisualizer'
 
 const props = defineProps({
-  // 可视化模式 id（off/bars/pulse/wave...），由父组件负责持久化前展示态
+  // 可视化模式 id（off/bars/pulse/waterfall...），由父组件负责持久化前展示态
   mode: { type: String, required: true },
   // 主题色（#rrggbb），随封面主色变化
   color: { type: String, default: '#5e5ce6' },

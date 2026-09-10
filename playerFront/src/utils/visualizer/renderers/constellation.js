@@ -4,13 +4,15 @@ export default {
   id: 'constellation',
   name: '星网',
 
-  init(ctx, { w, h, color }) {
+  init(ctx, { w, h, color, quality }) {
     this.w = w
     this.h = h
     this.color = color
     this.t = 0
     this.stars = []
-    const COUNT = 110
+    // 性能档（三期批次B）：低档减半星点数，连线触发阈值收紧
+    this.low = quality === 'low'
+    const COUNT = this.low ? 60 : 110
     for (let i = 0; i < COUNT; i++) {
       this.stars.push({
         nx: 0.02 + Math.random() * 0.96, // 归一化坐标：resize 免重建
@@ -50,10 +52,13 @@ export default {
       en[z] = s / (b1 - b0 + 1) / 255
     }
 
-    // 尖峰检测：区能量突超滚动基线 → 对应星区连网（连线池上限防刷屏）
+    // 尖峰检测：区能量突超滚动基线 → 对应星区连网（连线池上限防刷屏；低档收紧阈值）
+    const spikeDelta = this.low ? 0.2 : 0.14
+    const spikeFloor = this.low ? 0.6 : 0.55
+    const linkCap = this.low ? 18 : 30
     for (let z = 0; z < 8; z++) {
       this.rolls[z] = this.rolls[z] * 0.94 + en[z] * 0.06
-      if (en[z] > this.rolls[z] + 0.14 && en[z] > 0.55 && this.links.length < 30) {
+      if (en[z] > this.rolls[z] + spikeDelta && en[z] > spikeFloor && this.links.length < linkCap) {
         const zone = this.zones[z]
         if (zone.length >= 4) {
           const pick = [...zone].sort(() => Math.random() - 0.5).slice(0, 4)

@@ -4,7 +4,7 @@ export default {
   id: 'nebula',
   name: '星云',
 
-  init(ctx, { w, h, color, anchor }) {
+  init(ctx, { w, h, color, anchor, quality }) {
     this.w = w
     this.h = h
     this.color = color
@@ -13,7 +13,8 @@ export default {
     this.minDim = Math.min(w, h)
     this.t = 0
     this.particles = []
-    const COUNT = 56
+    // 性能档（三期批次B）：低档粒子减半
+    const COUNT = quality === 'low' ? 28 : 56
     for (let i = 0; i < COUNT; i++) {
       this.particles.push({
         ang: Math.random() * Math.PI * 2,

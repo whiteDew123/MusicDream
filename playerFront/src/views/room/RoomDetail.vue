@@ -27,9 +27,16 @@
     <div class="room-body">
       <!-- 左：播放器区 -->
       <section class="player-panel">
-        <div class="player-card">
+        <div class="player-card" ref="playerCardRef">
+          <!-- 音频可视化层（三期批次B）：卡片氛围底层，封面中心为锚点，模式与全屏播放器全局共享 -->
+          <VisualizerLayer
+            :mode="visualMode"
+            :color="visualColor"
+            :playing="roomPlaying"
+            :anchor="visualAnchor"
+          />
           <div class="player-main">
-            <div class="album-cover" :style="{ background: coverBg }">
+            <div class="album-cover" ref="albumCoverRef" :style="{ background: coverBg }">
               <img v-if="currentSongCover" :src="currentSongCover" :alt="currentSongName" />
               <span v-else class="album-symbol">♪</span>
               <div class="glow"></div>
@@ -231,6 +238,9 @@ import {
 import { searchSongsApi } from '@/api/music'
 import { createRoomSocket } from '@/utils/room-socket'
 import { parseLrc, fetchLrc } from '@/utils/lrc'
+import VisualizerLayer from '@/components/VisualizerLayer.vue'
+import { useAudioAnalyser } from '@/composables/useAudioAnalyser'
+import { getInitialMode, extractCoverColor } from '@/composables/useVisualizer'
 
 const route = useRoute()
 const router = useRouter()
@@ -329,15 +339,20 @@ onMounted(async () => {
   }
   connectRoomSocket()
   loadMessages()
+  // 可视化锚点测量：nextTick 确保子可视化图层已渲染；窗口 resize 时重测
+  nextTick(measureVisualAnchor)
+  window.addEventListener('resize', measureVisualAnchor)
 })
 
 onUnmounted(() => {
   if (socket) socket.disconnect()
   stopVoteTicker()
   if (lyricAutoResetTimer) clearTimeout(lyricAutoResetTimer)
+  window.removeEventListener('resize', measureVisualAnchor)
   if (roomAudio) {
     roomAudio.pause()
     roomAudio.removeAttribute('src')
+    analyser.detach(roomAudio) // 释放独立分析链，元素可被 GC
   }
   // 注意：离开页面【不】关闭房间。房间仅由房主在确认弹窗后点「关闭房间」关闭，
   // 否则一次误跳转/刷新/被踢出就会硬删除房间，导致全员被赶出。
@@ -428,11 +443,56 @@ function transferOwnership(m) {
   }).catch(() => {})
 }
 
+// ===== 音频可视化（三期批次B）=====
+// 与全屏播放器共享模式（localStorage visualizer:mode）：播放室内不设切换 UI，沉浸感优先
+const analyser = useAudioAnalyser()
+const visualMode = ref(getInitialMode())
+const visualColor = ref('#5e5ce6') // 默认主题紫，切歌后按封面主色更新
+const visualAnchor = ref(null)
+const playerCardRef = ref(null)
+const albumCoverRef = ref(null)
+// 取色请求自增序号：防止旧封面取色结果晚到覆盖新歌颜色
+let colorReqSeq = 0
+
+// 可视化锚点：专辑封面中心（相对播放卡左上，即 Canvas 坐标系）
+function measureVisualAnchor() {
+  const card = playerCardRef.value
+  const cover = albumCoverRef.value
+  if (!card || !cover) {
+    visualAnchor.value = null // 目标未渲染：回退屏幕中心（渲染器缺省行为）
+    return
+  }
+  const cr = card.getBoundingClientRect()
+  const ar = cover.getBoundingClientRect()
+  visualAnchor.value = {
+    x: ar.left + ar.width / 2 - cr.left,
+    y: ar.top + ar.height / 2 - cr.top
+  }
+}
+
+// 封面变化 → 提取氛围主色（跨域失败回退默认色）
+watch(
+  () => currentSongCover.value,
+  (url) => {
+    const seq = ++colorReqSeq
+    if (!url) {
+      visualColor.value = '#5e5ce6'
+      return
+    }
+    extractCoverColor(url).then((c) => {
+      if (seq === colorReqSeq && c) visualColor.value = c
+    })
+  },
+  { immediate: true }
+)
+
 // ===== 房间音频（本地 Audio，用于房间内播放）=====
 function initRoomAudio() {
   if (typeof window === 'undefined') return
   roomAudio = new Audio()
   roomAudio.preload = 'auto'
+  // 三期批次B：接入可视化分析链（幂等，与主播放器分析链相互独立）
+  analyser.attach(roomAudio)
   roomAudio.addEventListener('play', () => {
     if (isOwner.value) publishSync({ isPlaying: 1 })
   })
@@ -660,6 +720,7 @@ async function toggleRoomPlay() {
     return
   }
   try {
+    analyser.resume() // 用户手势上下文内恢复 AudioContext（浏览器初始为 suspended）
     await roomAudio.play()
     syncState.isPlaying = 1
     publishSync({ isPlaying: 1 })
@@ -949,6 +1010,11 @@ function goBack() {
       radial-gradient(48% 56% at 78% 76%, rgba(99, 65, 255, 0.1), transparent 62%);
     pointer-events: none;
     z-index: 0;
+  }
+
+  /* 可视化氛围层（三期批次B）：盖在渐变之上、内容（player-main/歌词 z-index:1）之下 */
+  :deep(.visualizer-canvas) {
+    z-index: 0 !important;
   }
 
   .player-main {

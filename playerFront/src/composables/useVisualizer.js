@@ -20,6 +20,14 @@ let playingNow = false
 let running = false
 let rafId = 0
 let lastTs = 0
+// ---- 自动降档（三期批次B）----
+// 帧耗时滚动采样：每 60 帧（约 1s）评估一次平均帧间隔，
+// 持续低于 30fps 降档为 'low'（渲染器接收 quality 参数降低绘制复杂度），恢复流畅后回升 'high'
+const PERF_WINDOW = 60
+const PERF_DOWN_MS = 34 // 平均帧间隔 >34ms（<30fps）→ 降档
+const PERF_UP_MS = 22 // 平均帧间隔 <22ms（>45fps）→ 回升（滞回避免震荡）
+let perfQuality = 'high'
+let frameDurations = []
 // 系统"减弱动态效果"：只影响默认模式（首次无持久化记录时默认关），用户手动选择即视为显式开启
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -50,9 +58,9 @@ export function getInitialMode() {
 }
 
 export function useVisualizer() {
-  // 渲染器 init 参数收口：新增作用域参数（如锚点）只改此处，避免各调用点遗漏
+  // 渲染器 init 参数收口：新增作用域参数（如锚点/性能档）只改此处，避免各调用点遗漏
   function initOpts() {
-    return { ...size, color, anchor }
+    return { ...size, color, anchor, quality: perfQuality }
   }
 
   // ---- 画布绑定 ----
@@ -154,6 +162,7 @@ export function useVisualizer() {
     if (running || !canvas2d || rendererId === 'off') return
     running = true
     lastTs = performance.now()
+    frameDurations.length = 0 // 新会话重新采样，避免旧窗口数据误判
     rafId = requestAnimationFrame(tick)
   }
 
@@ -162,10 +171,26 @@ export function useVisualizer() {
     cancelAnimationFrame(rafId)
   }
 
+  // 每满一个采样窗口评估一次帧耗时：降档/回升都通过重建渲染器生效（quality 经 initOpts 传入）
+  function evaluatePerf() {
+    if (!frameDurations.length) return
+    const avg = frameDurations.reduce((a, b) => a + b, 0) / frameDurations.length
+    frameDurations.length = 0
+    const next = avg > PERF_DOWN_MS ? 'low' : avg < PERF_UP_MS ? 'high' : perfQuality
+    if (next !== perfQuality) {
+      perfQuality = next
+      if (renderer && canvas2d) {
+        renderer.init(canvas2d, initOpts())
+      }
+    }
+  }
+
   function tick(ts) {
     if (!running) return
     const dt = Math.min(ts - lastTs, 100) // 上限防切页恢复时的大步进跳变
     lastTs = ts
+    frameDurations.push(dt)
+    if (frameDurations.length >= PERF_WINDOW) evaluatePerf()
     const freq = analyser.getFrequencyData()
     const time = analyser.getTimeDomainData()
     // freq 为 null 说明音频从未播放（分析器未挂载）：跳过绘制，画布保持透明

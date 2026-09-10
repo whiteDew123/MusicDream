@@ -4,13 +4,15 @@ export default {
   id: 'waterfall',
   name: '瀑布',
 
-  init(ctx, { w, h, color }) {
+  init(ctx, { w, h, color, quality }) {
     this.w = w
     this.h = h
     this.color = color
     this.rows = [] // n 行频谱（rows[0] 最新）
-    this.N = 48 // 每行柱数（性能与观感折中）
-    this.rowH = Math.max(3, Math.round(h / 90)) // 约 90 行历史（1.5 秒）
+    // 性能档（三期批次B）：低档削减每行柱数与历史行数（行数减半、柱数减 1/3）
+    this.quality = quality || 'high'
+    this.N = this.quality === 'low' ? 32 : 48
+    this.rowH = Math.max(3, Math.round(h / (this.quality === 'low' ? 45 : 90))) // 高档约 90 行历史（1.5 秒）
     this.maxRows = Math.max(10, Math.floor(h / this.rowH))
   },
 
@@ -47,7 +49,7 @@ export default {
   resize(ctx, { w, h }) {
     this.w = w
     this.h = h
-    this.rowH = Math.max(3, Math.round(h / 90))
+    this.rowH = Math.max(3, Math.round(h / (this.quality === 'low' ? 45 : 90)))
     this.maxRows = Math.max(10, Math.floor(h / this.rowH))
     if (this.rows.length > this.maxRows) this.rows.length = this.maxRows
   },
